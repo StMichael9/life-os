@@ -17,7 +17,8 @@
     "test:e2e": "playwright test",
     "db:generate": "pnpm --filter @life-os/database generate",
     "db:migrate": "pnpm --filter @life-os/database migrate",
-    "desktop:dev": "pnpm --filter @life-os/desktop dev"
+    "desktop:dev": "pnpm --filter @life-os/desktop dev",
+    "account:create": "pnpm --filter @life-os/api account:create"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.14",

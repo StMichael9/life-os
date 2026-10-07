@@ -41,6 +41,12 @@ Daily content updates at the next minute tick at local midnight, including DST.
 The v1 corpus contains seven complete KJV verses and seven original aphorisms;
 it repeats weekly and should grow only through a versioned future mapping.
 
+Login and Inbox reuse the same tokens, panels and buttons. Forms use persistent
+labels, password-manager autocomplete, visible status/error feedback and bounded
+text input. Inbox distinguishes saving, uncertain delivery/retry and expired session;
+private text is shown only after authentication and capture confirmation. There is
+no simulated persistence. Both layouts collapse into a single column on mobile.
+
 ## Responsive behavior
 
 Wide screens have a 232px sidebar and bounded central content. The sidebar reduces

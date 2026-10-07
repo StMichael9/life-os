@@ -3,8 +3,12 @@ import { AuthenticationRequired, createInboxService } from './index';
 
 const create = () => {
   const repository = {
-    capture: vi.fn(async (_owner: string, body: string) => ({ id: 'item', body })),
-    list: vi.fn(async () => []),
+    capture: vi.fn(async (_owner: string, body: string) => ({
+      id: 'item',
+      body,
+      createdAt: new Date(),
+    })),
+    list: vi.fn(async () => ({ items: [], nextCursor: null })),
   };
   const sessions = {
     verify: vi.fn(async (token: string) =>
@@ -26,10 +30,17 @@ it('denies absent, expired, and revoked sessions before repository access', asyn
 });
 it('derives ownership only from the verified session', async () => {
   const { service, repository } = create();
-  await service.capture('valid', { body: ' A thought ' });
-  expect(repository.capture).toHaveBeenCalledWith('verified-user', 'A thought');
+  await service.capture('valid', {
+    body: ' A thought ',
+    requestId: '00000000-0000-4000-8000-000000000001',
+  });
+  expect(repository.capture).toHaveBeenCalledWith(
+    'verified-user',
+    'A thought',
+    '00000000-0000-4000-8000-000000000001',
+  );
   await service.list('valid');
-  expect(repository.list).toHaveBeenCalledWith('verified-user');
+  expect(repository.list).toHaveBeenCalledWith('verified-user', undefined);
   await expect(
     service.capture('valid', { body: 'secret', userId: 'someone-else' }),
   ).rejects.toThrow();

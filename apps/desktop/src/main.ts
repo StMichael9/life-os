@@ -1,14 +1,16 @@
 import { app, BrowserWindow, dialog, session } from 'electron';
-import { allowedNavigation, trustedOrigin } from './security';
+import { persistSession } from './session-persistence';
+import { allowedNavigation, trustedOrigin, rendererSecurity } from './security';
 
 declare const __LIFE_OS_WEB_URL__: string;
 let window: BrowserWindow | null = null;
 let origin: string;
+let persistence: Awaited<ReturnType<typeof persistSession>> | undefined;
+let canQuit = false;
 
 async function createWindow() {
-  // Memory-only in Phase 0. Persistent credentials require the Phase 1 main-process
-  // safeStorage implementation; never silently fall back to renderer storage.
   const isolatedSession = session.fromPartition('life-os-foundation');
+  persistence ??= await persistSession(isolatedSession, origin, app.getPath('userData'));
   isolatedSession.setPermissionRequestHandler((_contents, _permission, callback) =>
     callback(false),
   );
@@ -23,11 +25,7 @@ async function createWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
+      ...rendererSecurity,
       session: isolatedSession,
       devTools: !app.isPackaged,
     },
@@ -50,6 +48,7 @@ async function createWindow() {
       await current.loadURL(origin);
       return;
     } catch {
+      if (current.isDestroyed()) return;
       current.show();
       const choice = await dialog.showMessageBox(current, {
         type: 'warning',
@@ -101,4 +100,13 @@ else {
 }
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', (event) => {
+  if (canQuit || !persistence) return;
+  event.preventDefault();
+  void persistence.flush().finally(() => {
+    canQuit = true;
+    app.quit();
+  });
 });

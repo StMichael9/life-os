@@ -2,139 +2,140 @@
 
 ## Current phase
 
-**Phase 0 foundation implemented; early Phase 1 daily-content slice only.**
-This is a foundation preview, not a finished personal operating system. Authentication
-and persistent user workflows are not implemented or exposed. Follow the original
-specification's first-run scope rather than treating later phases as completed.
+**Phase 0 foundation and the authenticated Inbox vertical slice implemented.**
+The current private workflow is login → verified session → Inbox capture →
+PostgreSQL persistence → owner-only listing → logout/revocation. Today remains a
+public planning preview with bundled daily content. This is not a completed Life OS;
+no other private feature domain was added during this slice.
 
-## Architecture selected
+## Architecture retained
 
-pnpm 11 / Node 24 strict TypeScript monorepo. Next.js App Router hosts one shared
-React product UI; sandboxed Electron loads the same HTTPS origin. Drizzle uses
-standard hosted PostgreSQL (Neon recommended). Browser-safe packages cannot import
-server dependencies. Pure Zod validation, deterministic daily content and rule-based
-insights require no paid API. Semantic CSS tokens replace Tailwind initially; no
-Turborepo, query cache, global state framework or unused config package is needed yet.
-
-Read `architecture.md` for rationale, web/Electron session design, security boundaries,
-priority algorithm, synchronization strategy and deferred decisions. Read
-`data-model.md` before schema work; it covers both migrated and planned domains.
+pnpm 11 / Node 24 strict TypeScript monorepo. Next.js hosts shared React views;
+sandboxed Electron loads the same hosted origin and accounts. Drizzle repositories
+use PostgreSQL; services derive ownership from verified sessions. Browser packages
+cannot import server, database, Node or Electron dependencies. Existing semantic
+CSS tokens, local-day logic, deterministic insights and composite ownership FKs
+remain. See `architecture.md`, `data-model.md` and `deployment.md` for contracts.
 
 ## Completed
 
-- Inspected an empty Git repository and preserved the entire supplied specification
-  as `docs/product-spec.md` (content preserved, line endings normalized to LF).
-- Established two apps, seven shared/domain packages, explicit dependency graph,
-  strict typing, ESLint 10, Prettier, Vitest, Playwright/axe and CI workflow.
-- Built the responsive Today shell and shared olive/charcoal design system. It has
-  honest empty-state guidance, functional section navigation, and a keyboard-accessible
-  native timezone dialog. No pretend capture, login or task-completion buttons.
-- Bundled seven complete KJV verses and seven original Life OS thoughts in an
-  immutable v1 date mapping. Local timezone drives selection and midnight rollover;
-  no remote content API. Preview timezone choice is not persisted across reloads.
-- Implemented validated priority v1 and evidence-based allocation insights. Spiritual
-  categories are excluded before ranking and from allocation totals. Algorithms are
-  tested but intentionally not connected to fabricated dashboard data.
-- Added a session-verifier contract and an Inbox service that requires verified
-  identity. Added owner-filtered Drizzle Inbox capture/list repository. No HTTP
-  adapter exposes these before real authentication exists.
-- Created 16 normalized PostgreSQL tables with composite ownership FKs, indexes,
-  uniqueness, range checks, one active Season and one open focus session per user,
-  and one plan per local day with at most three outcomes.
-- Generated `0000_foundation.sql` plus `0001_updated_at.sql` trigger migration and
-  committed migration metadata. Re-generation reports no schema drift.
-- Added per-request nonced CSP and other security headers. Production hydration
-  passes with no unsafe-eval. The preview stores no private data.
-- Built Electron main-process shell with sandbox/context isolation, no renderer
-  Node integration, exact-origin navigation/redirect checks, denied permissions,
-  no IPC/preload, blocked windows/webviews and an offline retry dialog.
-- Configured Windows NSIS packaging. Release packaging requires an explicit HTTPS
-  origin. This is packaging preparation, not a tested installer.
-- Documented domain relationships for all future modules, privacy/auth flows,
-  free-tier hosting strategy, environment separation and backup/recovery targets.
+- Preserved the original specification, public Today preview, immutable v1 Scripture/
+  thought mapping, timezone dialog, deterministic priority/insight rules and all
+  existing tests. These later-domain rules are still not connected to private UI.
+- Added controlled operator account creation through interactive `pnpm account:create`;
+  no public signup route. Shared validation normalizes email, validates timezone,
+  and bounds passwords. Argon2id uses 19,456 KiB, two iterations and one lane.
+- Added real 256-bit opaque sessions with SHA-256 hashes in PostgreSQL, absolute
+  30-day and idle seven-day expiry, server revocation and logout. Transactional
+  rotation occurs at most every 15 minutes with only 30 seconds of predecessor
+  grace; concurrent/lost refresh responses recover the same keyed successor.
+- Added HTTPS host-only Secure/HttpOnly/SameSite=Lax cookies, minimal profile JSON,
+  no-store private responses, signed expiring double-submit CSRF with exact Origin,
+  strict JSON/DTO validation, duplicate-cookie rejection and streamed body limits.
+  Loopback HTTP requires explicit development opt-in and different cookie names.
+- Added shared PostgreSQL fixed-window login limits: five attempts per HMAC email
+  key and 50 overall per 15 minutes, atomic concurrency and bounded expired cleanup.
+  Unknown accounts and bad passwords have generic responses and Argon2 verification.
+- Added migration `0002_auth_inbox.sql` with auth expiry/rotation fields, persistent
+  rate buckets and owner-scoped Inbox retry UUID uniqueness. Seventeen tables now
+  exist; original ownership constraints and timestamp triggers remain intact.
+- Exposed authenticated capture/list APIs through existing service/repository
+  boundaries. Owner IDs come solely from session verification; supplied owner fields
+  are rejected. Capture retries reuse an owner-scoped key; changed payloads conflict.
+  Listing has bounded stable cursor pagination and always filters the owner.
+- Built shared login/Inbox views with in-memory drafts, confirmation before discard,
+  capture retries after uncertain delivery, expiry/account-change handling, logout
+  confirmation, foreground revalidation and visible periodic refresh. Two browser
+  accounts have isolated data; captured text survives reload through PostgreSQL.
+- Added Electron main-process encrypted session-cookie persistence/restore, serialized
+  rotation writes, logout deletion, validation and corruption handling. Unavailable
+  OS encryption, Linux `basic_text` and dev HTTP remain nonpersistent. No plaintext
+  fallback, preload, IPC or renderer privilege was introduced. Existing sandbox,
+  isolation, origin/navigation, certificate and permission protections are retained.
+- Updated CI to provision disposable PostgreSQL 17 databases and exercise auth services
+  and browser flows alongside the original PGlite migration tests and quality gates.
+- Patched development-tool esbuild advisories and upgraded the transitive download
+  proxy adapter to remove vulnerable sprintf-js. Narrow overrides are documented
+  until parent packages update their ranges.
 
-## Major files
+## Entry points
 
-| Area              | Entry points                                                                           |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| Web               | `apps/web/app/page.tsx`, `layout.tsx`, `proxy.ts`                                      |
-| Desktop           | `apps/desktop/src/main.ts`, `security.ts`, `scripts/build.mjs`, `electron-builder.yml` |
-| Shared UI         | `packages/app/src/today.tsx`, `packages/ui/src/styles.css`, `primitives.tsx`           |
-| Dates/content     | `packages/shared/src/daily.ts`                                                         |
-| Inputs/rules      | `packages/validation/src/index.ts`, `packages/insights/src/index.ts`                   |
-| Server foundation | `packages/api/src/index.ts`, `packages/database/src/inbox.ts`                          |
-| Persistence       | `packages/database/src/schema.ts`, `src/migrate.ts`, `migrations/`                     |
-| Verification      | colocated `*.test.ts`, `tests/today.spec.ts`, root configs, `.github/workflows/ci.yml` |
-| Handoff           | `AGENTS.md`, `README.md`, six `docs/*.md` documents                                    |
+| Area            | Files                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Web composition | `apps/web/lib/services.ts`, `app/api/auth/[action]/route.ts`, `app/api/inbox/route.ts`   |
+| Auth and HTTP   | `packages/api/src/auth.ts`, `http-security.ts`, `http.ts`, `account-cli.ts`              |
+| Persistence     | `packages/database/src/auth.ts`, `inbox.ts`, `schema.ts`, `migrations/`                  |
+| Shared UI       | `packages/app/src/login.tsx`, `inbox.tsx`, `auth-client.ts`                              |
+| Desktop         | `apps/desktop/src/main.ts`, `security.ts`, `credentials.ts`, `session-persistence.ts`    |
+| Verification    | `auth-inbox.test.ts`, `http-security.test.ts`, desktop tests, `tests/auth-inbox.spec.ts` |
 
-## Verification
+## Verification performed in Cloud
 
-- `pnpm test`: **26 passing** unit/integration tests across six files, including seven
-  real SQL migration tests in PGlite. Tests cover local date/DST, input limits,
-  priority explanations/eligibility, spiritual exclusion, insight evidence, service
-  identity gating, Electron origin rules, ownership FKs and DB constraints.
-- `pnpm typecheck`: passes for root tooling/tests and all workspace apps/packages.
-- `pnpm lint`: passes with zero warnings.
-- `pnpm build`: Next.js production build and Electron main bundle pass with type
-  checking enabled. Next uses its supported compiler API because detached CLI
-  stdout was empty in this managed environment.
-- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium pnpm test:e2e`: **6 passing**
-  tests across desktop/mobile viewports. Covers CSP hydration/no console errors,
-  timezone dialog keyboard behavior, daily rollover, horizontal overflow and axe
-  WCAG A/AA scans of both page and dialog.
-- `pnpm db:generate`: no schema changes after migration creation; renamed initial
-  migration and journal tag remain consistent and migration tests pass.
-- `pnpm peers check`: no peer dependency issues.
-- Visual review performed at 1440px and 390px. Mobile Season layout refined after
-  inspection. Screenshots are workspace artifacts outside the source repository.
-- Final post-refinement `pnpm build`, browser tests (6/6), lint, type-check and
-  `pnpm format:check` all pass.
-- `pnpm audit --prod --audit-level=high`: no known production dependency vulnerabilities.
-- The release-build guard was exercised without a production origin and correctly
-  refused to build a release before packaging.
+- `pnpm format:check`, `pnpm lint` (zero warnings), and `pnpm typecheck`: passed.
+- `pnpm test`: **47 passing tests across 10 files**, including the original seven
+  migration/constraint tests, authentication/password/expiry/revocation/rotation,
+  CSRF/configuration, persistent limits, capture/list/isolation, and Electron
+  security/persistence regression tests. Default SQL integration uses PGlite.
+- Isolated **PostgreSQL 17** container: all committed migrations applied; **13/13**
+  auth/HTTP/Inbox integration cases passed against actual PostgreSQL. This exercised
+  concurrent rate buckets, row-locked rotation, capture idempotency, ownership,
+  stable pagination and persisted credentials/session digests.
+- Production `pnpm build`: Next.js application and Electron main bundle passed.
+- Production browser E2E against a separate disposable PostgreSQL database:
+  **18/18** desktop/mobile cases passed. Includes login, HttpOnly cookies, owner
+  persistence across reload, logout revocation, lost-response retry without duplicate
+  rows, two-account isolation, CSRF rejection, generic errors, revocation privacy/draft handling, cross-tab
+  account switching, CSP and axe WCAG scans.
+- `pnpm db:generate`: reports no schema drift after migration 0002.
+- `pnpm peers check`: passed. Production and full dependency audits run after the
+  development-tool patches; no known vulnerabilities remain in the checked lockfile.
 
-These are local runs. CI is configured but has not run on GitHub. Tests of the
-SessionVerifier use a controlled fake; they are not proof of implemented login,
-password hashing, CSRF, expiry, revocation or session rotation.
+Tests use fixture accounts and independent `_tests`/`_e2e` databases, never real user
+records. Full authentication browser tests explicitly skip without the E2E fixture
+URL; CI is configured to supply it. These are local Cloud results; GitHub CI has not
+been observed running for this change. No hosted production deployment was tested.
 
-## Incomplete work and risks
+## Partial work
 
-1. **Authentication is designed, not implemented.** No login, registration, recovery,
-   rate limiter, real verifier, CSRF middleware or encrypted desktop token storage.
-   Do not expose personal data until these are tested end to end.
-2. **No hosted resources or credentials provisioned.** No Neon migration, Vercel
-   deployment or live synchronized account. PGlite does not verify hosted TLS,
-   pooling, restricted roles or operational restore behavior.
-3. **No Windows runtime/installer test.** Electron source type-checks and bundles;
-   actual GUI launch, NSIS installation, DPAPI, signing and upgrades remain unverified.
-4. Daily plans, CRUD for direction/tasks, Inbox UI, scheduling, focus timer, routines,
-   Start/Close Day, favorites, Vault and command palette are still Phase 1 work.
-5. All career, wealth, business, health, full faith/reflection modules and integrations
-   remain future phases. No finance calculations or import-deduplication implementation.
-6. DB checks do not validate IANA timezones or whole-Season allocation totals. Those
-   must be enforced transactionally before services expose writes. Ownership FKs do
-   not replace SELECT authorization. No production RLS policy is claimed.
-7. Browser mobile checks use Chromium; actual mobile Safari, screen-reader/manual
-   zoom verification and actual Windows Electron are still needed.
-8. Backup RPO/RTO are documented targets, not a deployed or rehearsed backup service.
-   Free-tier quotas/terms, signing cost and KJV UK rights need review before release.
-9. The curated daily corpus repeats weekly. Extend with a future-effective version
-   so today's content cannot change on refresh during a deployment.
+- **Electron persistence is implemented and adapter-tested, but not native-verified.**
+  Filesystem/encryption/cookie lifecycle tests use mocked encryption/Electron adapters.
+  They do not prove DPAPI, real Chromium cookie events or Windows restart behavior.
+- **Account lifecycle is controlled creation/login/logout only.** No reset/recovery,
+  verified email, invitations, revoke-all-sessions, export/deletion or audit log yet.
+- **Inbox supports capture and paginated listing only.** No processing, task conversion,
+  edit/delete, durable encrypted drafts or offline queue. Refresh reloads the latest
+  page; loaded older history can be requested again. Unsent drafts vanish on reload.
+- Rate limits use an application-wide budget appropriate to controlled personal use;
+  sustained abuse can temporarily block login. Expired/revoked session cleanup is
+  not scheduled. These are operational limits, not claims of unlimited scale.
 
-## Exact next recommended Codex task
+## Unverified and deferred
 
-**Implement the authenticated Inbox vertical slice for web and Electron.**
-Read this file, `architecture.md`, `data-model.md`, and product-spec sections 12,
-35, 76 and 85 first. Add Argon2id email/password sign-in with controlled account
-creation; real hashed opaque sessions; secure HttpOnly cookies; same-origin CSRF
-checks; persistent rate limits; logout/revocation and tested rotation. Complete any
-required additive auth migration. In Electron, persist only the exact session
-cookie through main-process Windows DPAPI, never renderer storage, with a safe
-nonpersistent fallback when encryption is unavailable.
+- Windows DPAPI, GUI launch, NSIS installation/upgrades, signing, user-data ACLs and
+  native session restart/rotation/logout require local Windows testing. See the
+  concrete checklist in `deployment.md`; none is claimed verified in Cloud.
+- No Neon/Vercel resources or production secrets provisioned. Hosted TLS, pooling,
+  restricted runtime role grants, free-tier limits and operational restores remain
+  unverified. Disposable PostgreSQL tests use an owner role; no RLS policy is claimed.
+- Backup RPO/RTO are targets, not a deployed or rehearsed backup service. Provider
+  eligibility/quotas, signing costs and KJV UK rights require review before release.
+- Manual screen-reader/200% zoom checks, actual iOS Safari and Windows accessibility
+  remain unverified; automated Chromium/axe results do not establish these.
+- Whole-Season allocation totals and future update conflict handling still require
+  transactional services before those domains expose writes. IANA zones are validated
+  in account creation but SQL does not enforce timezone names independently.
+- Goals, Projects, general Tasks, Focus, Career, Wealth, Business, Health, Faith,
+  Reviews, banking/calendar integrations and LLM functionality were not implemented.
+  Existing preview/rule/schema groundwork does not make these usable features.
 
-Then expose validated Inbox capture/list through the existing service boundary,
-add a small authenticated capture/list UI with retry-safe behavior, and prove two
-accounts cannot read, modify or link one another's records. Use a real isolated
-PostgreSQL test environment in addition to PGlite, exercise web and desktop login,
-verify sync on foreground/revalidation, and update these documents. Do not expand
-into a second feature domain until this slice works securely from UI to database.
+## Exact next recommended implementation task
+
+**Implement controlled administrator password reset/account recovery with atomic
+revocation of every session for that account, and test the complete recovery flow
+against isolated PostgreSQL and the shared web/Electron account model.**
+
+Keep public registration closed. Include explicit operator authorization, hidden
+password input, Argon2id hashing, concurrency-safe reset/revocation and proof that
+old/current/grace tokens cannot authenticate after reset. Update the operational
+recovery documentation. Do not expand into another private feature domain in that
+next task. No part of that reset/recovery implementation was started in this run.

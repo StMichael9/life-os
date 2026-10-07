@@ -11,3 +11,8 @@ minimumReleaseAgeExclude:
 
 # Installs are explicit; checks must not silently mutate dependencies.
 verifyDepsBeforeRun: false
+
+# Patched transitive development tools until their parents update these ranges.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
+  '@electron/get@3.1.0>global-agent': ^4.1.3

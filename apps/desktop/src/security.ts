@@ -23,3 +23,12 @@ export function allowedNavigation(value: string, origin: string): boolean {
     return false;
   }
 }
+
+/** Shared by the actual BrowserWindow constructor; no privilege bridge is exposed. */
+export const rendererSecurity = Object.freeze({
+  contextIsolation: true,
+  nodeIntegration: false,
+  sandbox: true,
+  webSecurity: true,
+  allowRunningInsecureContent: false,
+});

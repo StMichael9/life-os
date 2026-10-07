@@ -1,5 +1,4 @@
-import { inboxCaptureSchema } from '@life-os/validation';
-
+import { captureRequestSchema, inboxCursorSchema, type InboxCursor } from '@life-os/validation';
 export class AuthenticationRequired extends Error {
   constructor() {
     super('Authentication required');
@@ -8,16 +7,21 @@ export class AuthenticationRequired extends Error {
 export interface Principal {
   readonly userId: string;
 }
-/** Implement with hashed session lookup + expiry/revocation checks in Phase 1. */
 export interface SessionVerifier {
   verify(sessionToken: string): Promise<Principal | null>;
 }
-export interface InboxRepository {
-  capture(userId: string, body: string): Promise<{ id: string; body: string }>;
-  list(userId: string): Promise<readonly { id: string; body: string }[]>;
+export interface InboxItem {
+  id: string;
+  body: string;
+  createdAt: Date;
 }
-
-/** Server service boundary. HTTP handlers must also enforce CSRF and body limits. */
+export interface InboxRepository {
+  capture(userId: string, body: string, requestId: string): Promise<InboxItem>;
+  list(
+    userId: string,
+    cursor?: InboxCursor,
+  ): Promise<{ items: InboxItem[]; nextCursor: InboxCursor | null }>;
+}
 export function createInboxService(sessions: SessionVerifier, inbox: InboxRepository) {
   async function requirePrincipal(token: string | undefined) {
     if (!token) throw new AuthenticationRequired();
@@ -28,12 +32,18 @@ export function createInboxService(sessions: SessionVerifier, inbox: InboxReposi
   return {
     async capture(token: string | undefined, input: unknown) {
       const principal = await requirePrincipal(token);
-      const { body } = inboxCaptureSchema.parse(input);
-      return inbox.capture(principal.userId, body);
+      const { body, requestId } = captureRequestSchema.parse(input);
+      return inbox.capture(principal.userId, body, requestId);
     },
-    async list(token: string | undefined) {
+    async list(token: string | undefined, cursor?: unknown) {
       const principal = await requirePrincipal(token);
-      return inbox.list(principal.userId);
+      return inbox.list(
+        principal.userId,
+        cursor === undefined ? undefined : inboxCursorSchema.parse(cursor),
+      );
     },
   };
 }
+export { createAuthService, LoginFailed, RateLimited, AccountExists } from './auth';
+export { createHttpSecurity, CsrfRejected, InvalidRequest } from './http-security';
+export { createHttpHandlers } from './http';

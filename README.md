@@ -2,23 +2,43 @@
 
 A private operating system for deliberate living. **Do what matters.**
 
-This repository contains the Phase 0 foundation and a small daily-content slice.
-The web shell runs, but this is **not yet a usable personal-data application**:
-authentication, persistent planning, and account synchronization are not connected.
+This repository contains the Phase 0 foundation and an authenticated Inbox slice:
+controlled accounts, secure login/session/logout, and owner-only persistent capture
+and listing. The public Today page previews daily content and future planning.
+Other private domains are not implemented. Hosted deployment and native Windows
+verification remain outstanding; see [progress](docs/progress.md).
 
 ## Develop
 
-Requirements: Node.js 24, pnpm 11.19.0. Install pnpm through your preferred package-manager setup.
+Requirements: Node.js 24, pnpm 11.19.0 and isolated PostgreSQL for authentication.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open `http://localhost:3000`. No database or credentials are needed to preview the
-shell. In a second terminal, `pnpm desktop:dev` opens the same app in Electron.
-Electron 44 may require `pnpm --filter @life-os/desktop exec install-electron`
-before the first launch. These commands are for **development**, not end-user usage.
+Open `http://localhost:3000`. Today can be previewed without database credentials.
+For login and Inbox, configure server variables from `.env.example` in the shell
+(or an app-local Next env file); CLI commands need exported variables. Use a unique
+random `AUTH_SECRET`, exact `APP_ORIGIN`, and loopback HTTP opt-in only for local dev.
+Never commit real credentials.
+
+```sh
+pnpm db:migrate
+pnpm account:create
+```
+
+The operator creates accounts interactively with hidden password input. There is
+no public registration or recovery route. See [deployment](docs/deployment.md) for
+separate migration/runtime roles and setup. Migrations are reviewed SQL, not schema
+pushes. `pnpm db:generate` checks generation against the committed schema.
+
+In a second terminal, `pnpm desktop:dev` opens the same application in Electron.
+Electron 44 may require `pnpm --filter @life-os/desktop exec install-electron` before
+first launch. End users run the packaged app, not development commands. HTTPS
+sessions persist through main-process OS encryption; local HTTP sessions do not.
+
+## Verify
 
 ```sh
 pnpm format:check
@@ -28,28 +48,20 @@ pnpm test
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm peers check
+pnpm audit --prod --audit-level=high
 ```
 
-For a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its absolute
-path. Browser tests use the production server and need a completed build.
-
-## Database
-
-Use an isolated PostgreSQL database. Set `DATABASE_URL` in the command environment
-(or use your shell's dotenv loader); `.env.example` is documentation, not loaded
-automatically by the migration script. Never commit credentials.
-
-```sh
-pnpm db:generate
-pnpm db:migrate
-```
-
-Migrations are reviewed SQL, not schema pushes. Unit/integration tests apply the
-same migration files to in-memory PGlite; they need no hosted database.
+Unit tests apply committed migrations to PGlite by default. Real PostgreSQL and the
+twelve authenticated browser cases require separate disposable fixture databases;
+[deployment](docs/deployment.md) documents the guarded URLs and destructive fixture
+setup. CI provisions these databases. Without an E2E URL, auth cases explicitly skip.
+Browser tests use the production build; an existing Chromium can be selected via
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
 
 ## Continue
 
-Start with [progress](docs/progress.md), then [architecture](docs/architecture.md),
+Read [progress](docs/progress.md), [architecture](docs/architecture.md),
 [data model](docs/data-model.md), [design system](docs/design-system.md), and
-[deployment](docs/deployment.md). The full original specification is preserved in
+[deployment](docs/deployment.md). The original specification is preserved in
 [product-spec.md](docs/product-spec.md). Follow [AGENTS.md](AGENTS.md).

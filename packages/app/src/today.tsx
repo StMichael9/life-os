@@ -65,6 +65,9 @@ export function Today() {
           <span className="status-dot" /> Personal workspace
         </div>
         <nav aria-label="Main navigation">
+          <a className="nav-link" href="/inbox">
+            <Layers3 size={18} /> Inbox
+          </a>
           <p className="nav-label">YOUR COMMAND CENTER</p>
           <a className="nav-link active" href="#main" aria-current="page">
             <Sun size={18} /> Today <span className="nav-dot" />
@@ -127,7 +130,7 @@ export function Today() {
           </div>
           <div className="preview-notice">
             <span className="status-dot" />
-            <p>Your space is taking shape. Personal plans and account sync aren’t connected yet.</p>
+            <p>Your space is taking shape. Daily planning is coming next.</p>
           </div>
 
           <Panel className="season-panel" id="direction" aria-labelledby="season-title">

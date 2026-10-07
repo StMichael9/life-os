@@ -2,20 +2,20 @@
 
 ## Current state
 
-Local source, tests, web production build and Electron bundle are available. No
-Vercel project, Neon database, live application, signed installer or credential has
-been provisioned by this run. The public foundation preview contains no private data.
-Do not deploy personal-data functionality before authenticated ownership checks,
-CSRF, rate limits and session recovery have been implemented and tested.
+Authenticated Inbox works in the production build against isolated PostgreSQL.
+No Vercel project, Neon deployment, live personal account, signed installer or
+production credential has been provisioned. The public Today preview remains
+separate from authenticated capture/list. Native Windows persistence is implemented
+but requires local runtime verification before release.
 
 ## Environment separation
 
-| Environment     | App                                | Database                                                           | Credentials                                         |
-| --------------- | ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
-| Development     | Next dev at loopback port 3000     | Optional isolated local PostgreSQL                                 | Local dev only                                      |
-| Test            | Production Next build on loopback  | PGlite for migration suite; separate PostgreSQL for staging checks | Fixtures only                                       |
-| Preview/staging | Separate Vercel project/deployment | Separate Neon branch/database                                      | Independent sessions/secrets                        |
-| Production      | Stable HTTPS origin                | Dedicated Neon database                                            | Restricted runtime role and separate migration role |
+| Environment     | App                                | Database                                                        | Credentials                                         |
+| --------------- | ---------------------------------- | --------------------------------------------------------------- | --------------------------------------------------- |
+| Development     | Next dev at loopback port 3000     | Isolated local PostgreSQL for authenticated Inbox               | Local dev only                                      |
+| Test            | Production Next build on loopback  | PGlite plus disposable PostgreSQL 17 for auth and browser tests | Fixtures only                                       |
+| Preview/staging | Separate Vercel project/deployment | Separate Neon branch/database                                   | Independent sessions/secrets                        |
+| Production      | Stable HTTPS origin                | Dedicated Neon database                                         | Restricted runtime role and separate migration role |
 
 Never reuse production cookies or databases in preview deployments. Environment
 variables belong to the server/deployment platform, never source control. No
@@ -38,9 +38,13 @@ Suggested Vercel configuration:
 2. Use Node 24 and the pinned pnpm version. Install from the workspace root with the
    frozen lockfile; build command `pnpm --filter @life-os/web build` from the root,
    or `pnpm build` when Vercel's current directory is `apps/web`.
-3. Set the server-only pooled `DATABASE_URL` once authenticated APIs are introduced,
+3. Set the server-only pooled `DATABASE_URL`,
    using provider-recommended TLS certificate validation. Set `APP_ORIGIN` to the
-   exact HTTPS deployment origin for CSRF checks in the auth slice.
+   exact HTTPS deployment origin (no path or trailing slash) for CSRF checks.
+   Set a unique random `AUTH_SECRET` of at least 32 bytes; generate with
+   `openssl rand -base64 48`. Leave `AUTH_ALLOW_HTTP_LOOPBACK` unset in deployment.
+   A secret change invalidates existing CSRF signatures and rotation recovery;
+   plan session revocation when rotating it.
 4. Apply reviewed migrations once through a controlled release step with a separate
    DDL credential; never race migrations from web requests or every server instance.
    Prefer a direct migration connection and a pooled runtime connection.
@@ -71,13 +75,15 @@ pnpm --filter @life-os/desktop package:win
 configuration is not evidence of a tested installer. Packaged builds refuse the
 development HTTP URL. Use a release-only icon, signing credentials and supported
 Electron version. Test installation, start, offline retry, upgrade, logout, token
-rotation, DPAPI storage and deletion on Windows before shipping. The foundation
-has memory-only sessions, no tray, auto-update, native notifications or app lock.
+rotation, DPAPI storage and deletion on Windows before shipping. The memory-only cookie partition is restored from a validated main-process
+`safeStorage` ciphertext file for the embedded HTTPS origin. OS encryption must
+be available; Linux `basic_text` and development HTTP are nonpersistent. There is
+no plaintext fallback, tray, auto-update, native notification or app lock.
 Do not enable auto-update until signed metadata and rollback behavior are designed.
 
 ## Security and privacy
 
-The web preview enforces per-response nonced script CSP, frame denial, MIME sniffing
+The web application enforces per-response nonced script CSP, frame denial, MIME sniffing
 protection, no-referrer, and denies camera/microphone/location. CSS permits inline
 styles to support framework rendering; production scripts do not permit unsafe-eval.
 Production HTTPS gets HSTS. Node/Electron/database packages are kept out of shared
@@ -88,8 +94,8 @@ window creation, webviews and permissions; there is no privileged IPC.
 Session encryption and app lock are separate: DPAPI protects stored tokens at rest,
 not a signed-in unlocked workstation. Do not claim end-to-end encryption. Hosted
 PostgreSQL administrators can access application data; encryption-at-rest and strict
-service access do not change that. Export and account deletion need authenticated,
-explicit flows before real private data is accumulated.
+service access do not change that. Export and account deletion remain missing; plan these flows and backups before
+relying on this application for important private data.
 
 ## Backups and recovery design
 
@@ -107,13 +113,92 @@ releases. Restore drills verify credentials, schema, record counts, ownership an
 recent sample entries. Never send raw journals, prayers or finances to CI artifacts.
 No automated production backup/export job exists yet.
 
+## Initialize controlled accounts
+
+Export `DATABASE_URL`, `AUTH_SECRET` and `APP_ORIGIN` for the intended environment.
+Apply migrations with the separate DDL credential, then use an operator credential
+with permission to insert `app_user` and `auth_credential`:
+
+```sh
+pnpm db:migrate
+pnpm account:create
+```
+
+The CLI requires a terminal, hides password input and confirms it; it takes no
+password argv/env option. Do not use production credentials in test commands or
+shell history. Do not store account passwords in `.env` or CI. No registration,
+invitation, password-reset or email-verification route exists. The operator must
+securely deliver the initial password; recovery currently requires an additional
+implementation, not editing a hash manually.
+
+Runtime needs SELECT on `app_user` and `auth_credential`; SELECT/INSERT/UPDATE on
+`auth_session`; SELECT/INSERT/UPDATE/DELETE on `auth_rate_limit`; SELECT/INSERT on
+`inbox_item`; and schema USAGE. Keep DDL, TRUNCATE, account creation and other domain
+writes out of the deployed role. Provision and verify these permissions on staging
+with provider pooling/TLS before production. Tests use a disposable owner role;
+production restricted roles have not been verified. RLS is not enabled.
+
+Migration 0002 rounds Inbox created timestamps to milliseconds, adds retry keys and
+expires pre-existing sessions at migration time. Back up and apply to staging first.
+If release validation fails, roll back the application while keeping additive
+columns. Restore a rehearsed backup into a separate database if original timestamp
+precision is needed; do not drop columns or reverse a migration in place without
+a recovery plan. The current migration tests exercise fresh databases.
+
 ## Verification commands
 
-`pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and
-`pnpm test:e2e` run in CI. PGlite validates real migrations without a paid database.
-Browser tests use the built app at desktop/mobile widths, local midnight transitions,
-CSP-compatible hydration and axe WCAG checks. The mobile test uses Chromium with
-an iPhone viewport; actual iOS Safari and Windows Electron still require testing.
+```sh
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm db:generate
+pnpm build
+pnpm peers check
+pnpm audit --prod --audit-level=high
+```
+
+`pnpm test` includes original migration/constraint tests plus auth, HTTP and Electron
+adapter tests, applying the committed migrations to in-memory PGlite. To repeat on
+real PostgreSQL, create two **disposable empty databases** ending in `_tests` and
+`_e2e`, then export fixture-only URLs:
+
+```sh
+export LIFE_OS_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_auth_tests'
+export LIFE_OS_E2E_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_e2e'
+pnpm exec vitest run packages/api/src/auth-inbox.test.ts
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Both suites migrate and **TRUNCATE fixtures**; never point them at important data.
+Suffix guards are an extra check, not permission to use an existing data-bearing DB.
+Browser fixture accounts and secrets are test-only, internal imports never exposed
+through app routes. Without the E2E URL the twelve authenticated browser cases
+explicitly skip; the six public-preview cases still run. CI provisions PostgreSQL 17
+and runs all 18 browser cases. A production build must precede browser tests. Use
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for an installed Chromium if needed.
+
+Local Cloud verification used PostgreSQL 17 in a disposable container. This verifies
+actual SQL, transactions, locking, ownership and persistence; it does not verify
+Neon pooled connections, production TLS/roles, provider quotas or restore operations.
+Mobile checks use Chromium with an iPhone viewport, not iOS Safari.
+
+### Required local Windows checks (not performed in Cloud)
+
+- Launch Electron against staging HTTPS and verify the same account/data as web.
+- Confirm native `safeStorage` encryption availability and protected user-data ACLs;
+  inspect stored files for absence of plaintext session tokens or capture content.
+- Restart, exercise rotation after 15 minutes, and verify restoration of the latest
+  session. Logout must remove ciphertext and prevent reuse/restart authentication.
+- Corrupt/expire the ciphertext and verify a sign-in prompt; unavailable OS encryption
+  must require sign-in after restart without creating any plaintext fallback.
+- Verify sandbox, context isolation, Node denial, blocked foreign navigation/windows,
+  certificate failures, denied permissions, offline retry and shutdown persistence.
+- Test NSIS install/upgrade/uninstall, shortcuts, signing and supported Windows versions.
+
+Mocked encryption/cookie adapters and a built main bundle are not proof of DPAPI,
+Electron native cookie behavior or NSIS installation. No such verification is claimed.
 
 In a managed sandbox, pass writable cache/store paths to installation as needed:
 `XDG_CACHE_HOME=/tmp/life-os-cache XDG_DATA_HOME=/tmp/life-os-data pnpm install

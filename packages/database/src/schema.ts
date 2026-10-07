@@ -69,6 +69,10 @@ export const sessions = pgTable(
     client: text('client').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    idleExpiresAt: timestamp('idle_expires_at', { withTimezone: true }).notNull().defaultNow(),
+    rotatedAt: timestamp('rotated_at', { withTimezone: true }).notNull().defaultNow(),
+    previousTokenHash: text('previous_token_hash').unique(),
+    previousValidUntil: timestamp('previous_valid_until', { withTimezone: true }),
   },
   (t) => [
     index('session_user_idx').on(t.userId),
@@ -263,9 +267,12 @@ export const inboxItems = pgTable(
   {
     ...owned(),
     body: text('body').notNull(),
+    requestId: uuid('request_id').notNull().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
   },
   (t) => [
+    unique('inbox_owner_request_key').on(t.userId, t.requestId),
     index('inbox_user_created_idx').on(t.userId, t.createdAt, t.id),
     check('inbox_body_length', sql`length(trim(${t.body})) between 1 and 10000`),
   ],
@@ -358,5 +365,18 @@ export const focusSessions = pgTable(
       .on(t.userId)
       .where(sql`${t.endedAt} is null`),
     index('focus_user_start_idx').on(t.userId, t.startedAt),
+  ],
+);
+
+export const authRateLimits = pgTable(
+  'auth_rate_limit',
+  {
+    key: text('key').primaryKey(),
+    attempts: integer('attempts').notNull(),
+    resetsAt: timestamp('resets_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('auth_rate_limit_expiry_idx').on(t.resetsAt),
+    check('rate_attempts_positive', sql`${t.attempts} > 0`),
   ],
 );

@@ -40,3 +40,28 @@ export const priorityInputSchema = z.object({
   dueAt: z.iso.datetime({ offset: true }).optional(),
 });
 export type PriorityInput = z.infer<typeof priorityInputSchema>;
+
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
+export const passwordSchema = z.string().min(12).max(128);
+export const accountCreationSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    displayName: z.string().trim().min(1).max(100),
+    timeZone: timeZoneSchema.default('UTC'),
+  })
+  .strict();
+export const loginSchema = z
+  .object({
+    email: emailSchema,
+    password: z.string().min(1).max(128),
+  })
+  .strict();
+export const captureRequestSchema = inboxCaptureSchema.extend({ requestId: z.uuid() }).strict();
+export const inboxCursorSchema = z
+  .object({
+    createdAt: z.iso.datetime(),
+    id: z.uuid(),
+  })
+  .strict();
+export type InboxCursor = z.infer<typeof inboxCursorSchema>;

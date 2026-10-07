@@ -5,27 +5,34 @@
 `0000_foundation.sql`: 16 normalized tables, enums, ownership constraints,
 checks, uniqueness and query indexes, generated from `src/schema.ts`.
 `0001_updated_at.sql`: PostgreSQL trigger maintains `updated_at` on all 16 tables.
+`0002_auth_inbox.sql`: adds persistent authentication rate-limit buckets, idle
+expiry/rotation/grace fields, and an owner-scoped Inbox retry UUID constraint.
+Inbox `created_at` becomes timestamptz(3) for lossless JavaScript pagination. This
+rounds existing sub-millisecond values; back up before production migration. Existing
+sessions receive idle expiry at migration time and must sign in again. New columns
+are additive; no original table or content is dropped. There are now 17 tables.
 Migration metadata and snapshots are committed; generation must not alter old SQL
 once deployed. Destructive rollback is not automatic.
 
-| Table             | Purpose and relationships                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------------------------- |
-| app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                             |
-| auth_credential   | One password hash per user; no plaintext password                                                    |
-| auth_session      | Many per user; unique token hash, client type, expiry, revocation                                    |
-| category          | User-owned category slug/name, explicit spiritual classification                                     |
-| season            | User-owned objective/date range; at most one active per user                                         |
-| season_allocation | Season × category, unique pair; integer percentage 0–100                                             |
-| vision            | User-owned long-term direction                                                                       |
-| goal              | Optional Vision and category; typed measurement values/unit and target date                          |
-| milestone         | Required Goal; completion and target date                                                            |
-| project           | Optional Milestone **or** direct Goal, never both; optional category                                 |
-| task              | Optional Project **or** direct Goal, never both; optional category, scores, due instant and duration |
-| inbox_item        | Unclassified bounded text, processed timestamp, stable ordered index                                 |
-| daily_plan        | Unique user/local-date, timezone snapshot, a single primary outcome                                  |
-| daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                            |
-| schedule_block    | Start/end instants, kind, optional Task link                                                         |
-| focus_session     | Objective, optional Task/category, active duration/outcome; one open per user                        |
+| Table             | Purpose and relationships                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                               |
+| auth_credential   | One password hash per user; no plaintext password                                                      |
+| auth_session      | Many per user; hashed current/previous tokens, absolute/idle expiry, rotation/grace and revocation     |
+| auth_rate_limit   | Fixed-window bucket key (global or HMAC email), bounded attempts, reset instant and expiry index       |
+| category          | User-owned category slug/name, explicit spiritual classification                                       |
+| season            | User-owned objective/date range; at most one active per user                                           |
+| season_allocation | Season × category, unique pair; integer percentage 0–100                                               |
+| vision            | User-owned long-term direction                                                                         |
+| goal              | Optional Vision and category; typed measurement values/unit and target date                            |
+| milestone         | Required Goal; completion and target date                                                              |
+| project           | Optional Milestone **or** direct Goal, never both; optional category                                   |
+| task              | Optional Project **or** direct Goal, never both; optional category, scores, due instant and duration   |
+| inbox_item        | Owner-scoped retry UUID, bounded text, processed timestamp, millisecond created time and ordered index |
+| daily_plan        | Unique user/local-date, timezone snapshot, a single primary outcome                                    |
+| daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                              |
+| schedule_block    | Start/end instants, kind, optional Task link                                                           |
+| focus_session     | Objective, optional Task/category, active duration/outcome; one open per user                          |
 
 Except auth credentials (whose user PK identifies the row), owned tables have UUID
 IDs, owners, created and updated timestamps. Content references include owner in
@@ -48,6 +55,28 @@ Implement these with shared validation and transactional services before exposin
 writes. The production pool is server-only; a default connection is never created
 on module import. Migration credentials are explicit. Reads always need ownership
 filters; composite FKs alone are not row-level read authorization.
+
+## Authentication and Inbox invariants
+
+Credentials contain an Argon2id PHC string with per-password salt. Session token
+columns contain SHA-256 hex digests only; a unique previous-token hash supports a
+bounded 30-second grace window. Verification requires unrevoked rows with both
+expiry instants strictly in the future. Rotation locks the row; logout marks
+`revoked_at`. Grace deadlines never override absolute or idle expiry. Client enum
+supports web/desktop, but both currently use the hosted web login flow and record
+`web`; it is not an authorization input.
+
+Rate buckets have no owner or content timestamps: key is their primary key,
+attempts must be positive, and UPSERT atomically resets or increments up to budget+1.
+Cleanup deletes up to 100 expired rows per allowed login attempt. Session retention
+cleanup is not scheduled yet; expired/revoked rows cannot authenticate.
+
+Inbox capture stores `(user_id, request_id)` uniquely. Retried bodies must match
+exactly after service trimming, otherwise return conflict. Repository listing always
+filters authenticated owner and unprocessed rows before applying the validated
+cursor; foreign cursor values cannot authorize another user's records. Composite
+ownership constraints remain in all original domain relationships. No RLS policy
+is claimed; owner predicates provide application read isolation.
 
 ## Planned domain relationships (not migrated)
 

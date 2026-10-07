@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allowedNavigation, trustedOrigin } from './security';
+import { allowedNavigation, trustedOrigin, rendererSecurity } from './security';
 
 describe('desktop trust boundary', () => {
   it('allows loopback HTTP only for unpackaged development', () => {
@@ -31,4 +31,13 @@ describe('desktop trust boundary', () => {
       expect(allowedNavigation(value, origin)).toBe(false);
     }
   });
+});
+
+it('keeps the hosted renderer isolated and sandboxed', () => {
+  expect(rendererSecurity.contextIsolation).toBe(true);
+  expect(rendererSecurity.nodeIntegration).toBe(false);
+  expect(rendererSecurity.sandbox).toBe(true);
+  expect(rendererSecurity.webSecurity).toBe(true);
+  expect(rendererSecurity.allowRunningInsecureContent).toBe(false);
+  expect('preload' in rendererSecurity).toBe(false);
 });

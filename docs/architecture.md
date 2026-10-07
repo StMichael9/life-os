@@ -2,7 +2,8 @@
 
 ## Status and governing decisions
 
-Phase 0 foundation, followed by one coherent authenticated vertical slice at a time.
+Phase 0 foundation and the authenticated Inbox vertical slice are implemented.
+Continue with one coherent vertical slice at a time.
 The complete destination is `product-spec.md`; it is not a first-run checklist.
 No LLM, subscription API, banking connector, or telemetry service is required.
 The primary risks are disclosure of private records, platform divergence, false
@@ -12,9 +13,9 @@ claims of persistence, incorrect local-day boundaries, and premature feature bre
 
 | Location              | Responsibility                                                              | Allowed dependencies               |
 | --------------------- | --------------------------------------------------------------------------- | ---------------------------------- |
-| `apps/web`            | Next.js App Router composition, security headers, future HTTP/auth adapters | shared app, server services        |
+| `apps/web`            | Next.js App Router composition, security headers, HTTP/auth adapters        | shared app, server services        |
 | `apps/desktop`        | Electron lifecycle and trust boundary; packaged Windows shell               | Electron and pure security helpers |
-| `packages/app`        | Shared React product views; current Today screen                            | ui, shared; future validated DTOs  |
+| `packages/app`        | Shared React product views; Today, login and Inbox                          | ui, shared, validation             |
 | `packages/ui`         | Semantic primitives, global design tokens and responsive styles             | React                              |
 | `packages/shared`     | Browser-safe local-date and versioned daily-content functions               | platform APIs only                 |
 | `packages/validation` | Zod schemas for untrusted inputs                                            | Zod                                |
@@ -39,10 +40,12 @@ Sandboxed Electron ──────┘                          ─ validated 
                                                   ─ Drizzle / pooled PostgreSQL
 ```
 
-The current public preview serves only bundled content and empty-state guidance.
-It has no login form, capture endpoint, account cookie, journal storage, demo user,
-or fake synchronization. The Inbox service/repository exist as a tested foundation
-but are deliberately not exposed to HTTP. A fake verifier must never reach production.
+The public Today page serves bundled daily content and clearly labeled planning
+empty states. `/login` and `/inbox` use real server services; private data is never
+served from the preview model. The Next adapters lazily compose the PostgreSQL
+repositories and authentication service in `apps/web/lib/services.ts` (server-only).
+Missing `DATABASE_URL`, `AUTH_SECRET` or a trusted `APP_ORIGIN` fails closed with 503.
+There is no production fake verifier or client-supplied owner authority.
 
 ## Desktop decision
 
@@ -58,58 +61,101 @@ there is no native capability to expose yet. External-link allowlisting, native
 notifications, updates, tray, and quick capture arrive in later slices with narrow
 validated IPC only when needed. Never add a generic invoke/eval/filesystem bridge.
 
-Foundation sessions are memory-only. Windows DPAPI storage is designed below but
-not implemented. NSIS packaging configuration exists; a tested, signed installer
-is a later deliverable, not an output claimed by this foundation.
+The Electron cookie partition remains memory-only. A main-process encrypted cookie
+record restores the hosted session across restarts when OS encryption is available.
+NSIS packaging configuration exists; a tested, signed installer remains a later
+deliverable. Native Windows encryption and installation have not been exercised here.
 
-## Authentication design (not implemented yet)
+## Implemented authentication
 
-Use first-party email/password credentials and opaque revocable sessions. The initial
-schema reserves `app_user`, `auth_credential`, and `auth_session`. Credential and
-session rows never appear in ordinary profile or dashboard responses.
+Accounts are created by a trusted operator using interactive `pnpm account:create`.
+There is no public registration endpoint or invite service. Email is normalized;
+passwords must be 12–128 characters and account timezones pass shared IANA validation.
+The CLI hides password input and asks for confirmation. PostgreSQL stores only
+Argon2id hashes: 19,456 KiB, two iterations, one lane, library-generated salts.
+Unknown email and wrong-password responses are generic; both perform verification.
+Benchmark these parameters on the hosted runtime before release.
 
-1. Normalize email on the server. Begin with invitation-only account creation; no
-   public registration until verification, abuse controls and recovery are ready.
-2. Hash passwords using an established Argon2id library, not custom cryptography.
-   Benchmark the deployment budget; minimum 19 MiB memory, two iterations, one
-   lane. Use library-generated salts and constant-time verification. Apply bounded
-   password/body lengths and shared, persistent rate limits before expensive work.
-3. Successful login generates at least 256 random bits. Store only SHA-256 token
-   hashes in PostgreSQL. Return a Secure, HttpOnly, SameSite=Lax, Path=/,
-   `__Host-life_os_session` cookie on HTTPS; never a token in JSON or localStorage.
-   Development uses a differently named non-Secure loopback cookie.
-4. Every private service verifies token hash, expiry and revocation and derives its
-   owner from that lookup. Missing configuration or sessions fail closed. A submitted
-   `userId` is never authority. Object reads/updates/deletes always include the owner.
-5. Unsafe same-origin requests check the exact configured Origin and a CSRF token;
-   reject absent/untrusted origins. Do not enable wildcard credentialed CORS. Login
-   and logout need CSRF protection too. Cap bodies and validate with shared Zod.
-6. Rotate sessions transactionally after login/privilege changes and on a bounded
-   renewal interval, with absolute and idle expiration. Design concurrent request
-   handling explicitly before implementation; no indefinite reusable refresh token.
-   Logout/password reset revoke server sessions and clear local credentials.
-7. Login errors remain generic; do not leak account existence. Do not log passwords,
-   bearer tokens, cookie headers, journal text, or capture bodies. Password reset,
-   verified email, rate-limit storage, audit events, rotation linkage and account
-   recovery require their own migration and integration tests in Phase 1.
+Login consumes atomic PostgreSQL fixed-window budgets before Argon2 work: five
+attempts per normalized email and 50 overall per 15 minutes, across all instances.
+Email bucket keys are HMAC hashes; no trusted client IP or paid Redis is required.
+Expired buckets are pruned in bounded batches. Global limits fit controlled personal
+use but can cause temporary denial of login during abuse; tune with deployment
+capacity rather than adding an untrusted forwarded-IP bypass.
 
-### Browser session
+Sessions start with 256 random bits. Only SHA-256 token hashes are stored. Absolute
+expiry is 30 days, idle expiry seven days; verified use advances idle expiry up to
+the absolute boundary. Explicit refresh rotates at most once per 15 minutes in a
+row-locked transaction. The immediately previous token remains usable for 30 seconds.
+A keyed HMAC successor lets concurrent refreshes and a lost response recover the
+same successor without storing plaintext tokens. Older tokens fail after grace;
+no refresh extends absolute expiry. An early refresh returns no Set-Cookie, preventing
+an old unchanged response from overwriting a rotated cookie. Login replaces the
+presented old session; logout revokes it before clearing cookies. Concurrent requests
+already authorized before logout may complete.
 
-The browser transports the HttpOnly cookie; the renderer only sees a minimal
-profile. No session IDs in URLs, web storage or app state. Use no-store responses
-and user-scoped cache keys. Refresh/rotation is a server operation.
+### Browser security and HTTP contract
 
-### Electron session
+HTTPS uses `__Host-life_os_session`: Secure, HttpOnly, SameSite=Lax, Path=/, no Domain.
+Explicit loopback development uses a different cookie name without Secure. Tokens
+never appear in JSON, URLs, localStorage or renderer state; the session endpoint
+returns only ID, display name and timezone. Private responses are `no-store`.
 
-Use the same HTTPS login and server authorization in a memory-only Electron session.
-The main process will persist only the exact session cookie, encrypted with Electron
-`safeStorage` backed by Windows DPAPI, under the app user-data directory with strict
-file permissions. Restore it into the isolated session on startup; listen for token
-rotation and logout to update/delete the encrypted record. Validate the exact origin,
-name, path, Secure/HttpOnly flags, and expiry before persisting. If OS encryption is
-unavailable, use a nonpersistent session and require login again; no plaintext fallback.
-The renderer never receives the token. No custom credential IPC is necessary.
-Test this lifecycle on Windows before marking persistent desktop login complete.
+Unsafe requests, including login/logout, require exact configured Origin, JSON,
+a signed CSRF token in a header matching its HttpOnly cookie, and non-cross-site
+Fetch metadata when supplied. CSRF tokens expire after two hours. Duplicate cookie
+names are rejected. Bodies are capped at 16 KiB while streaming, then validated
+with strict Zod schemas. No credentialed cross-origin API or public account-creation
+route is exposed. Errors do not log passwords, cookies, tokens or capture contents.
+
+| Endpoint                 | Behavior                                                     |
+| ------------------------ | ------------------------------------------------------------ |
+| GET `/api/auth/csrf`     | Issue/reuse a signed CSRF token and HttpOnly cookie          |
+| POST `/api/auth/login`   | Rate-limited email/password verification and session cookie  |
+| GET `/api/auth/session`  | Verify session and return minimal profile                    |
+| POST `/api/auth/refresh` | Bounded transactional token rotation                         |
+| POST `/api/auth/logout`  | Server revocation, then cookie deletion                      |
+| POST `/api/inbox`        | Authenticated capture `{ body, requestId }`                  |
+| GET `/api/inbox`         | Owner-only unprocessed items, optional validated JSON cursor |
+
+Every Inbox operation verifies the cookie through the session service and uses that
+user ID in repository predicates. Request owner fields are rejected. Capture uses a
+UUID retry key, unique per owner: replaying identical trimmed text returns the same
+record; reusing a key with changed text returns 409. The same key for another owner
+is independent. Listing returns 50 records at a time by `(created_at, id)` descending;
+timestamps have millisecond precision matching JavaScript cursor serialization.
+
+### Shared authenticated UI
+
+Web and Electron load the same login and Inbox views. Capture preserves an uncertain
+request's text and retry key until confirmation; repeated delivery cannot duplicate
+persistence. Private drafts remain only in memory. Expired sessions clear displayed
+private records while retaining unsent text; account switches require reload/sign-in
+before capture. Logout confirms draft discard and waits for server revocation.
+Foreground, visibility and visible 60-second polling revalidate session and recent
+Inbox data. Refresh reloads the most recent page; older pages can be loaded again.
+There is no offline write queue, processing/conversion, edit or delete operation yet.
+
+### Electron persistence
+
+Main alone persists the exact host-only HTTPS session cookie through Electron
+`safeStorage`, in an origin-specific app user-data directory. Validate origin, name,
+path, Secure/HttpOnly/SameSite, token format and expiry before save or restore.
+Ciphertext writes use an exclusive temporary file, fsync and atomic rename; corrupt,
+expired, foreign-origin and removed records are deleted. Cookie events serialize
+writes and reread the latest value so rotation cannot save an obsolete event.
+Shutdown drains pending writes. No preload, credential IPC or token access is added
+to the renderer. Dev HTTP does not persist; unavailable encryption and Linux
+`basic_text` keep sessions nonpersistent with no plaintext fallback.
+
+Adapter tests prove the lifecycle with mocked encryption, not Windows DPAPI. Local
+Windows testing must verify native encryption, cookie restoration/rotation/logout,
+filesystem access, installer behavior and upgrades before desktop persistence is
+considered runtime-verified. Encryption at rest does not lock an already signed-in app.
+
+Password recovery/reset, verified email, invites, all-session revocation, account
+export/deletion and security audit events remain unimplemented. The next slice is
+controlled administrator recovery/reset with revocation of every account session.
 
 ## Database and concurrency
 
@@ -117,8 +163,8 @@ UUIDs, UTC timestamptz instants, explicit local calendar dates, numeric measurem
 foreign keys, uniqueness constraints and indexed owner queries form the foundation.
 Composite `(entity_id, user_id)` foreign keys reject cross-owner relationships even
 when a service makes a mistake. They do **not** authorize SELECT: owner predicates
-remain mandatory. The server uses a restricted app role; migrations use a separate
-DDL role. RLS may be added as defense in depth after role and pooling semantics are
+remain mandatory. Deployment requires a restricted app role and a separate migration
+DDL role; provider-specific roles have not yet been provisioned or verified. RLS may be added as defense in depth after role and pooling semantics are
 tested. Never assume RLS protects an owner/superuser connection.
 
 Transactions will atomically replace Big 3, switch active Seasons with allocations,
@@ -150,7 +196,7 @@ realtime service or global state library is justified yet.
 The product is online-first. Keep failed edits visible with retry state and avoid
 clearing forms before the server confirms success. Do not persist sensitive drafts
 in renderer localStorage. Durable encrypted drafts require a separate design. The
-foundation stores no private input. The daily library is bundled, not fetched from
+Inbox persists private captures in PostgreSQL; other preview sections store no private input. The daily library is bundled, not fetched from
 an external API, and its published v1 pool stays immutable across deployments.
 
 ## Deterministic insights and priority v1
