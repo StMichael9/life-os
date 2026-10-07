@@ -18,7 +18,8 @@ export function Login() {
         password: data.get('password'),
       });
       form.reset();
-      window.location.assign('/inbox');
+      const next = new URL(window.location.href).searchParams.get('next');
+      window.location.assign(next === '/direction' || next === '/' ? next : '/inbox');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Sign-in failed. Please try again.');
     } finally {

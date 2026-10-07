@@ -41,11 +41,18 @@ Daily content updates at the next minute tick at local midnight, including DST.
 The v1 corpus contains seven complete KJV verses and seven original aphorisms;
 it repeats weekly and should grow only through a versioned future mapping.
 
-Login and Inbox reuse the same tokens, panels and buttons. Forms use persistent
+Login, Inbox and Direction reuse the same tokens, panels and buttons. Forms use persistent
 labels, password-manager autocomplete, visible status/error feedback and bounded
 text input. Inbox distinguishes saving, uncertain delivery/retry and expired session;
 private text is shown only after authentication and capture confirmation. There is
 no simulated persistence. Both layouts collapse into a single column on mobile.
+
+Direction adds a quiet active-Season overview, three section switches and a list/detail
+workspace. Mobile stacks the list and details. Native dialogs hold complete create/edit
+forms; field labels, shared validation feedback, discard/archive confirmations and
+visible focus preserve keyboard use. Milestones stay inside Goal context; hierarchy
+links explain where Projects belong. Allocations are declared percentages, not progress
+or productivity scores. Empty states contain guidance and real creation actions.
 
 ## Responsive behavior
 

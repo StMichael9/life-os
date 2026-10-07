@@ -22,6 +22,13 @@
       "when": 1791394145675,
       "tag": "0002_auth_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791398180082,
+      "tag": "0003_direction_versions",
+      "breakpoints": true
     }
   ]
 }

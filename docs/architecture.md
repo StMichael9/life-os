@@ -2,7 +2,7 @@
 
 ## Status and governing decisions
 
-Phase 0 foundation and the authenticated Inbox vertical slice are implemented.
+Phase 0 foundation, authenticated Inbox and the Phase 1 Direction slice are implemented.
 Continue with one coherent vertical slice at a time.
 The complete destination is `product-spec.md`; it is not a first-run checklist.
 No LLM, subscription API, banking connector, or telemetry service is required.
@@ -15,7 +15,7 @@ claims of persistence, incorrect local-day boundaries, and premature feature bre
 | --------------------- | --------------------------------------------------------------------------- | ---------------------------------- |
 | `apps/web`            | Next.js App Router composition, security headers, HTTP/auth adapters        | shared app, server services        |
 | `apps/desktop`        | Electron lifecycle and trust boundary; packaged Windows shell               | Electron and pure security helpers |
-| `packages/app`        | Shared React product views; Today, login and Inbox                          | ui, shared, validation             |
+| `packages/app`        | Shared React product views; Today, login, Inbox and Direction               | ui, shared, validation             |
 | `packages/ui`         | Semantic primitives, global design tokens and responsive styles             | React                              |
 | `packages/shared`     | Browser-safe local-date and versioned daily-content functions               | platform APIs only                 |
 | `packages/validation` | Zod schemas for untrusted inputs                                            | Zod                                |
@@ -41,7 +41,7 @@ Sandboxed Electron ──────┘                          ─ validated 
 ```
 
 The public Today page serves bundled daily content and clearly labeled planning
-empty states. `/login` and `/inbox` use real server services; private data is never
+empty states. `/login`, `/inbox` and `/direction` use real server services; private data is never
 served from the preview model. The Next adapters lazily compose the PostgreSQL
 repositories and authentication service in `apps/web/lib/services.ts` (server-only).
 Missing `DATABASE_URL`, `AUTH_SECRET` or a trusted `APP_ORIGIN` fails closed with 503.
@@ -154,8 +154,71 @@ filesystem access, installer behavior and upgrades before desktop persistence is
 considered runtime-verified. Encryption at rest does not lock an already signed-in app.
 
 Password recovery/reset, verified email, invites, all-session revocation, account
-export/deletion and security audit events remain unimplemented. The next slice is
-controlled administrator recovery/reset with revocation of every account session.
+export/deletion and security audit events remain unimplemented. Recovery/reset remains deferred. Direction was the next product slice explicitly
+selected by the user; no recovery/reset implementation was added.
+
+## Implemented Direction domain
+
+The existing Season, Goal, Milestone and Project tables now have authenticated
+repositories, services and shared web/Electron views. Category creation is a small
+supporting operation (explicit user input, no seeded personal records). Lookup
+metadata includes owned categories and existing Visions; Vision editing is deferred.
+The same opaque cookie, session verifier, CSRF checks and body limits protect every
+Direction endpoint. Item DTOs exclude stored owners and session/credential data.
+
+`/direction` offers Seasons/Goals/Projects lists with bounded 50-row pagination,
+status filtering of loaded records, deep-linked detail panels, and native modal
+create/edit forms. Goals include milestone management; detail breadcrumbs resolve
+Vision → Goal → Milestone → Project using owned joins. Independent Projects remain
+valid per the existing model; a Project may have one direct Goal or one Milestone,
+never both. No Task API/UI or fabricated progress metric is introduced.
+
+| Endpoint                                    | Contract                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| GET `/api/direction`                        | Owned category/Vision lookup metadata and active Season                   |
+| GET `/api/direction/active-season`          | Minimal active Season response for Today                                  |
+| GET `/api/direction/{resource}`             | 50 rows; optional `before` UUID cursor; milestones may filter by `goalId` |
+| GET `/api/direction/{resource}/{id}`        | Owned record and resolved ancestor trail                                  |
+| POST `/api/direction/{resource}`            | Full validated create command with UUID ID and version 0                  |
+| PATCH `/api/direction/{resource}/{id}`      | Full validated replacement with matching ID/current version               |
+| POST `/api/direction/seasons/{id}/activate` | Version-checked activation; previous active Season becomes planned        |
+| POST `/api/direction/categories`            | Explicit owned category creation, including reflective classification     |
+
+All Direction writes lock the verified owner's `app_user` row within the transaction.
+This serializes per-owner activation, complete allocation replacement, edit-version
+checks and relationship validation across instances. The partial unique active-Season
+index and composite ownership FKs remain independent SQL defenses. User rows are
+not modified; PostgreSQL nevertheless requires an UPDATE privilege for the row lock
+(see restricted runtime grants in deployment docs).
+
+Every saved Season requires distinct owned categories totaling exactly 100%, checked
+at the shared schema boundary and again inside the transaction. Allocate 0–100% per
+row; UI omits zero rows. Invalid category ownership cannot partially change a Season,
+its allocations or another active Season. Archive/complete keeps records and links;
+reactivation is explicit. Activation does not silently complete the previous Season.
+
+Full edit commands carry integer versions; stale edits return 409 and retain the
+unsaved form for review. Create UUIDs persist across retries; identical version-0
+replays return the original row, while changed/replayed payloads after later edits
+conflict. Measurement values remain exact PostgreSQL decimals represented as strings;
+no binary floating-point progress calculation is introduced. Milestone completion
+stores a server timestamp and can be reopened. Cursor comparisons use the anchor's
+original PostgreSQL timestamp inside SQL, avoiding JavaScript microsecond truncation.
+
+Direction read envelopes include the verified account ID. The UI checks that all
+responses belong to its current profile before adopting them. Unsafe UI requests
+also send `X-Life-OS-Account` as a precondition; the service compares it with the
+verified session and rejects a changed account. This header never supplies owner
+authority. Generation guards suppress obsolete responses after session/account change.
+Foreground/polling revalidates persisted data without overwriting an open form.
+Native dialogs support Escape/focus containment, discard confirmation and unload
+warnings; archive/active-Season replacement prompts explain what happens.
+
+Today reads only the active Season server-side when a session cookie is present,
+then revalidates on foreground/visible polling. Anonymous Today stays a labeled
+preview and never contacts private repositories. It shows real name/objective/dates
+and up to six allocations, linking to the full strategy; the rest of Today remains
+planning guidance. No One Thing, Big 3 or other dashboard persistence was added.
 
 ## Database and concurrency
 
@@ -167,7 +230,8 @@ remain mandatory. Deployment requires a restricted app role and a separate migra
 DDL role; provider-specific roles have not yet been provisioned or verified. RLS may be added as defense in depth after role and pooling semantics are
 tested. Never assume RLS protects an owner/superuser connection.
 
-Transactions will atomically replace Big 3, switch active Seasons with allocations,
+Transactions atomically save/activate Seasons with complete allocations. Future
+transactions will replace Big 3,
 convert Inbox captures, and finish focus sessions. Allocation totals must be validated
 as a whole; row-level 0–100 checks alone do not enforce a 100% total. Future updates
 use `updated_at`/version preconditions to detect conflicting edits; last-write-wins
@@ -196,7 +260,7 @@ realtime service or global state library is justified yet.
 The product is online-first. Keep failed edits visible with retry state and avoid
 clearing forms before the server confirms success. Do not persist sensitive drafts
 in renderer localStorage. Durable encrypted drafts require a separate design. The
-Inbox persists private captures in PostgreSQL; other preview sections store no private input. The daily library is bundled, not fetched from
+Inbox and Direction persist private records in PostgreSQL; other preview sections store no private input. The daily library is bundled, not fetched from
 an external API, and its published v1 pool stays immutable across deployments.
 
 ## Deterministic insights and priority v1

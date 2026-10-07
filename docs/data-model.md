@@ -11,6 +11,10 @@ Inbox `created_at` becomes timestamptz(3) for lossless JavaScript pagination. Th
 rounds existing sub-millisecond values; back up before production migration. Existing
 sessions receive idle expiry at migration time and must sign in again. New columns
 are additive; no original table or content is dropped. There are now 17 tables.
+`0003_direction_versions.sql`: additive integer `version` columns (default 1) on
+Season, Goal, Milestone and Project. Existing fields, parent constraints, dates,
+notes, IDs and timestamp triggers are preserved. No tables or content are dropped.
+An upgrade test seeds pre-0003 records and verifies preservation and repeat migration.
 Migration metadata and snapshots are committed; generation must not alter old SQL
 once deployed. Destructive rollback is not automatic.
 
@@ -50,11 +54,44 @@ time because one task can occupy multiple blocks. Dates without times use SQL da
 actual instants use timestamptz. DST boundaries are resolved using user timezone.
 
 Not yet enforced by SQL: allocation totals of 100%, IANA timezone membership,
-optimistic concurrency, and textual labels beyond the documented bounded fields.
-Implement these with shared validation and transactional services before exposing
+textual labels beyond the documented bounded fields. Direction versions and
+whole-set Season totals are enforced by transactional services, not independent
+SQL aggregate checks.
+Future domains must use shared validation and transactional services before exposing
 writes. The production pool is server-only; a default connection is never created
 on module import. Migration credentials are explicit. Reads always need ownership
 filters; composite FKs alone are not row-level read authorization.
+
+## Direction invariants and supported fields
+
+- Season retains name, description, primary objective, success criteria, local
+  start/end dates and planned/active/completed/archived status. Every service save
+  validates a complete 100% allocation set with distinct owned category IDs.
+  Replacement and activation occur in one transaction under an owner row lock;
+  the existing partial unique index enforces one active Season per owner.
+- Goals retain optional owned Vision/category links, description/notes, target date,
+  status, priority 1–5 and optional measurable target/current/unit. Measurements must
+  be supplied together or all absent; numeric(18,4) values travel as decimal strings.
+- Milestones retain a required owned Goal, title, optional target date and server
+  completion instant. Reopening clears completion; editing an already completed
+  milestone preserves its original instant. Projects inherit a Goal through their
+  Milestone when present; explicit milestone reparenting therefore changes that chain.
+- Projects retain one optional Goal **or** Milestone, category, description/notes,
+  status, start date and target date. Services reject inverted dates and dual parents;
+  the existing SQL single-parent check remains. Independent Projects stay valid.
+- Integer versions detect conflicting edits for all four records. Create version 0
+  becomes stored version 1; updates increment it. Activating another Season also
+  increments the previous Season's version when returning it to planned.
+- Record removal is not exposed: archive/complete preserves future Task parent links.
+  Existing Task `(project_id, user_id)` and `(goal_id, user_id)` FKs are unchanged and
+  ready for the next slice. No Task records are created by Direction.
+
+Lists are 50 rows plus a lookahead; cursor is an owned anchor UUID. Timestamp tuple
+comparison happens in SQL for stable microsecond pagination. Detail ancestor queries,
+lookup categories/Visions and every list/change include the verified owner. Category
+creation supports at most 100 categories; lookup metadata exposes up to 100 existing
+Visions. Category rename/removal and Vision CRUD are deferred. Read-only snapshots
+use repeatable read; writes serialize through an owner row lock and retain DB FKs.
 
 ## Authentication and Inbox invariants
 

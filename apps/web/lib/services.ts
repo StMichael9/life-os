@@ -1,13 +1,22 @@
 import 'server-only';
-import { createDatabase, createAuthRepository, createInboxRepository } from '@life-os/database';
+import {
+  createDatabase,
+  createAuthRepository,
+  createInboxRepository,
+  createDirectionRepository,
+} from '@life-os/database';
 import {
   createAuthService,
   createHttpSecurity,
   createInboxService,
   createHttpHandlers,
+  createDirectionService,
+  createDirectionHttp,
 } from '@life-os/api';
 
-let handlers: ReturnType<typeof createHttpHandlers> | undefined;
+let handlers:
+  | (ReturnType<typeof createHttpHandlers> & { direction: ReturnType<typeof createDirectionHttp> })
+  | undefined;
 export function getHandlers() {
   if (handlers) return handlers;
   const { DATABASE_URL, AUTH_SECRET, APP_ORIGIN } = process.env;
@@ -20,11 +29,13 @@ export function getHandlers() {
   );
   const { db } = createDatabase(DATABASE_URL);
   const auth = createAuthService(createAuthRepository(db), AUTH_SECRET);
-  handlers = createHttpHandlers(
-    auth,
-    createInboxService(auth, createInboxRepository(db)),
-    security,
-  );
+  handlers = {
+    ...createHttpHandlers(auth, createInboxService(auth, createInboxRepository(db)), security),
+    direction: createDirectionHttp(
+      createDirectionService(auth, createDirectionRepository(db)),
+      security,
+    ),
+  };
   return handlers;
 }
 export function unavailable() {

@@ -75,6 +75,9 @@ importers:
       '@life-os/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@life-os/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@life-os/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -121,6 +124,9 @@ importers:
       '@life-os/ui':
         specifier: workspace:*
         version: link:../ui
+      '@life-os/validation':
+        specifier: workspace:*
+        version: link:../validation
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.3.0)
@@ -130,6 +136,12 @@ importers:
 
   packages/database:
     dependencies:
+      '@life-os/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@life-os/validation':
+        specifier: workspace:*
+        version: link:../validation
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.3(@electric-sql/pglite@0.3.16)(@types/pg@8.23.1)(pg@8.23.1)

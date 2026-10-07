@@ -1,5 +1,10 @@
 import { ZodError } from 'zod';
-import { CaptureConflict } from '@life-os/database';
+import {
+  DirectionNotFound,
+  DirectionConflict,
+  DirectionInvalid,
+  CaptureConflict,
+} from '@life-os/database';
 import { AuthenticationRequired, createInboxService } from './index';
 import { createAuthService, LoginFailed, RateLimited } from './auth';
 import { createHttpSecurity, CsrfRejected, InvalidRequest } from './http-security';
@@ -7,7 +12,7 @@ import { createHttpSecurity, CsrfRejected, InvalidRequest } from './http-securit
 type Auth = ReturnType<typeof createAuthService>;
 type Inbox = ReturnType<typeof createInboxService>;
 type Security = ReturnType<typeof createHttpSecurity>;
-function json(data: unknown, status = 200) {
+export function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -17,7 +22,10 @@ function json(data: unknown, status = 200) {
     },
   });
 }
-function failure(error: unknown) {
+export function failure(error: unknown) {
+  if (error instanceof DirectionNotFound) return json({ error: error.message }, 404);
+  if (error instanceof DirectionConflict) return json({ error: error.message }, 409);
+  if (error instanceof DirectionInvalid) return json({ error: error.message }, 400);
   if (error instanceof RateLimited) {
     const response = json({ error: error.message }, 429);
     response.headers.set('Retry-After', String(error.retryAfter));
@@ -30,12 +38,24 @@ function failure(error: unknown) {
     return json(
       {
         error:
-          error.status === 413 ? 'Capture is too long. Shorten it and try again.' : error.message,
+          error.status === 413
+            ? 'Request is too long. Shorten the text and try again.'
+            : error.message,
       },
       error.status,
     );
   if (error instanceof CaptureConflict) return json({ error: error.message }, 409);
-  if (error instanceof ZodError) return json({ error: 'Check the submitted fields.' }, 400);
+  if (error instanceof ZodError)
+    return json(
+      {
+        error: 'Check the submitted fields.',
+        issues: error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      },
+      400,
+    );
   // Do not expose database errors, request bodies or credentials to logs/responses.
   return json({ error: 'Your request could not be completed. Please try again.' }, 503);
 }

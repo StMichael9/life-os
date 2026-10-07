@@ -47,3 +47,6 @@ export function createInboxService(sessions: SessionVerifier, inbox: InboxReposi
 export { createAuthService, LoginFailed, RateLimited, AccountExists } from './auth';
 export { createHttpSecurity, CsrfRejected, InvalidRequest } from './http-security';
 export { createHttpHandlers } from './http';
+
+export { createDirectionService } from './direction';
+export { createDirectionHttp } from './direction-http';

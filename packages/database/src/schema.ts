@@ -98,6 +98,7 @@ export const seasons = pgTable(
   'season',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
     name: text('name').notNull(),
     description: text('description'),
     objective: text('objective').notNull(),
@@ -149,6 +150,7 @@ export const goals = pgTable(
   'goal',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
     visionId: uuid('vision_id'),
     categoryId: uuid('category_id'),
     title: text('title').notNull(),
@@ -176,6 +178,7 @@ export const milestones = pgTable(
   'milestone',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
     goalId: uuid('goal_id').notNull(),
     title: text('title').notNull(),
     targetDate: date('target_date'),
@@ -191,6 +194,7 @@ export const projects = pgTable(
   'project',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
     milestoneId: uuid('milestone_id'),
     goalId: uuid('goal_id'),
     categoryId: uuid('category_id'),

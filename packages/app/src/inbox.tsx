@@ -176,6 +176,10 @@ export function Inbox() {
         <a className="auth-brand" href="/">
           LIFE OS
         </a>
+        <nav aria-label="Workspace navigation">
+          <a href="/">Today</a>
+          <a href="/direction">Direction</a>
+        </nav>
         <div>
           {profile && <span>{profile.displayName}</span>}
           {profile && (

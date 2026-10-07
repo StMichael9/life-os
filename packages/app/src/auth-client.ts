@@ -18,12 +18,21 @@ export async function requestJson<T>(path: string, init: RequestInit = {}) {
     );
   return data as T;
 }
-export async function postJson<T>(path: string, body: unknown) {
+export async function postJson<T>(
+  path: string,
+  body: unknown,
+  method: 'POST' | 'PATCH' = 'POST',
+  expectedAccount?: string,
+) {
   // Renew signed CSRF material immediately before a mutation. It contains no session token.
   const { token } = await requestJson<{ token: string }>('/api/auth/csrf');
   return requestJson<T>(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': token,
+      ...(expectedAccount ? { 'X-Life-OS-Account': expectedAccount } : {}),
+    },
     body: JSON.stringify(body),
   });
 }

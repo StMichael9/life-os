@@ -18,3 +18,10 @@ export * as schema from './schema';
 export { createInboxRepository } from './inbox';
 export { createAuthRepository, type AuthRepository } from './auth';
 export { CaptureConflict } from './inbox';
+export {
+  createDirectionRepository,
+  DirectionNotFound,
+  DirectionConflict,
+  DirectionInvalid,
+  type DirectionRepository,
+} from './direction';

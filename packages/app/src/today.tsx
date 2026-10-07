@@ -12,6 +12,8 @@ import {
   Target,
 } from 'lucide-react';
 import { dailyContent } from '@life-os/shared';
+import type { Season } from '@life-os/shared';
+import { TodaySeason } from './today-season';
 import { Button, Eyebrow, Panel } from '@life-os/ui';
 
 function subscribeClock(onChange: () => void) {
@@ -31,7 +33,15 @@ const zones = [
   'UTC',
 ];
 
-export function Today() {
+export function Today({
+  initialSeason = null,
+  accountId,
+  seasonUnavailable = false,
+}: {
+  initialSeason?: Season | null;
+  accountId?: string | undefined;
+  seasonUnavailable?: boolean;
+}) {
   const minute = useSyncExternalStore(subscribeClock, minuteSnapshot, serverSnapshot);
   const [zone, setZone] = useState('device');
   const settings = useRef<HTMLDialogElement>(null);
@@ -72,7 +82,7 @@ export function Today() {
           <a className="nav-link active" href="#main" aria-current="page">
             <Sun size={18} /> Today <span className="nav-dot" />
           </a>
-          <a className="nav-link" href="#direction">
+          <a className="nav-link" href="/direction">
             <Compass size={18} /> Direction
           </a>
           <a className="nav-link" href="#daily-plan">
@@ -103,7 +113,9 @@ export function Today() {
             Command <span>/</span> <strong>Today</strong>
           </span>
           <div className="topbar-right">
-            <span className="preview-badge">FOUNDATION PREVIEW</span>
+            <span className="preview-badge">
+              {accountId ? 'YOUR WORKSPACE' : 'FOUNDATION PREVIEW'}
+            </span>
             <button
               className="icon-button"
               aria-label="Date and timezone settings"
@@ -133,17 +145,23 @@ export function Today() {
             <p>Your space is taking shape. Daily planning is coming next.</p>
           </div>
 
-          <Panel className="season-panel" id="direction" aria-labelledby="season-title">
-            <div className="season-icon">
-              <Compass size={23} strokeWidth={1.4} />
-            </div>
-            <div className="season-copy">
-              <Eyebrow>YOUR CURRENT SEASON</Eyebrow>
-              <h2 id="season-title">Choose what deserves your focus.</h2>
-              <p>A season connects your daily work to the life you’re building.</p>
-            </div>
-            <span className="subtle-badge">No active season</span>
-          </Panel>
+          {accountId ? (
+            <TodaySeason initialSeason={initialSeason} accountId={accountId} />
+          ) : (
+            <Panel className="season-panel" id="direction" aria-labelledby="season-title">
+              <div className="season-icon">
+                <Compass size={23} strokeWidth={1.4} />
+              </div>
+              <div className="season-copy">
+                <Eyebrow>YOUR CURRENT SEASON</Eyebrow>
+                <h2 id="season-title">Choose what deserves your focus.</h2>
+                <p>A season connects your daily work to the life you’re building.</p>
+              </div>
+              <span className="subtle-badge">
+                {seasonUnavailable ? 'Season unavailable' : 'Sign in for your Season'}
+              </span>
+            </Panel>
+          )}
 
           <div className="dashboard-grid" id="daily-plan">
             <Panel className="one-thing" aria-labelledby="one-thing-title">

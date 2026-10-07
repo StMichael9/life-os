@@ -13,6 +13,7 @@
     "@life-os/shared": "workspace:*",
     "@life-os/ui": "workspace:*",
     "react": "^19.2.0",
-    "lucide-react": "^0.577.0"
+    "lucide-react": "^0.577.0",
+    "@life-os/validation": "workspace:*"
   }
 }

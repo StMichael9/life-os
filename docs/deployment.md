@@ -2,17 +2,17 @@
 
 ## Current state
 
-Authenticated Inbox works in the production build against isolated PostgreSQL.
+Authenticated Inbox and Direction work in the production build against isolated PostgreSQL.
 No Vercel project, Neon deployment, live personal account, signed installer or
 production credential has been provisioned. The public Today preview remains
-separate from authenticated capture/list. Native Windows persistence is implemented
+separate from authenticated Inbox and Direction. Native Windows persistence is implemented
 but requires local runtime verification before release.
 
 ## Environment separation
 
 | Environment     | App                                | Database                                                        | Credentials                                         |
 | --------------- | ---------------------------------- | --------------------------------------------------------------- | --------------------------------------------------- |
-| Development     | Next dev at loopback port 3000     | Isolated local PostgreSQL for authenticated Inbox               | Local dev only                                      |
+| Development     | Next dev at loopback port 3000     | Isolated local PostgreSQL for authenticated Inbox and Direction | Local dev only                                      |
 | Test            | Production Next build on loopback  | PGlite plus disposable PostgreSQL 17 for auth and browser tests | Fixtures only                                       |
 | Preview/staging | Separate Vercel project/deployment | Separate Neon branch/database                                   | Independent sessions/secrets                        |
 | Production      | Stable HTTPS origin                | Dedicated Neon database                                         | Restricted runtime role and separate migration role |
@@ -131,19 +131,31 @@ invitation, password-reset or email-verification route exists. The operator must
 securely deliver the initial password; recovery currently requires an additional
 implementation, not editing a hash manually.
 
-Runtime needs SELECT on `app_user` and `auth_credential`; SELECT/INSERT/UPDATE on
-`auth_session`; SELECT/INSERT/UPDATE/DELETE on `auth_rate_limit`; SELECT/INSERT on
-`inbox_item`; and schema USAGE. Keep DDL, TRUNCATE, account creation and other domain
-writes out of the deployed role. Provision and verify these permissions on staging
-with provider pooling/TLS before production. Tests use a disposable owner role;
-production restricted roles have not been verified. RLS is not enabled.
+Runtime needs SELECT on `app_user`, `auth_credential` and `vision`;
+SELECT/INSERT/UPDATE on `auth_session`, `season`, `goal`, `milestone` and `project`;
+SELECT/INSERT/UPDATE/DELETE on `auth_rate_limit`; SELECT/INSERT on `inbox_item` and
+`category`; SELECT/INSERT/DELETE on `season_allocation`; and public schema USAGE.
+Direction transactions SELECT the owner's `app_user` row FOR UPDATE without changing
+it. PostgreSQL requires an UPDATE privilege for this lock; grant **UPDATE(id)** on
+`app_user`, not general profile/credential writes. Give the operator separate INSERT
+permissions for controlled account creation. Keep DDL, TRUNCATE, credential writes,
+record deletion and all other domain writes out of the deployed runtime role.
+
+An isolated PostgreSQL 17 test exercises these Direction grants via SET LOCAL ROLE,
+including authenticated save/activation/read/isolation and denial of account creation
+and DDL. This verifies SQL privileges locally, not provider login/TLS/pooling or actual
+staging grants. Provision and verify the intended login role on staging before
+production. RLS is not enabled.
 
 Migration 0002 rounds Inbox created timestamps to milliseconds, adds retry keys and
 expires pre-existing sessions at migration time. Back up and apply to staging first.
 If release validation fails, roll back the application while keeping additive
 columns. Restore a rehearsed backup into a separate database if original timestamp
 precision is needed; do not drop columns or reverse a migration in place without
-a recovery plan. The current migration tests exercise fresh databases.
+a recovery plan. Migration 0003 adds version columns to the existing four Direction tables. Deploy
+it before the Direction code; no destructive rollback is needed for old code. A
+pre-0003 upgrade test verifies preservation of notes, dates and hierarchy links;
+other migration tests also exercise fresh databases.
 
 ## Verification commands
 
@@ -160,13 +172,15 @@ pnpm audit --prod --audit-level=high
 
 `pnpm test` includes original migration/constraint tests plus auth, HTTP and Electron
 adapter tests, applying the committed migrations to in-memory PGlite. To repeat on
-real PostgreSQL, create two **disposable empty databases** ending in `_tests` and
-`_e2e`, then export fixture-only URLs:
+real PostgreSQL, create three **disposable empty databases** ending in `_tests` and
+`_e2e` (auth and Direction use separate fixture databases), then export fixture-only URLs:
 
 ```sh
 export LIFE_OS_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_auth_tests'
+export LIFE_OS_DIRECTION_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_direction_tests'
 export LIFE_OS_E2E_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_e2e'
 pnpm exec vitest run packages/api/src/auth-inbox.test.ts
+pnpm exec vitest run packages/api/src/direction.test.ts
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
@@ -174,14 +188,15 @@ pnpm test:e2e
 Both suites migrate and **TRUNCATE fixtures**; never point them at important data.
 Suffix guards are an extra check, not permission to use an existing data-bearing DB.
 Browser fixture accounts and secrets are test-only, internal imports never exposed
-through app routes. Without the E2E URL the twelve authenticated browser cases
-explicitly skip; the six public-preview cases still run. CI provisions PostgreSQL 17
-and runs all 18 browser cases. A production build must precede browser tests. Use
+through app routes. Without the E2E URL the eighteen authenticated browser cases
+explicitly skip; the six public-preview cases still run. The restricted-role unit
+case is PostgreSQL-only and skips in the default PGlite run. CI provisions PostgreSQL 17
+and runs all 24 browser cases. A production build must precede browser tests. Use
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for an installed Chromium if needed.
 
 Local Cloud verification used PostgreSQL 17 in a disposable container. This verifies
-actual SQL, transactions, locking, ownership and persistence; it does not verify
-Neon pooled connections, production TLS/roles, provider quotas or restore operations.
+actual SQL, transactions, locking, ownership, restricted Direction grants and persistence; it does not verify
+Neon pooled connections, production TLS/provider roles, provider quotas or restore operations.
 Mobile checks use Chromium with an iPhone viewport, not iOS Safari.
 
 ### Required local Windows checks (not performed in Cloud)
