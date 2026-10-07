@@ -1,0 +1,18 @@
+{
+  "name": "@life-os/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@life-os/shared": "workspace:*",
+    "@life-os/ui": "workspace:*",
+    "react": "^19.2.0",
+    "lucide-react": "^0.577.0"
+  }
+}

@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  sharp: true
+minimumReleaseAgeExclude:
+  - electron@44.6.0
+
+# Installs are explicit; checks must not silently mutate dependencies.
+verifyDepsBeforeRun: false

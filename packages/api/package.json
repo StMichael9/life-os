@@ -1,0 +1,17 @@
+{
+  "name": "@life-os/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@life-os/database": "workspace:*",
+    "@life-os/validation": "workspace:*",
+    "drizzle-orm": "^0.45.1"
+  }
+}
