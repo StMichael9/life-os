@@ -123,7 +123,16 @@ export function createHttpHandlers(auth: Auth, inbox: Inbox, security: Security)
         }
         if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
         security.assertUnsafe(request);
-        return json({ item: await inbox.capture(token, await security.readJson(request)) }, 201);
+        return json(
+          {
+            item: await inbox.capture(
+              token,
+              await security.readJson(request),
+              request.headers.get('x-life-os-account') ?? undefined,
+            ),
+          },
+          201,
+        );
       } catch (error) {
         return failure(error);
       }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import '@life-os/ui/styles.css';
+import { CommandPalette } from '@life-os/app';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <CommandPalette />
+      </body>
     </html>
   );
 }

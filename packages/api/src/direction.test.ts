@@ -93,6 +93,7 @@ const goal = (overrides: Partial<GoalCommand> = {}): GoalCommand => ({
   ...overrides,
 });
 const project = (overrides: Partial<ProjectCommand> = {}): ProjectCommand => ({
+  priority: 3,
   id: randomUUID(),
   version: 0,
   title: 'A small project',
@@ -511,4 +512,30 @@ describe('authenticated Direction HTTP', () => {
       (await db.select().from(schema.goals).where(eq(schema.goals.id, input.id)))[0]!.status,
     ).toBe('archived');
   });
+});
+
+it('creates retry-safe owned Visions and rejects foreign Goal links', async () => {
+  const input = { id: randomUUID(), title: 'An intentional life', description: null };
+  const first = await service.vision(a, input);
+  expect(await service.vision(a, input)).toEqual(first);
+  await expect(service.vision(a, { ...input, title: 'Changed retry' })).rejects.toThrow(
+    DirectionConflict,
+  );
+  expect((await service.meta(a)).visions.some((v) => v.id === input.id)).toBe(true);
+  expect((await service.meta(b)).visions.some((v) => v.id === input.id)).toBe(false);
+  await expect(
+    service.save(b, 'goals', goal({ visionId: input.id, categoryId: null })),
+  ).rejects.toThrow(DirectionNotFound);
+});
+it('reports Project progress from owned linked Tasks and preserves manual priority', async () => {
+  const input = project({ priority: 5 });
+  await service.save(a, 'projects', input);
+  await db.insert(schema.tasks).values([
+    { userId: aId, projectId: input.id, title: 'Done', status: 'completed' },
+    { userId: aId, projectId: input.id, title: 'Remaining', status: 'planned' },
+    { userId: aId, projectId: input.id, title: 'Cancelled', status: 'cancelled' },
+  ]);
+  const d = await service.detail(a, 'projects', input.id);
+  expect(d.item).toMatchObject({ priority: 5, taskProgress: { completed: 1, total: 2 } });
+  await expect(service.detail(b, 'projects', input.id)).rejects.toThrow(DirectionNotFound);
 });

@@ -15,7 +15,9 @@
     "@life-os/validation": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "@node-rs/argon2": "^2.0.2",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@life-os/insights": "workspace:*",
+    "@life-os/shared": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

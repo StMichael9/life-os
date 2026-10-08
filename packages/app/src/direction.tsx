@@ -204,6 +204,16 @@ export function Direction({
       throw error;
     }
   }
+  async function vision(title: string, id: string) {
+    const result = await mutate<{ item: { id: string; title: string } }>('/api/direction/visions', {
+      id,
+      title,
+      description: null,
+    });
+    setMeta((prev) =>
+      prev ? { ...prev, visions: [...prev.visions.filter((v) => v.id !== id), result.item] } : null,
+    );
+  }
   async function category(name: string, spiritual: boolean, id: string) {
     const result = await mutate<{ item: Category }>('/api/direction/categories', {
       name,
@@ -622,6 +632,21 @@ export function Direction({
                   )}
                   {'title' in current && (
                     <>
+                      {'notes' in current &&
+                        current.notes?.startsWith(
+                          'Full source context is preserved in Vault item ',
+                        ) && (
+                          <a
+                            href={
+                              '/vault?id=' +
+                              current.notes.slice(
+                                'Full source context is preserved in Vault item '.length,
+                              )
+                            }
+                          >
+                            Original Vault context →
+                          </a>
+                        )}
                       {'description' in current && current.description && (
                         <p className="private-prose">{current.description}</p>
                       )}
@@ -630,6 +655,15 @@ export function Direction({
                           <div>
                             <dt>Category</dt>
                             <dd>{areaName(current.categoryId) ?? 'Owned category'}</dd>
+                          </div>
+                        )}
+                        {'taskProgress' in current && current.taskProgress && (
+                          <div>
+                            <dt>Linked Task progress</dt>
+                            <dd>
+                              {current.taskProgress.completed} of {current.taskProgress.total}{' '}
+                              completed (cancelled Tasks excluded)
+                            </dd>
                           </div>
                         )}
                         {'priority' in current && (
@@ -784,6 +818,7 @@ export function Direction({
           onSave={save}
           onClose={() => setEditor(null)}
           onCategory={category}
+          onVision={vision}
           onMoreGoals={pages.goals.nextCursor ? () => more('goals') : undefined}
           onMoreMilestones={pages.milestones.nextCursor ? () => more('milestones') : undefined}
         />

@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { Today } from '@life-os/app';
+import { Today, Execution } from '@life-os/app';
 import type { Season } from '@life-os/shared';
 import { getHandlers } from '../lib/services';
 async function seasonProps(
@@ -26,5 +26,5 @@ async function seasonProps(
 export default async function HomePage() {
   // Anonymous previews never contact private repositories. Verification stays server-side.
   const props = await seasonProps((await headers()).get('cookie') ?? '');
-  return <Today {...props} />;
+  return props.accountId ? <Execution /> : <Today {...props} />;
 }

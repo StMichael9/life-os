@@ -99,3 +99,57 @@ export class RuleBasedProvider {
     });
   }
 }
+
+/** Phase 1 recommendations use recorded evidence, never spiritual behavior. */
+export function dailyInsights(evidence: {
+  scheduledMinutes: number;
+  outstandingOutcomes: number;
+  inboxCount: number;
+  routineScheduled: number;
+  routineCompleted: number;
+}) {
+  if (Object.values(evidence).some((v) => !Number.isFinite(v) || v < 0))
+    throw new RangeError('Invalid daily evidence');
+  return [
+    ...(evidence.scheduledMinutes > 480
+      ? [
+          {
+            title: 'Leave breathing room',
+            explanation: `You scheduled ${Math.round(evidence.scheduledMinutes)} minutes on this day. This exceeds an eight-hour planning guideline, not a measure of your capacity.`,
+            action: 'Review the timeline and protect breaks.',
+            severity: 'notice',
+          },
+        ]
+      : []),
+    ...(evidence.outstandingOutcomes > 0
+      ? [
+          {
+            title: 'Protect your chosen outcomes',
+            explanation: `${evidence.outstandingOutcomes} deliberately chosen outcomes remain open.`,
+            action: 'Choose a linked Task or protect a block for the next outcome.',
+            severity: 'info',
+          },
+        ]
+      : []),
+    ...(evidence.inboxCount >= 10
+      ? [
+          {
+            title: 'Make room for clarity',
+            explanation: `${evidence.inboxCount} captures await processing.`,
+            action: 'Turn actionable captures into Tasks; keep ideas in Not Now.',
+            severity: 'notice',
+          },
+        ]
+      : []),
+    ...(evidence.routineScheduled > 0 && evidence.routineCompleted === 0
+      ? [
+          {
+            title: 'Keep a small promise',
+            explanation: `None of ${evidence.routineScheduled} scheduled execution routines is checked on this day. Reflective practices are excluded.`,
+            action: 'Choose one manageable routine, or revise an unrealistic commitment.',
+            severity: 'info',
+          },
+        ]
+      : []),
+  ];
+}

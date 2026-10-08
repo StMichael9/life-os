@@ -60,9 +60,31 @@ export function Inbox() {
       identity.current = current.profile.id;
       setProfile(current.profile);
       await postJson('/api/auth/refresh', {});
-      const data = await requestJson<{ items: InboxItem[]; nextCursor: Cursor | null }>(
-        '/api/inbox',
-      );
+      const data = await requestJson<{
+        items: InboxItem[];
+        nextCursor: Cursor | null;
+        ownerId: string;
+      }>('/api/inbox');
+      const target = new URLSearchParams(location.search).get('id');
+      if (target) {
+        const detail = await requestJson<{
+          capture: InboxItem;
+          processed: boolean;
+          convertedTaskId: string | null;
+          ownerId: string;
+        }>('/api/tasks/from-inbox/' + encodeURIComponent(target));
+        if (detail.ownerId !== identity.current) throw new RequestFailed(401, 'Account changed.');
+        data.items = [
+          {
+            ...detail.capture,
+            processed: detail.processed,
+            convertedTaskId: detail.convertedTaskId,
+          },
+          ...data.items.filter((i) => i.id !== target),
+        ];
+      }
+      if (data.ownerId !== identity.current)
+        throw new RequestFailed(401, 'The account changed. Reload before continuing.');
       if (!leaving.current && generation.current === activeGeneration) {
         setItems(data.items);
         setCursor(data.nextCursor);
@@ -112,7 +134,12 @@ export function Inbox() {
         throw new Error('The account changed. Reload before capturing.');
       }
       if (leaving.current || generation.current !== activeGeneration) return;
-      const { item } = await postJson<{ item: InboxItem }>('/api/inbox', pending.current);
+      const { item } = await postJson<{ item: InboxItem }>(
+        '/api/inbox',
+        pending.current,
+        'POST',
+        current.profile.id,
+      );
       if (leaving.current || generation.current !== activeGeneration) return;
       setItems((previous) => [item, ...previous.filter((existing) => existing.id !== item.id)]);
       pending.current = null;
@@ -135,10 +162,14 @@ export function Inbox() {
     setMessage('');
     const activeGeneration = generation.current;
     try {
-      const data = await requestJson<{ items: InboxItem[]; nextCursor: Cursor | null }>(
-        `/api/inbox?cursor=${encodeURIComponent(JSON.stringify(cursor))}`,
-      );
+      const data = await requestJson<{
+        items: InboxItem[];
+        nextCursor: Cursor | null;
+        ownerId: string;
+      }>(`/api/inbox?cursor=${encodeURIComponent(JSON.stringify(cursor))}`);
       if (leaving.current || activeGeneration !== generation.current) return;
+      if (data.ownerId !== identity.current)
+        throw new RequestFailed(401, 'The account changed. Reload before continuing.');
       setItems((previous) => [
         ...previous,
         ...data.items.filter((item) => !previous.some((existing) => existing.id === item.id)),
@@ -267,10 +298,47 @@ export function Inbox() {
                   minute: '2-digit',
                 }).format(new Date(item.createdAt))}
               </time>
-              {profile && (
-                <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
-                  Turn into Task
-                </a>
+              {item.processed && (
+                <p className="muted">
+                  Processed capture · original text preserved.{' '}
+                  {item.convertedTaskId && (
+                    <a href={'/tasks?id=' + item.convertedTaskId}>Open linked Task →</a>
+                  )}
+                </p>
+              )}
+              {profile && !item.processed && (
+                <>
+                  <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
+                    Turn into Task
+                  </a>
+                  <a className="button" href={'/vault?fromInbox=' + item.id}>
+                    Keep in Vault / Not Now
+                  </a>
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!profile || !confirm('Archive this capture? The original text is kept.'))
+                        return;
+                      setBusy(true);
+                      try {
+                        await postJson(
+                          '/api/execution',
+                          { action: 'inbox-dismiss', requestId: crypto.randomUUID(), id: item.id },
+                          'POST',
+                          profile.id,
+                        );
+                        await refresh();
+                      } catch (e) {
+                        fail(e);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Archive capture
+                  </button>
+                </>
               )}
             </li>
           ))}

@@ -25,6 +25,16 @@ No table or content is removed. Upgrade and real PostgreSQL tests apply the chai
 Migration metadata and snapshots are committed; generation must not alter old SQL
 once deployed. Destructive rollback is not automatic.
 
+`0005_daily_execution.sql`: adds daily-plan version/start/reflection fields,
+schedule/Focus versions, Focus Project/resume fields and Project priority. Creates
+Routine, RoutineCompletion, VaultItem, FocusInterval and ExecutionReceipt (22 tables
+total). New composite owner FKs, single-conversion/one-running-interval constraints,
+indexes and timestamp triggers preserve all original records. Focus owner uniqueness
+is created before the interval FK. Legacy Focus history gets no invented intervals.
+`0006_execution_receipt_keys.sql`: adds owner-scoped request UUIDs, backfilling existing
+receipts from their IDs before enforcing NOT NULL/uniqueness. New receipt row IDs are
+server-generated; retry UUIDs are independent across accounts.
+
 | Table             | Purpose and relationships                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------ |
 | app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                               |
@@ -37,13 +47,13 @@ once deployed. Destructive rollback is not automatic.
 | vision            | User-owned long-term direction                                                                         |
 | goal              | Optional Vision and category; typed measurement values/unit and target date                            |
 | milestone         | Required Goal; completion and target date                                                              |
-| project           | Optional Milestone **or** direct Goal, never both; optional category                                   |
+| project           | Optional Milestone **or** direct Goal; category and manual priority 1–5                                |
 | task              | Optional Project **or** direct Goal, never both; optional category, scores, due instant and duration   |
 | inbox_item        | Owner-scoped retry UUID, bounded text, processed timestamp, millisecond created time and ordered index |
-| daily_plan        | Unique user/local-date, timezone snapshot, a single primary outcome                                    |
+| daily_plan        | Unique user/local-date; version, timezone snapshot, One Thing, Start/Close and private reflection      |
 | daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                              |
-| schedule_block    | Start/end instants, kind, optional Task link                                                           |
-| focus_session     | Objective, optional Task/category, active duration/outcome; one open per user                          |
+| schedule_block    | Versioned start/end instants, kind, optional owned Task link                                           |
+| focus_session     | Versioned objective, Task or Project, category, resume state and duration; one open per user           |
 
 Except auth credentials (whose user PK identifies the row), owned tables have UUID
 IDs, owners, created and updated timestamps. Content references include owner in
@@ -54,8 +64,8 @@ operation with export/recovery considerations. No deletion endpoint exists yet.
 
 A direct Goal on a Task/Project is an alternative parent, not a duplicate of the
 ancestor. Resolve the inherited Goal through Project→Milestone→Goal when present.
-This avoids contradictory hierarchy links. Unlinked work is valid. Project progress
-is derived from outcomes/milestones rather than a manually maintained fake percentage.
+This avoids contradictory hierarchy links. Unlinked work is valid. Project detail progress counts owned linked Tasks completed/total, excluding cancelled
+Tasks from the denominator; an empty Project has no invented percentage.
 Schedule blocks carry scheduled instants; Tasks do not duplicate a single scheduled
 time because one task can occupy multiple blocks. Dates without times use SQL date;
 actual instants use timestamptz. DST boundaries are resolved using user timezone.
@@ -97,7 +107,8 @@ Lists are 50 rows plus a lookahead; cursor is an owned anchor UUID. Timestamp tu
 comparison happens in SQL for stable microsecond pagination. Detail ancestor queries,
 lookup categories/Visions and every list/change include the verified owner. Category
 creation supports at most 100 categories; lookup metadata exposes up to 100 existing
-Visions. Category rename/removal and Vision CRUD are deferred. Read-only snapshots
+Visions. Vision creation is available; category rename/removal and full Vision editing
+remain deferred. Read-only snapshots
 use repeatable read; writes serialize through an owner row lock and retain DB FKs.
 
 ## Task and conversion invariants
@@ -123,7 +134,7 @@ use repeatable read; writes serialize through an owner row lock and retain DB FK
 - Lists use repeatable-read snapshots, owned cursor anchors and timestamp tuple
   comparisons in SQL. Status/direct-parent filters precede 50-row pagination.
   The Goal filter selects direct Goal Tasks; inherited Tasks are viewed via Project.
-  Removal is not exposed; cancel/reopen preserves future daily-plan/Focus references.
+  Removal is not exposed; cancel/reopen preserves daily-plan/Focus references.
 
 ## Authentication and Inbox invariants
 
@@ -155,7 +166,6 @@ owned FK follows the same composite-ownership convention when implemented.
 | Domain               | Planned normalized records and relationships                                                                                                                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Daily reflection     | One DailyReflection per DailyPlan; explicit accomplishment, lesson, gratitude, prayer and tomorrow prompts; separate sensitive text from objective aggregation                                                                 |
-| Routines             | Routine definition with recurrence rule/timezone and category; RoutineCompletion unique by routine/local-date/occurrence, separate from Tasks                                                                                  |
 | Health               | WeightEntry, SleepEntry and StepEntry carry typed units and measured date/instant; TrainingSession has configurable TrainingType; optional daily energy/nutrition notes; no generic HealthEntry EAV duplication                |
 | Skills               | Skill hierarchy with nullable parent Skill; SkillStage definitions and evidence links; progress derived from ProblemAttempt/ProblemReview, not arbitrary percentages                                                           |
 | Problems             | PracticeProblem belongs to Skill/topic; many ProblemAttempts record time, independence, hints, confidence and summary; ProblemReview stores due/completed dates and scheduling version                                         |
@@ -173,7 +183,6 @@ owned FK follows the same composite-ownership convention when implemented.
 | Gratitude/journal    | GratitudeEntry and JournalEntry with dated text and explicit privacy boundaries; tag joins if needed rather than a generic document system                                                                                     |
 | Reviews              | One Review table with period enum (weekly/monthly/quarterly/yearly), period start/end, unique owner/type/start, snapshot version and narrative; avoids four duplicate tables; faith narrative excluded from execution scoring  |
 | Decisions            | Decision owns context/options/choice, assumptions and expected outcome; DecisionReview records actual outcomes/lessons and due date; preserve reasoning from decision time                                                     |
-| Vault                | VaultItem has kind (Idea/Someday/Not Now/Research/etc.), title/body and optional category; conversion atomically creates explicit Task/Project/Goal/Experiment and preserves origin/audit link                                 |
 | Insights             | GeneratedInsight stores rule/version/evidence window and dismissal if persistence is useful; inputs aggregate domain data, not unrestricted access to private text                                                             |
 | Preferences          | UserPreference for product defaults; NotificationPreference unique user/category/channel; profile timezone remains canonical on app_user                                                                                       |
 
@@ -193,3 +202,31 @@ Tests exercise cross-owner references, one active Season, Big 3 positions, one d
 plan/date, invalid values and one open focus session. PGlite is PostgreSQL-compatible
 WASM, **not proof of Neon pooling/TLS/role behavior**. Before production, apply the
 chain on an isolated hosted PostgreSQL branch and test with the restricted app role.
+
+## Daily execution invariants
+
+- `daily_plan.version` rejects stale replacement. One Thing is nullable or one bounded
+  outcome; Big 3 is an atomic full set with positions 1–3 and optional distinct owned
+  Task links. Completion timestamps are preserved for unchanged completed outcomes.
+- Start and Close store separate bounded reflection objects as JSON text. They are
+  private narrative, not analytical inputs. Closed plans require explicit reopening.
+- Owner-locked schedule writes reject overlapping intervals. Start/end are UTC instants;
+  local-day queries include cross-midnight blocks and exclude an end exactly at midnight
+  from the following day. Scheduled-minute totals clip each interval to the selected
+  local day, including 23/25-hour DST boundaries. No Task scheduled-time duplicate was introduced.
+- `focus_interval` retains running/paused intervals, with composite session ownership,
+  one open interval and valid dates. Daily totals intersect recorded intervals with
+  account-local day boundaries. Legacy sessions without intervals retain their original
+  duration in history; they are not fabricated into daily interval metrics.
+- `routine.days` stores sorted distinct weekdays 0–6. Completion is unique per routine
+  and local date, with optional notes. Definitions archive; completion history remains.
+- `vault_item` preserves full text and optional unique owned Inbox provenance. One of
+  converted Task/Goal/Project may be set; composite FKs enforce ownership. Promotion
+  archives the source within the same transaction. No Phase 3 Experiment table exists.
+- `execution_receipt` stores a normalized command SHA-256 fingerprint and minimal result
+  ID for each `(user_id, request_id)`. Exact replay preserves newer edits; changed replay
+  conflicts. Receipts never expose owner credentials, tokens or private source text.
+  Retention is currently unbounded to preserve retry semantics; no cleanup worker exists.
+
+Read authorization always requires explicit owner predicates; SQL FKs do not authorize
+SELECT. All Phase 1 operations retain session verification and account-change checks.

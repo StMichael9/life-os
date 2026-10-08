@@ -30,17 +30,22 @@ export function createInboxService(sessions: SessionVerifier, inbox: InboxReposi
     return principal;
   }
   return {
-    async capture(token: string | undefined, input: unknown) {
+    async capture(token: string | undefined, input: unknown, expectedAccount?: string) {
       const principal = await requirePrincipal(token);
+      if (expectedAccount !== undefined && expectedAccount !== principal.userId)
+        throw new AuthenticationRequired();
       const { body, requestId } = captureRequestSchema.parse(input);
       return inbox.capture(principal.userId, body, requestId);
     },
     async list(token: string | undefined, cursor?: unknown) {
       const principal = await requirePrincipal(token);
-      return inbox.list(
-        principal.userId,
-        cursor === undefined ? undefined : inboxCursorSchema.parse(cursor),
-      );
+      return {
+        ...(await inbox.list(
+          principal.userId,
+          cursor === undefined ? undefined : inboxCursorSchema.parse(cursor),
+        )),
+        ownerId: principal.userId,
+      };
     },
   };
 }
@@ -52,3 +57,5 @@ export { createDirectionService } from './direction';
 export { createDirectionHttp } from './direction-http';
 export { createTaskService } from './tasks';
 export { createTaskHttp } from './tasks-http';
+
+export { createExecutionService, createExecutionHttp } from './execution';

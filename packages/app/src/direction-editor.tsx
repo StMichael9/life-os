@@ -106,6 +106,7 @@ export function DirectionEditor({
   onSave,
   onClose,
   onCategory,
+  onVision,
   onMoreGoals,
   onMoreMilestones,
 }: {
@@ -118,6 +119,7 @@ export function DirectionEditor({
   goalId?: string | undefined;
   onSave: (body: unknown) => Promise<void>;
   onClose: () => void;
+  onVision: (title: string, id: string) => Promise<void>;
   onCategory: (name: string, spiritual: boolean, id: string) => Promise<void>;
   onMoreGoals?: (() => Promise<void>) | undefined;
   onMoreMilestones?: (() => Promise<void>) | undefined;
@@ -145,6 +147,8 @@ export function DirectionEditor({
           : '';
     return result;
   });
+  const [visionTitle, setVisionTitle] = useState('');
+  const visionRequest = useRef(crypto.randomUUID());
   const [allocations, setAllocations] = useState<Record<string, string>>(() =>
     record && 'allocations' in record
       ? Object.fromEntries(record.allocations.map((a) => [a.categoryId, String(a.percent)]))
@@ -275,6 +279,7 @@ export function DirectionEditor({
       body = {
         ...base,
         ...common,
+        priority: Number(values.priority),
         startsOn: nullable(values.startsOn),
         targetDate: nullable(values.targetDate),
         goalId: values.parent?.startsWith('goal:') ? values.parent.slice(5) : null,
@@ -406,6 +411,40 @@ export function DirectionEditor({
                   ))}
                 </>,
               )}
+              <details>
+                <summary>Create a Vision</summary>
+                <label className="direction-field">
+                  Vision title
+                  <input
+                    value={visionTitle}
+                    maxLength={200}
+                    onChange={(e) => {
+                      setVisionTitle(e.target.value);
+                      visionRequest.current = crypto.randomUUID();
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy || !visionTitle.trim()}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      const id = visionRequest.current;
+                      await onVision(visionTitle.trim(), id);
+                      set('visionId', id);
+                      setVisionTitle('');
+                    } catch (e) {
+                      setErrors([e instanceof Error ? e.message : 'Vision could not be created.']);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Create Vision
+                </button>
+              </details>
               {!meta.visions.length && (
                 <p className="quiet-note field-wide">
                   Vision links are optional. No Visions exist in this account yet.
@@ -449,6 +488,18 @@ export function DirectionEditor({
                       </option>
                     ))}
                   </optgroup>
+                </>,
+              )}
+              {select(
+                'priority',
+                'Priority',
+                <>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                      {n === 5 ? ' — Highest' : n === 1 ? ' — Lowest' : ''}
+                    </option>
+                  ))}
                 </>,
               )}
               {field('startsOn', 'Start date', { type: 'date' })}

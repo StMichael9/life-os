@@ -7,6 +7,7 @@ import {
   projectCommandSchema,
   categoryCommandSchema,
   activationSchema,
+  visionCommandSchema,
 } from '@life-os/validation';
 import { AuthenticationRequired, type SessionVerifier } from './index';
 const resourceSchema = z.enum(['seasons', 'goals', 'milestones', 'projects']);
@@ -27,6 +28,9 @@ export function createDirectionService(sessions: SessionVerifier, repo: Directio
     async meta(token: string | undefined) {
       const userId = await owner(token);
       return { ...(await repo.meta(userId)), ownerId: userId };
+    },
+    async vision(token: string | undefined, input: unknown, expectedAccount?: string) {
+      return repo.vision(await owner(token, expectedAccount), visionCommandSchema.parse(input));
     },
     async category(token: string | undefined, input: unknown, expectedAccount?: string) {
       return repo.category(await owner(token, expectedAccount), categoryCommandSchema.parse(input));

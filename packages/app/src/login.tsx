@@ -20,7 +20,10 @@ export function Login() {
       form.reset();
       const next = new URL(window.location.href).searchParams.get('next');
       window.location.assign(
-        next === '/tasks' || next === '/direction' || next === '/' ? next : '/inbox',
+        next &&
+          ['/', '/tasks', '/direction', '/schedule', '/focus', '/routines', '/vault'].includes(next)
+          ? next
+          : '/inbox',
       );
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Sign-in failed. Please try again.');

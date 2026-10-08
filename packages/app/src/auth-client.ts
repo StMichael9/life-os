@@ -42,6 +42,8 @@ export interface Profile {
   timeZone: string;
 }
 export interface InboxItem {
+  processed?: boolean;
+  convertedTaskId?: string | null;
   id: string;
   body: string;
   createdAt: string;

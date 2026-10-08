@@ -2,232 +2,158 @@
 
 ## Current phase
 
-**Phase 0 foundation and Phase 1 Inbox, Direction and Tasks slices implemented.**
-Private workflows now include owner-only capture/list and Task conversion, Seasons,
-Goals, Milestones, Projects and persisted Tasks. Authenticated Today shows the
-persisted active Season; anonymous Today and the remaining daily-planning cards
-stay clearly labeled guidance. Full Today planning, Focus, recovery/reset and later
-private domains remain deferred.
+**Phase 0 foundation and Phase 1 — Daily Execution Core are implemented and verified
+in the isolated environment. Hosting and native Windows release verification remain pending.**
 
-## Architecture retained
+Daily execution now uses real authenticated PostgreSQL records throughout. Today is
+the central hub for planning, scheduling, Focus, routines, recommendations and
+capture. Phases 2–6 have not been started. Public deployment and native Windows
+release verification remain separate tasks; a Git push does not put the app online.
 
-pnpm 11 / Node 24 strict TypeScript monorepo. Next.js hosts shared React views;
-sandboxed Electron loads the same hosted origin and accounts. Drizzle repositories
-use PostgreSQL; services derive ownership from verified sessions. Browser packages
-cannot import server, database, Node or Electron dependencies. Existing semantic
-CSS tokens, local-day logic, deterministic insights and composite ownership FKs
-remain. See `architecture.md`, `data-model.md` and `deployment.md` for contracts.
+## Completed features
 
-## Completed
+| Phase 1 area           | Actual behavior                                                                                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication / shell | Controlled operator accounts, Argon2id passwords, hashed opaque sessions, expiry/revocation/logout/rotation, CSRF, persistent login limits, shared responsive web/Electron views                                                |
+| Direction              | Owner-scoped Seasons, Goals, Milestones and Projects; atomic 100% allocations, one active Season, hierarchy, versions, completion/archive; Goal-form Vision creation; Project priority and real linked-Task counts              |
+| Tasks                  | Create/edit/detail/list, status/deadline/duration/ratings/energy, optional owned Project or direct Goal, completion/reopening, stale-edit protection and pagination                                                             |
+| Today                  | One bounded verified aggregation, selected account-local date, real Season/allocation strategy, One Thing, Big 3, timeline, Focus, routines, counts, recommendations and Insights                                               |
+| Planning               | Exactly one optional primary outcome and up to three deliberate outcomes; optional distinct owned Task links; versioned full-set replacement; independent outcome completion                                                    |
+| Start / Close Day      | Optional morning/evening questions, persisted private reflection, confirmation of priorities, recorded objective summary, explicit reopening before plan edits                                                                  |
+| Scheduling             | Six block types, owned optional Task links, account-timezone create/edit/remove, responsive timeline, cross-midnight retrieval and transactional overlap rejection                                                              |
+| Focus                  | Task or Project/category/custom objective, 25/50/90/custom minutes, running/paused restoration, server timing, pause/resume/finish, outcome/notes and Later capture; adds recorded minutes once to linked Task                  |
+| Routines               | Weekday recurrence, create/edit/archive, independent local-day completion/reopening and completion notes; archived completed history retained; reflective practices excluded from execution Insights                            |
+| Priority / Insights    | Existing deterministic ranking now uses stored Task assessments, inherited category, active Season allocation, deadline, recorded estimate and energy; explained top candidates; workload/outcomes/Inbox/routine evidence rules |
+| Universal capture      | Fast arbitrary text capture from Inbox/Today/Focus/palette; stable retry keys; atomic Task or Vault processing, archive without erasing original text; original captures remain searchable/readable                             |
+| Vault / Not Now        | Persisted collection/title/context, edit/archive/restore, pagination and deep links; owned Task/Goal/Project promotion preserves full source context; no Experiment/later-domain implementation                                 |
+| Search / commands      | Ctrl/Cmd+K native dialog, keyboard search/navigation, Task creation, Focus and Inbox capture; literal owner-scoped search across all implemented Phase 1 collections                                                            |
+| Scripture / thought    | Immutable local-day KJV/original thought mapping, no external API; saves private favorites into Vault with equal-content deduplication; never scored                                                                            |
 
-- Preserved the original specification, public Today preview, immutable v1 Scripture/
-  thought mapping, timezone dialog, deterministic priority/insight rules and all
-  existing tests. These later-domain rules are still not connected to private UI.
-- Added controlled operator account creation through interactive `pnpm account:create`;
-  no public signup route. Shared validation normalizes email, validates timezone,
-  and bounds passwords. Argon2id uses 19,456 KiB, two iterations and one lane.
-- Added real 256-bit opaque sessions with SHA-256 hashes in PostgreSQL, absolute
-  30-day and idle seven-day expiry, server revocation and logout. Transactional
-  rotation occurs at most every 15 minutes with only 30 seconds of predecessor
-  grace; concurrent/lost refresh responses recover the same keyed successor.
-- Added HTTPS host-only Secure/HttpOnly/SameSite=Lax cookies, minimal profile JSON,
-  no-store private responses, signed expiring double-submit CSRF with exact Origin,
-  strict JSON/DTO validation, duplicate-cookie rejection and streamed body limits.
-  Loopback HTTP requires explicit development opt-in and different cookie names.
-- Added shared PostgreSQL fixed-window login limits: five attempts per HMAC email
-  key and 50 overall per 15 minutes, atomic concurrency and bounded expired cleanup.
-  Unknown accounts and bad passwords have generic responses and Argon2 verification.
-- Added migration `0002_auth_inbox.sql` with auth expiry/rotation fields, persistent
-  rate buckets and owner-scoped Inbox retry UUID uniqueness. Seventeen tables now
-  exist; original ownership constraints and timestamp triggers remain intact.
-- Exposed authenticated capture/list APIs through existing service/repository
-  boundaries. Owner IDs come solely from session verification; supplied owner fields
-  are rejected. Capture retries reuse an owner-scoped key; changed payloads conflict.
-  Listing has bounded stable cursor pagination and always filters the owner.
-- Built shared login/Inbox views with in-memory drafts, confirmation before discard,
-  capture retries after uncertain delivery, expiry/account-change handling, logout
-  confirmation, foreground revalidation and visible periodic refresh. Two browser
-  accounts have isolated data; captured text survives reload through PostgreSQL.
-- Added Electron main-process encrypted session-cookie persistence/restore, serialized
-  rotation writes, logout deletion, validation and corruption handling. Unavailable
-  OS encryption, Linux `basic_text` and dev HTTP remain nonpersistent. No plaintext
-  fallback, preload, IPC or renderer privilege was introduced. Existing sandbox,
-  isolation, origin/navigation, certificate and permission protections are retained.
-- Updated CI to provision disposable PostgreSQL 17 databases and exercise auth services
-  and browser flows alongside the original PGlite migration tests and quality gates.
-- Patched development-tool esbuild advisories and upgraded the transitive download
-  proxy adapter to remove vulnerable sprintf-js. Narrow overrides are documented
-  until parent packages update their ranges.
+No fake Task, Focus, spending, health or opportunity metrics are presented. Later-phase
+opportunity/financial/health dashboards and dedicated prayer/journal functionality
+remain outside this Phase 1 implementation.
 
-### Direction completed
+## Architecture and security preserved
 
-- Added owner-scoped create/read/edit/list APIs and shared web/Electron UI for Seasons,
-  Goals, Milestones and Projects using the existing schema and service boundaries.
-  Category creation supports real allocation/Goal/Project choices; existing owned
-  Visions can be selected and displayed without adding a Vision editor.
-- Seasons include primary objective, description, dates, success criteria, status
-  and full-set category allocations. Shared and transactional validation require
-  distinct owned categories totaling exactly 100%. Activation serializes by owner,
-  moves the previous active Season back to planned and preserves the unique index.
-  Complete/archive preserves records and links; reactivation is explicit.
-- Goals include category/Vision, target date, status, priority, notes and optional
-  exact decimal target/current/unit. Milestones support creation/editing, Goal links,
-  completion/reopening and target dates. Projects support description/category/status,
-  dates/notes and one direct Goal or one Milestone. Independent Projects remain valid.
-- Detail views resolve Vision → Goal → Milestone → Project using owned queries;
-  lists have 50-row cursor pagination. Complete edit versions reject stale notes/
-  relationships with 409. UUID creates safely replay identical payloads after lost
-  responses; changed replays cannot duplicate or overwrite the original record.
-- Added owner-stamped read envelopes and a server-checked account precondition on
-  UI mutations to prevent another tab's login from adopting/submitting an earlier
-  account's Direction draft. Auth/session, CSRF, HttpOnly cookies and Electron
-  restrictions remain intact. No request field supplies owner authority.
-- Added calm empty states, responsive list/detail layouts, native create/edit dialogs,
-  validation feedback, archive/discard/activation confirmation, loading states and
-  foreground revalidation. Unsaved forms are not overwritten by background refresh.
-- Authenticated Today now renders and revalidates only the real active Season name,
-  objective, date range and up to six allocations, linking to the full strategy.
-  No fabricated progress/metrics, Big 3 or One Thing editing was added.
-- Added additive `0003_direction_versions.sql`: integer version columns on four
-  existing Direction tables. No table, original field, parent FK or content removed.
-  Upgrade verification preserves pre-0003 notes, dates and parent links.
-- Existing Task → Goal/Project ownership FKs remain ready for the next slice; no
-  Task service, record creation, API or UI was implemented during that earlier slice.
+Node 24 / pnpm 11 strict TypeScript monorepo; Next hosts shared React, Drizzle/pg owns
+persistence, services verify opaque sessions and derive owner identity. Browser-safe
+packages never import database/server/Node/Electron modules. Existing composite
+ownership FKs, Task single-parent constraints, capture provenance and Direction
+allocation/version semantics remain. Electron still has sandbox/context isolation,
+origin/navigation/certificate/permission restrictions and no preload/IPC.
 
-### Tasks completed in this run
+All new private routes retain no-store, strict shared schemas, 16 KiB streamed JSON,
+exact Origin and signed CSRF. Writes additionally compare the UI account precondition
+with the verified session. Inbox reads now carry owner stamps and capture uses that
+precondition too, closing a cross-tab identity race. UI data/drafts clear on account
+change. Native forms retain connection/stale errors and warn before discard/unload.
 
-- Added real authenticated create/read/edit/list and completion/reopening, using
-  the original Task fields and owner-scoped Goal/Project/category relationships.
-  Supports description/notes, all six work statuses, manual priority, due instant,
-  estimate/actual minutes, energy and optional decision ratings. No generated priority
-  score, schedule, Focus timer, daily planning or spiritual productivity metric added.
-- Shared web/Electron Tasks UI includes native forms, helpful empty/loading states,
-  responsive detail/list, owned hierarchy, status/direct-parent filters, earlier-page
-  loading, validation, stale-edit preservation and cancellation/discard confirmation.
-  Parent choices load more pages; Direction links to directly attached Tasks.
-- Due forms use the account timezone, not the Cloud/browser timezone. Exact instants
-  persist in PostgreSQL; seconds round-trip. Skipped/repeated DST times receive useful
-  validation rather than silently shifted deadlines. Actual duration is manual input.
-- Inbox captures can be converted into a Task in one transaction. Original capture
-  text remains; successful conversion removes it from unprocessed Inbox. Owner/source
-  uniqueness, composite FK, row locks and immutable normalized command fingerprint
-  prevent duplicates or foreign conversion. Exact retries return the linked Task even
-  after later edits, preserving newer notes; changed retries return 409.
-- Preserved session/CSRF/origin/body limits and account-change preconditions. All new
-  reads carry verified account stamps. Task drafts and records clear on account/session
-  changes; open forms retain connection failures/stale edits and stable create UUIDs.
-  No plaintext browser persistence, native IPC or Electron renderer privilege added.
-- Added additive migration `0004_tasks_conversion.sql`: Task version/priority/completion,
-  source Inbox link/fingerprint, source uniqueness/provenance check and Inbox owner key.
-  Existing notes, due instants, durations and Project links survive upgrade; original
-  captures remain intact. Legacy completed Tasks have no fabricated completion instant.
-- CI now provisions a separate disposable Tasks PostgreSQL database and runs the new
-  server suite alongside authentication, Direction and production browser flows.
+New execution writes share the per-owner app_user row lock. Per-owner mutation UUID /
+SHA-256 receipts return minimal IDs on exact replay and reject changed payloads. Receipt
+row IDs are generated separately so different owners can reuse a retry UUID. Planning,
+Focus finish, Vault promotion and capture processing commit atomically. Closed plans
+require reopening; schedule conflicts and stale versions never silently overwrite.
+
+## Schema / migrations in this run
+
+- `0005_daily_execution.sql`: additive planning version/start/reflection fields,
+  schedule/Focus versions, Focus Project/resume fields and Project priority; five new
+  tables (`routine`, `routine_completion`, `vault_item`, `focus_interval`,
+  `execution_receipt`), bringing the schema to 22 tables. Composite owner FKs,
+  one-running-interval/single-Vault-conversion constraints, indexes and updated_at
+  triggers accompany them. Focus owner key precedes its interval FK.
+- `0006_execution_receipt_keys.sql`: owner-scoped request UUIDs separate from generated
+  row IDs; backfill preserves earlier receipt IDs as retry keys before constraints.
+- Original migrations 0000–0004 remain unchanged. Seeded upgrade tests preserve plans,
+  Big 3, schedule, Focus duration, Task/Project notes and existing links. No original
+  content/table is removed and no production migration was applied.
 
 ## Entry points
 
-| Area            | Files                                                                                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Web composition | `apps/web/lib/services.ts`, `app/api/auth/[action]/route.ts`, `app/api/inbox/route.ts`, `app/api/direction/[[...parts]]/route.ts`, `app/api/tasks/[[...parts]]/route.ts` |
-| Auth and HTTP   | `packages/api/src/auth.ts`, `http-security.ts`, `http.ts`, `account-cli.ts`, `direction.ts`, `direction-http.ts`, `tasks.ts`, `tasks-http.ts`                            |
-| Persistence     | `packages/database/src/auth.ts`, `inbox.ts`, `direction.ts`, `tasks.ts`, `schema.ts`, `migrations/`                                                                      |
-| Shared UI       | `packages/app/src/login.tsx`, `inbox.tsx`, `auth-client.ts`, `direction.tsx`, `direction-editor.tsx`, `today-season.tsx`, `tasks.tsx`, `task-editor.tsx`                 |
-| Desktop         | `apps/desktop/src/main.ts`, `security.ts`, `credentials.ts`, `session-persistence.ts`                                                                                    |
-| Verification    | `auth-inbox.test.ts`, `http-security.test.ts`, desktop tests, `tests/auth-inbox.spec.ts`                                                                                 |
+- Today/shared workflows: `packages/app/src/execution.tsx`, `execution-editor.tsx`,
+  `command-palette.tsx`; routes `/`, `/schedule`, `/focus`, `/routines`, `/vault`.
+- HTTP/services: `packages/api/src/execution.ts`, existing auth/Inbox/Direction/Tasks;
+  `apps/web/lib/services.ts`, `/api/execution` commands and `/today`, `/vault`, `/search` reads.
+- Persistence: `packages/database/src/execution.ts`, existing repositories, schema and
+  reviewed migrations. DTOs/time helpers remain browser-safe in `packages/shared`;
+  strict commands in validation, deterministic rules in insights.
+- Verification: `execution.test.ts`, `execution-migration.test.ts`, `daily.test.ts`,
+  new Direction tests and `tests/execution.spec.ts`; previous suites retained.
 
-## Verification performed in Cloud
+## Completed verification
 
-- `pnpm format:check`, `pnpm lint` (zero warnings) and `pnpm typecheck`: passed.
-- `pnpm test`: **75 passing tests across 15 files**, preserving all previous tests.
-  Two additional restricted-role cases are PostgreSQL-only and explicitly skip in
-  this default PGlite run. The suite includes the original migrations/constraints,
-  auth/session/CSRF/rate limits, Inbox isolation/retries, Electron security, Direction
-  validation/relations/versions, Tasks, conversion retries/rollback/concurrency,
-  account timezone/DST checks and seeded pre-0003/pre-0004 upgrade preservation.
-- Isolated **PostgreSQL 17**: **13/13 auth/Inbox** regression cases and **13/13 Direction**
-  cases plus **13/13 Tasks** cases passed in separate disposable fixture databases.
-  Direction verifies complete
-  allocations and rollback, concurrent activation, owner isolation, hierarchy links,
-  decimal precision, stale edits, create replays and microsecond cursor pagination.
-  Restricted SET LOCAL ROLE cases prove Direction/Task grants work, including
-  atomic conversion, and deny account creation/DDL/capture deletion; production
-  provider roles/pooling remain unverified.
-- Production `pnpm build`: Next.js application and Electron main bundle passed.
-- Production browser E2E against disposable PostgreSQL: **32/32** desktop/mobile
-  cases passed, preserving all 24 prior cases and adding Task CRUD/conversion retry/isolation.
-  Direction coverage includes persisted CRUD,
-  active Season on Today, Goal/Milestone/Project hierarchy, completion, notes/reload,
-  foreign-account rejection, stale-edit preservation and axe scans of detail/forms.
-  Task coverage adds account-local due time round-trip, status/direct-parent filtering,
-  completion, owned hierarchy, lost-response conversion and cross-tab draft clearing.
-- `pnpm db:generate`: no schema drift after migration 0004.
-- `pnpm peers check` and dependency/security audits: no peer issues or known
-  vulnerabilities in the checked lockfile.
-- Visual review at 1440px and 390px, plus native dialog inspection. Screenshots use
-  disposable fixtures and live outside the source repository.
+- Formatting, lint (zero warnings), typechecking and production Next/Electron builds
+  passed. Migration generation has no schema drift.
+- Default unit/integration suite: **99 passed**, three PostgreSQL-only restricted-role
+  cases explicitly skipped (102 cases across 18 files). Includes meaningful upgrade,
+  authorization, allocation/parent, session, concurrency, timing and retry verification.
+- Real isolated **PostgreSQL 17: 62 passed** across four independent fixture databases:
+  auth/Inbox 13, Direction 15, Tasks 13, execution 21. Restricted roles exercise actual
+  writes/reads and deny account deletion/DDL; provider pooling/TLS/grants remain unverified.
+- Production browser suite: **46 passed** (40 authenticated and
+  six public; desktop/mobile Chromium). New stories cover planning/closure/reopening,
+  timeline/overlap/reload, Focus pause/restoration/outcome/Later, routines, Vault,
+  command palette, saved content, ownership/account changes (including a login switch
+  during command-capture submission), overflow and axe. The final production build
+  and full browser suite were rerun after the local-day scheduling-total correction.
+- Peer checks and full/production dependency audits passed with no known vulnerabilities.
+- Tests migrate/TRUNCATE only guarded disposable `_tests`/`_e2e` fixtures. No production
+  account credentials/data, paid provider, external messages or hosted deployment used.
+  CI now provisions the fourth server fixture database and all browser cases; GitHub
+  CI itself has not been observed for this change.
 
-Tests use fixture accounts and independent auth, Direction and Tasks `_tests`
-databases plus browser `_e2e`, never real user records. All 26 authenticated browser cases
-skip without the E2E URL; CI provisions PostgreSQL and runs all three server suites and
-all 32 browser cases. These are Cloud/local runs; GitHub CI has not been observed
-for this change. No production hosted deployment or native Windows runtime was tested.
+## Practical limits and unverified work
 
-## Partial work
+- Online-first. Drafts stay only in memory; no offline queue/encrypted durable draft
+  storage. A failed request retains its form/retry key; deliberate reload loses unsaved text.
+- Today caps 200 Task candidates (plus up to three preserved Big 3 Task links),
+  100 blocks/routines/lookup choices and 20 Focus history
+  rows; Vault pages 50, search returns ten per implemented collection. Ranking discloses
+  its candidate bound; existing Task/Direction lists paginate. No sophisticated search
+  index or full-history trend analysis is claimed.
+- Timer uses wall-clock running intervals across suspension; pause before stepping away.
+  Finished Focus adds rounded minutes to manual actual duration and increments Task version.
+  Legacy Focus preserves recorded duration but has no invented intervals/daily timing.
+- Task forms reject ambiguous/repeated/skipped DST times rather than silently selecting
+  another instant. Account timezone is operator-configured. Scheduling rejects overlap;
+  it does not provide external calendar synchronization or recurring calendar events.
+- Vision creation/linking exists; a full Vision/category management editor is not built.
+  Goal filters on Tasks remain direct; inherited work is viewed via Projects.
+- Faith/reflective categories/routines and private narratives are excluded from ranking
+  and execution Insights. Dedicated God & Reflection / journal screens belong to Phase 4;
+  saved Scripture is usable in Vault now. Financial/health/opportunity cards await their phases.
+- Accounts are controlled creation/login/logout only: no public signup/reset/recovery,
+  verification email, invitations, all-session revocation, export/deletion or audit log.
+  Operator-assisted provisioning is required for daily use; recovery is not fabricated.
+- Mutation receipts retain retry history indefinitely; login limits have a shared global
+  budget and no scheduled expired-session cleanup. Monitor storage/free-tier limits.
+- No Vercel/Neon resources, public URL, production secrets, TLS/pooling/runtime grants,
+  backup restore rehearsal or operational load verification was provisioned in Cloud.
+- Windows DPAPI, real Electron cookie restoration/rotation/logout, GUI, NSIS install/
+  upgrade, signing and user-data ACLs require local Windows testing. Existing mocked
+  adapter/security tests and the Electron build passed; they do not verify those runtimes.
+- Automated Chromium/axe and mobile viewport tests do not establish manual screen-reader,
+  200% zoom, actual iOS Safari or native Windows accessibility/runtime behavior.
 
-- **Electron persistence is implemented and adapter-tested, but not native-verified.**
-  Filesystem/encryption/cookie lifecycle tests use mocked encryption/Electron adapters.
-  They do not prove DPAPI, real Chromium cookie events or Windows restart behavior.
-- **Account lifecycle is controlled creation/login/logout only.** No reset/recovery,
-  verified email, invitations, revoke-all-sessions, export/deletion or audit log yet.
-- **Inbox supports capture, paginated listing and Task conversion.** Other processing,
-  edit/delete, durable encrypted drafts and offline queue are deferred. Refresh reloads
-  the latest
-  page; loaded older history can be requested again. Unsent drafts vanish on reload.
-- **Direction is implemented within this slice's boundaries.** Vision editing,
-  category rename/removal, hard record deletion, full-history search and Task-derived
-  progress are deferred. Lookup metadata caps categories/Visions at 100; records and
-  parent selectors can load earlier pages. Current/all status filtering applies to
-  loaded pages, so older matches require loading more. Forms stay only in memory;
-  reload or a session/account change discards them. No encrypted draft queue exists.
-- **Tasks are implemented within the Execution slice.** No scheduling, routines,
-  Focus timing, generated ranking, bulk operations, hard deletion or Task search.
-  Goal filters are direct links; inherited work is viewed through Project links.
-  Refresh reloads recent pages and parent choices; older pages can be loaded again.
-  Actual duration is manual, legacy completion times remain unknown and drafts are
-  memory-only. DST repeated-hour selection is intentionally rejected for now.
-- Rate limits use an application-wide budget appropriate to controlled personal use;
-  sustained abuse can temporarily block login. Expired/revoked session cleanup is
-  not scheduled. These are operational limits, not claims of unlimited scale.
+## Exact next recommended task
 
-## Unverified and deferred
+**Prepare a Phase 1 staging release for daily use: provision the approved hosted
+PostgreSQL and HTTPS app, apply migrations 0000–0006 with separate migration/runtime
+roles, configure secrets and controlled accounts, then smoke-test a complete
+Start Day → plan → schedule → Focus → capture/process → Close Day → logout cycle
+and rehearse backup/restore.**
 
-- Windows DPAPI, GUI launch, NSIS installation/upgrades, signing, user-data ACLs and
-  native session restart/rotation/logout require local Windows testing. See the
-  concrete checklist in `deployment.md`; none is claimed verified in Cloud.
-- No Neon/Vercel resources or production secrets provisioned. Hosted TLS, pooling,
-  restricted runtime role grants, free-tier limits and operational restores remain
-  unverified. Fixture setup uses an owner role; restricted Direction/Task runtime roles are also
-  exercised locally. No production RLS policy is claimed.
-- Backup RPO/RTO are targets, not a deployed or rehearsed backup service. Provider
-  eligibility/quotas, signing costs and KJV UK rights require review before release.
-- Manual screen-reader/200% zoom checks, actual iOS Safari and Windows accessibility
-  remain unverified; automated Chromium/axe results do not establish these.
-- Direction allocation totals and conflicting edits are now enforced transactionally.
-  Future domains must provide their own complete-set/concurrency validation. IANA zones are validated
-  in account creation but SQL does not enforce timezone names independently.
-- Focus, Career, Wealth, Business, Health, Faith,
-  Reviews, banking/calendar integrations and LLM functionality were not implemented.
-  Existing preview/rule/schema groundwork does not make these usable features.
+No staging provisioning or Phase 2 development was started. Native Windows release
+verification remains a separate checklist in `deployment.md`. Once release readiness
+is verified, the next product phase is Phase 2 — Career + Performance; do not treat
+this checkpoint as having implemented it.
 
-## Exact next recommended implementation task
+## Checkpoint for the next session
 
-**Implement the authenticated daily-planning vertical slice: selected local day,
-One Thing, versioned atomic Big 3 replacement with owned optional Task links, and
-one bounded Today aggregation endpoint with shared web/Electron UI and timezone,
-concurrency and PostgreSQL isolation tests.**
-
-Preserve the existing Task single-parent model, conversion provenance, Direction
-versions and session/CSRF protections. Keep scheduling, Focus, routines, recovery/reset
-and all later private domains outside that slice. Daily planning was not started in
-this run. Public deployment and local Windows runtime verification remain separate
-release work; the app has not become publicly online through a Git push.
+The Phase 1 source, reviewed migrations 0005–0006, CI fixture coverage and documentation
+are the coherent checkpoint on branch `work`. Begin by reading this file and the
+architecture/data-model/deployment docs; preserve the implemented session and owner
+boundaries. Repeat fixture checks only against disposable databases. No Phase 1 core
+feature is intentionally left as a placeholder; practical constraints and unverified
+release behavior are listed above. Complete the staging-release task before relying
+on the app for important daily records, and do not infer deployment from a Git push.

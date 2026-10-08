@@ -35,6 +35,8 @@ export function createDirectionHttp(
       security.assertUnsafe(request);
       const body = await security.readJson(request);
       const expectedAccount = request.headers.get('x-life-os-account') ?? undefined;
+      if (resource === 'visions' && parts.length === 1 && request.method === 'POST')
+        return json({ item: await service.vision(token, body, expectedAccount) }, 201);
       if (resource === 'categories' && parts.length === 1 && request.method === 'POST')
         return json({ item: await service.category(token, body, expectedAccount) }, 201);
       if (

@@ -2,13 +2,15 @@
 
 A private operating system for deliberate living. **Do what matters.**
 
-This repository contains the Phase 0 foundation and authenticated Inbox, Direction and Tasks slices:
-controlled accounts, secure login/session/logout, and owner-only persistent capture
-and listing; Seasons, Goals, Milestones and Projects with owned hierarchy links.
-Tasks support owned Goal/Project links, edits, completion and retry-safe Inbox conversion.
-Authenticated Today shows the real active Season. Other Today planning remains a
-preview; other private domains are not implemented. Hosted deployment and native Windows
-verification remain outstanding; see [progress](docs/progress.md).
+Phase 0 foundation and Phase 1 daily execution are implemented: controlled accounts,
+secure sessions, Inbox, Direction, Tasks, deliberate daily planning, scheduling,
+Focus, recurring routines, Vault / Not Now, explainable priority recommendations,
+rule-based Insights and global keyboard search/capture. Authenticated Today uses
+real PostgreSQL records; anonymous Today remains a labeled preview. Web and the
+sandboxed Electron renderer share the same hosted accounts and application.
+
+Hosting/configuration and native Windows verification remain separate release tasks.
+See [progress](docs/progress.md) for verified behavior and practical limits.
 
 ## Develop
 
@@ -20,7 +22,7 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`. Today can be previewed without database credentials.
-For login, Inbox, Direction and Tasks, configure server variables from `.env.example` in the shell
+For authenticated Phase 1 workflows, configure server variables from `.env.example` in the shell
 (or an app-local Next env file); CLI commands need exported variables. Use a unique
 random `AUTH_SECRET`, exact `APP_ORIGIN`, and loopback HTTP opt-in only for local dev.
 Never commit real credentials.
@@ -55,7 +57,7 @@ pnpm audit --prod --audit-level=high
 ```
 
 Unit tests apply committed migrations to PGlite by default. Real PostgreSQL and the
-26 authenticated browser cases require separate disposable fixture databases;
+40 authenticated browser cases require separate disposable fixture databases;
 [deployment](docs/deployment.md) documents the guarded URLs and destructive fixture
 setup. CI provisions these databases. Without an E2E URL, auth cases explicitly skip.
 Browser tests use the production build; an existing Chromium can be selected via

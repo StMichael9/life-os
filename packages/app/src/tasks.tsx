@@ -167,6 +167,11 @@ export function Tasks({
   useEffect(() => {
     if (!readyAccount || bootstrapped.current || inactive.current) return;
     bootstrapped.current = true;
+    if (new URLSearchParams(location.search).get('new') === '1')
+      setTimeout(() => {
+        modal.current = true;
+        setEditor({ record: null, capture: null });
+      }, 0);
     let disposed = false;
     void (async () => {
       if (initialId) await open(initialId);

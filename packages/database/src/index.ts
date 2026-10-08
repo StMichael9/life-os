@@ -26,3 +26,5 @@ export {
   type DirectionRepository,
 } from './direction';
 export { createTaskRepository, type TaskRepository } from './tasks';
+
+export { createExecutionRepository, type ExecutionRepository } from './execution';

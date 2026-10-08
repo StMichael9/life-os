@@ -50,6 +50,8 @@ export interface Milestone extends DirectionBase {
   completedAt: string | null;
 }
 export interface Project extends DirectionBase {
+  priority: number;
+  taskProgress?: { completed: number; total: number };
   title: string;
   description: string | null;
   notes: string | null;

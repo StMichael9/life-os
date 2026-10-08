@@ -36,6 +36,20 @@
       "when": 1791416949709,
       "tag": "0004_tasks_conversion",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791429995024,
+      "tag": "0005_daily_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791431834703,
+      "tag": "0006_execution_receipt_keys",
+      "breakpoints": true
     }
   ]
 }

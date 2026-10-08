@@ -154,6 +154,7 @@ export const milestoneCommandSchema = z
 export const projectCommandSchema = z
   .object({
     ...recordCommand,
+    priority: z.number().int().min(1).max(5).default(3),
     title: z.string().trim().min(1).max(200),
     description: nullableText(2000),
     notes: nullableText(4000),
@@ -233,3 +234,13 @@ export const taskCommandSchema = z
       });
   });
 export type TaskCommand = z.infer<typeof taskCommandSchema>;
+
+export * from './execution';
+
+export const visionCommandSchema = z
+  .object({
+    id: z.uuid(),
+    title: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(2000).nullable(),
+  })
+  .strict();

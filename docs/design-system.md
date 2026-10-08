@@ -29,14 +29,15 @@ asset dependency. Content is readable without network font loading.
 
 ## Current surface
 
-Today contains a preview notice, local date, Season guidance, the One Thing,
+Anonymous Today contains a preview notice, local date, Season guidance, the One Thing,
 Big 3 guidance, daily KJV Scripture, and an original Life OS thought. No placeholder
 metrics, task completion controls, fake accounts or simulated syncing. Navigation
 links move to actual sections; future modules do not get empty pages.
 
 The timezone dialog is functional. It defaults to the device timezone and uses an
 explicit selected zone until reload. This is deliberately not described as a saved
-account preference. Authenticated preferences will replace this adapter later.
+account preference. The authenticated workspace uses the stored account timezone;
+profile timezone editing remains operator-managed.
 Daily content updates at the next minute tick at local midnight, including DST.
 The v1 corpus contains seven complete KJV verses and seven original aphorisms;
 it repeats weekly and should grow only through a versioned future mapping.
@@ -73,7 +74,8 @@ clock is not an intrusive live region. Test all future forms at 200% zoom and wi
 keyboard + screen reader; automated axe checks do not replace that review.
 
 Keep faithful reflection free of completion percentages or execution scoring.
-Favorite/reflect actions will appear once authenticated persistence works.
+Scripture/thought favorites now persist privately in Vault. Dedicated faith reflection
+screens remain Phase 4 work.
 
 ## Content rights
 
@@ -92,3 +94,28 @@ account timezone for due instants, preserve failed edits and confirm cancellatio
 discard. Inbox conversion preserves source text and keeps uncertain delivery visible
 until a retry confirms the single linked Task. Mobile filters stack above the list;
 details and forms remain keyboard accessible.
+
+## Authenticated daily execution
+
+Today presents the active Season first, then One Thing and Big 3, real recorded
+counts, timeline, Focus, routines, recommendations, Insights, daily content and quick
+capture. Every creation action opens a working authenticated form; empty states
+explain the next useful action. No later-domain metrics fill empty space.
+
+Planning, blocks, Focus, routine definitions/day notes and Vault share native dialogs
+with persistent labels, readable validation, retained failed edits and discard guards.
+Start/Close Day reflections are optional, private and never scored. Closed plans
+require deliberate reopening. Outcome and routine checks show immediate feedback,
+then reconcile with the server or restore the prior state on failure.
+
+The dedicated Focus surface reduces the daily dashboard to the current timer,
+objective, linked work, controls, session history and Later capture. Server timing
+survives pause/reload; timer ticks do not announce every second to assistive tools.
+Recommendations explain their ranking and can open prefilled Focus or complete work.
+Vault keeps long context intact and offers deliberate promotion/archive actions.
+
+Ctrl/Cmd+K opens a keyboard-accessible search/capture/navigation dialog. Search results
+use arrow keys, Tab and Enter; dialog closure guards unsent text. Mobile navigation
+scrolls horizontally while cards and dialogs stack within the viewport. Automated
+desktop/mobile Chromium checks cover overflow and axe; manual screen-reader, zoom
+and actual mobile Safari verification remain release tasks.

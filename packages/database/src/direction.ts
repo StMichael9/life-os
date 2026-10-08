@@ -134,6 +134,33 @@ export function createDirectionRepository<T extends PgQueryResultHKT>(
       );
   }
   return {
+    async vision(userId: string, input: { id: string; title: string; description: string | null }) {
+      return db.transaction(async (tx) => {
+        await lockOwner(tx, userId);
+        const [prior] = await tx
+          .select()
+          .from(visions)
+          .where(and(eq(visions.userId, userId), eq(visions.id, input.id)));
+        if (prior) {
+          if (prior.title !== input.title || prior.description !== input.description)
+            throw new DirectionConflict();
+          return { id: prior.id, title: prior.title };
+        }
+        const existing = await tx
+          .select({ id: visions.id })
+          .from(visions)
+          .where(eq(visions.userId, userId))
+          .limit(100);
+        if (existing.length >= 100) throw new DirectionInvalid('Up to 100 Visions are supported.');
+        const [row] = await tx
+          .insert(visions)
+          .values({ ...input, userId })
+          .onConflictDoNothing()
+          .returning({ id: visions.id, title: visions.title });
+        if (!row) throw new DirectionConflict();
+        return row;
+      });
+    },
     async activeSeason(userId: string) {
       return db.transaction(
         async (tx) => {
@@ -287,6 +314,16 @@ export function createDirectionRepository<T extends PgQueryResultHKT>(
               .where(and(eq(visions.userId, userId), eq(visions.id, visionId)));
             if (!vision) throw new DirectionNotFound();
             ancestors.unshift({ kind: 'vision', id: vision.id, title: vision.title });
+          }
+          if (resource === 'projects') {
+            const [counts] = await tx
+              .select({
+                completed: sql<number>`count(*) filter (where status='completed')::int`,
+                total: sql<number>`count(*) filter (where status<>'cancelled')::int`,
+              })
+              .from(schema.tasks)
+              .where(and(eq(schema.tasks.userId, userId), eq(schema.tasks.projectId, id)));
+            return { item: { ...item, taskProgress: counts! }, ancestors };
           }
           return { item, ancestors };
         },

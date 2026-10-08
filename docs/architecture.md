@@ -2,7 +2,7 @@
 
 ## Status and governing decisions
 
-Phase 0 foundation, authenticated Inbox, Direction and Tasks slices are implemented.
+Phase 0 foundation and Phase 1 daily execution are implemented.
 Continue with one coherent vertical slice at a time.
 The complete destination is `product-spec.md`; it is not a first-run checklist.
 No LLM, subscription API, banking connector, or telemetry service is required.
@@ -15,7 +15,7 @@ claims of persistence, incorrect local-day boundaries, and premature feature bre
 | --------------------- | --------------------------------------------------------------------------- | ---------------------------------- |
 | `apps/web`            | Next.js App Router composition, security headers, HTTP/auth adapters        | shared app, server services        |
 | `apps/desktop`        | Electron lifecycle and trust boundary; packaged Windows shell               | Electron and pure security helpers |
-| `packages/app`        | Shared React product views; Today, login, Inbox, Direction and Tasks        | ui, shared, validation             |
+| `packages/app`        | Shared React views for all Phase 1 daily execution workflows                | ui, shared, validation             |
 | `packages/ui`         | Semantic primitives, global design tokens and responsive styles             | React                              |
 | `packages/shared`     | Browser-safe local-date and versioned daily-content functions               | platform APIs only                 |
 | `packages/validation` | Zod schemas for untrusted inputs                                            | Zod                                |
@@ -134,7 +134,8 @@ private records while retaining unsent text; account switches require reload/sig
 before capture. Logout confirms draft discard and waits for server revocation.
 Foreground, visibility and visible 60-second polling revalidate session and recent
 Inbox data. Refresh reloads the most recent page; older pages can be loaded again.
-Inbox conversion into a Task is now available; other processing, capture editing/deletion and offline write queues remain deferred.
+Inbox supports atomic Task/Vault processing, source-preserving archive and searchable
+original captures. Capture editing/hard deletion and offline write queues remain deferred.
 
 ### Electron persistence
 
@@ -154,15 +155,14 @@ filesystem access, installer behavior and upgrades before desktop persistence is
 considered runtime-verified. Encryption at rest does not lock an already signed-in app.
 
 Password recovery/reset, verified email, invites, all-session revocation, account
-export/deletion and security audit events remain unimplemented. Recovery/reset remains deferred. Direction was the next product slice explicitly
-selected by the user; no recovery/reset implementation was added.
+export/deletion and security audit events remain unimplemented. Recovery/reset remains separate account-lifecycle work beyond controlled Phase 1 provisioning.
 
 ## Implemented Direction domain
 
 The existing Season, Goal, Milestone and Project tables now have authenticated
 repositories, services and shared web/Electron views. Category creation is a small
 supporting operation (explicit user input, no seeded personal records). Lookup
-metadata includes owned categories and existing Visions; Vision editing is deferred.
+metadata includes owned categories and Visions. Vision creation is available; full Vision editing is deferred.
 The same opaque cookie, session verifier, CSRF checks and body limits protect every
 Direction endpoint. Item DTOs exclude stored owners and session/credential data.
 
@@ -214,11 +214,10 @@ Foreground/polling revalidates persisted data without overwriting an open form.
 Native dialogs support Escape/focus containment, discard confirmation and unload
 warnings; archive/active-Season replacement prompts explain what happens.
 
-Today reads only the active Season server-side when a session cookie is present,
-then revalidates on foreground/visible polling. Anonymous Today stays a labeled
-preview and never contacts private repositories. It shows real name/objective/dates
-and up to six allocations, linking to the full strategy; the rest of Today remains
-planning guidance. No One Thing, Big 3 or other dashboard persistence was added.
+Authenticated Today is now the shared daily execution hub described below. The server
+checks a present session before selecting that view; anonymous Today remains a clearly
+labeled preview and never calls private repositories. All dashboard data comes from
+one verified, bounded aggregation endpoint.
 
 ## Implemented Tasks / Execution slice
 
@@ -231,8 +230,8 @@ The shared React view is also the hosted Electron renderer; no native privilege 
 
 Commands include UUID ID, version, title, description/notes, priority 1–5 (1 highest),
 status, due instant, estimate/actual minutes, energy and optional 0–5 decision ratings.
-Ratings are stored assessments, not a generated priority score; this slice adds no
-recommendation engine, schedule, Focus, One Thing or Big 3. Completion records a
+Ratings are stored assessments. Phase 1 now uses them in transparent priority ranking;
+scheduling, Focus and planning remain separate normalized records. Completion records a
 server timestamp, preserves it through completed edits and clears it when reopened.
 Legacy completed Tasks have no invented completion instant. Due forms use the account
 IANA timezone and preserve seconds; skipped/repeated DST wall times require another
@@ -274,9 +273,9 @@ remain mandatory. Deployment requires a restricted app role and a separate migra
 DDL role; provider-specific roles have not yet been provisioned or verified. RLS may be added as defense in depth after role and pooling semantics are
 tested. Never assume RLS protects an owner/superuser connection.
 
-Transactions atomically save/activate Seasons with complete allocations. Inbox-to-Task conversion is transactional. Future transactions will replace Big 3 and finish focus sessions. Allocation totals must be validated
-as a whole; row-level 0–100 checks alone do not enforce a 100% total. Future updates
-use `updated_at`/version preconditions to detect conflicting edits; last-write-wins
+Transactions atomically save/activate Seasons with complete allocations. Inbox-to-Task conversion is transactional. Transactions also replace the full Big 3 set and finish Focus sessions atomically. Allocation totals must be validated
+as a whole; row-level 0–100 checks alone do not enforce a 100% total. Private edits
+use version preconditions to detect conflicting edits; last-write-wins
 must not silently discard long reflections. The database maintains updated timestamps.
 
 ## Boundaries for later domains
@@ -292,7 +291,7 @@ preferred to generic polymorphic entity/value tables.
 
 ## Queries, synchronization and offline behavior
 
-Build one authenticated Today aggregation endpoint for selected-day data, with a
+The authenticated Today aggregation endpoint returns selected-day data through a
 bounded number of owner-filtered queries. Read a consistent snapshot where needed;
 never request entire history or issue one browser request per card. Use date-range
 indexes and cursor pagination for long histories. Revalidate after mutations and
@@ -301,8 +300,7 @@ realtime service or global state library is justified yet.
 
 The product is online-first. Keep failed edits visible with retry state and avoid
 clearing forms before the server confirms success. Do not persist sensitive drafts
-in renderer localStorage. Durable encrypted drafts require a separate design. The
-Inbox and Direction persist private records in PostgreSQL; other preview sections store no private input. The daily library is bundled, not fetched from
+in renderer localStorage. Durable encrypted drafts require a separate design. All authenticated Phase 1 workflows persist private records in PostgreSQL. The public preview stores no private input. The daily library is bundled, not fetched from
 an external API, and its published v1 pool stays immutable across deployments.
 
 ## Deterministic insights and priority v1
@@ -323,7 +321,9 @@ RuleBasedProvider compares actual execution-time share with target allocation af
 at least 120 recorded minutes; a deficit of at least 15 percentage points produces
 a notice with raw evidence. These conservative thresholds are product heuristics,
 not statistical significance. No spiritual data enters the numerator or denominator.
-Do not wire these results into Today until real authenticated data exists.
+The allocation-comparison provider remains tested groundwork. Phase 1 Today uses live
+Task ranking and the smaller daily evidence rules below; it does not claim an
+allocation trend without a recorded evidence window.
 
 ## Meaningful deviations and tradeoffs
 
@@ -335,3 +335,60 @@ Do not wire these results into Today until real authenticated data exists.
 - Next uses its supported TypeScript compiler API (`useTypeScriptCli: false`), because
   this sandbox loses detached compiler stdout. Type checking remains enabled.
 - No broad placeholder navigation/pages, fabricated metrics, or premature AI APIs.
+
+## Phase 1 daily execution
+
+`GET /api/execution/today` verifies the opaque session and returns one repeatable-read
+snapshot: account-local selected date, bundled daily content, active Season and its
+allocations, versioned daily plan/Big 3, timeline, current Focus, 20 recent completed
+Focus sessions on the selected start day, routines/completions, task choices,
+recommendations, Insights and SQL counts. The client does not assemble individual
+cards through dozens of calls. One foreground/visible 60-second refresh revalidates
+identity; open forms retain their drafts. Timer rendering updates locally each second
+against a server-calibrated clock; PostgreSQL remains authoritative for duration.
+
+`POST /api/execution` accepts a strict discriminated command through the existing
+CSRF/Origin/16 KiB boundary and account precondition. Every command locks the verified
+owner row. Per-owner request UUID/fingerprint receipts make lost deliveries replayable;
+changed reuse conflicts. Receipt row IDs are server-generated, so two accounts may
+reuse a request UUID independently. No client ID provides owner authority.
+
+- Planning replaces One Thing and zero-to-three distinct optional Task links as one
+  versioned transaction. Big 3 completion is an intentional outcome decision,
+  independent from Task status. Start/Close store optional private reflections;
+  closed plans require explicit reopening. Reflections never enter ranking.
+- Internal blocks support six kinds and owned optional Task links. Instants use the
+  account timezone in forms, including DST validation. Blocks can cross midnight;
+  overlapping blocks are rejected under the owner lock. Daily scheduled totals clip
+  intervals to local-day boundaries. Edit/remove is versioned.
+- Focus supports Task **or** Project, category or custom objective, 25/50/90/custom
+  duration, pause/resume/finish and Later Inbox capture. Server-timed intervals retain
+  pauses and split daily totals at local midnight (including DST). Finishing adds
+  rounded recorded minutes once to the linked Task and advances its version; it does
+  not complete the Task. An open/paused session is restored on reload.
+- Routines are separate weekday-recurrence definitions with per-local-day completion
+  and notes. Archive retains completions; completed archived routines remain visible
+  on their recorded day. Faith/reflective routines never enter execution Insights.
+- Vault supports collections including Not Now, editable context, archive/restore,
+  owned capture conversion and atomic Task/Goal/Project promotion. Originals remain;
+  Goal/Project descriptions use a bounded excerpt and link back to full Vault context.
+  Saved daily Scripture/thoughts use the same Vault and deduplicate equal content.
+- Global Ctrl/Cmd+K opens a native dialog with navigation, Task creation, Focus,
+  Inbox capture and owner-scoped literal search across Tasks, Goals, Projects, Seasons,
+  active routines, Vault and captures. Results bound to ten per domain; keyboard
+  arrows/Tab/Enter work. Deep links verify ownership, including processed captures.
+
+Priority v1 resolves a Task's category through its Project/Goal/Milestone when needed,
+uses actual ratings and active Season allocations, then filters recorded estimates
+by time/energy. Today offers up to five explained candidates. Daily Insights report
+scheduled workload above an explicit eight-hour guideline, open chosen outcomes,
+Inbox backlog and uncompleted execution routines. They expose counts and suggested
+choices, not psychological inference or statistical claims. Recommendations use the
+current available Task inventory even when a historical planning date is selected.
+
+Bounds are explicit: 200 candidate Tasks (manual priority/deadline order, plus up to
+three preserved Big 3 Task links), 100 blocks,
+100 routine records, 100 metadata/parent choices and 50 Vault records per page.
+The UI discloses collection limits; existing Task/Direction pages retain pagination.
+Drafts remain memory-only, with discard/unload guards and stable retries. No renderer
+storage, preload, IPC, OS timer, external API or Electron permission was added.

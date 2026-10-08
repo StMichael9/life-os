@@ -194,6 +194,7 @@ export const projects = pgTable(
   'project',
   {
     ...owned(),
+    priority: integer('priority').notNull().default(3),
     version: integer('version').notNull().default(1),
     milestoneId: uuid('milestone_id'),
     goalId: uuid('goal_id'),
@@ -206,6 +207,7 @@ export const projects = pgTable(
     targetDate: date('target_date'),
   },
   (t) => [
+    check('project_priority', sql`${t.priority} between 1 and 5`),
     unique('project_owner_key').on(t.id, t.userId),
     foreignKey({ columns: [t.goalId, t.userId], foreignColumns: [goals.id, goals.userId] }),
     foreignKey({
@@ -301,6 +303,10 @@ export const dailyPlans = pgTable(
   'daily_plan',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    morning: text('morning').notNull().default('{}'),
+    evening: text('evening').notNull().default('{}'),
     localDate: date('local_date').notNull(),
     timeZone: text('time_zone').notNull(),
     oneThing: text('one_thing'),
@@ -341,6 +347,7 @@ export const scheduleBlocks = pgTable(
   'schedule_block',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
     title: text('title').notNull(),
     kind: text('kind').notNull(),
     taskId: uuid('task_id'),
@@ -361,6 +368,9 @@ export const focusSessions = pgTable(
   'focus_session',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
+    projectId: uuid('project_id'),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }),
     taskId: uuid('task_id'),
     categoryId: uuid('category_id'),
     objective: text('objective').notNull(),
@@ -377,6 +387,11 @@ export const focusSessions = pgTable(
       columns: [t.categoryId, t.userId],
       foreignColumns: [categories.id, categories.userId],
     }),
+    foreignKey({
+      columns: [t.projectId, t.userId],
+      foreignColumns: [projects.id, projects.userId],
+    }),
+    check('focus_single_parent', sql`not (${t.projectId} is not null and ${t.taskId} is not null)`),
     check(
       'focus_duration',
       sql`${t.plannedMinutes} > 0 and ${t.activeSeconds} >= 0 and (${t.endedAt} is null or ${t.endedAt} >= ${t.startedAt})`,
@@ -384,6 +399,7 @@ export const focusSessions = pgTable(
     uniqueIndex('one_open_focus_per_user')
       .on(t.userId)
       .where(sql`${t.endedAt} is null`),
+    unique('focus_owner_key').on(t.id, t.userId),
     index('focus_user_start_idx').on(t.userId, t.startedAt),
   ],
 );
@@ -398,5 +414,118 @@ export const authRateLimits = pgTable(
   (t) => [
     index('auth_rate_limit_expiry_idx').on(t.resetsAt),
     check('rate_attempts_positive', sql`${t.attempts} > 0`),
+  ],
+);
+
+export const routines = pgTable(
+  'routine',
+  {
+    ...owned(),
+    version: integer('version').notNull().default(1),
+    title: text('title').notNull(),
+    notes: text('notes'),
+    days: text('days').notNull(),
+    spiritual: boolean('spiritual').notNull().default(false),
+    archived: boolean('archived').notNull().default(false),
+  },
+  (t) => [
+    unique('routine_owner_key').on(t.id, t.userId),
+    index('routine_owner_idx').on(t.userId),
+    check('routine_days', sql`${t.days} ~ '^[0-6](,[0-6])*$'`),
+  ],
+);
+export const routineCompletions = pgTable(
+  'routine_completion',
+  {
+    ...owned(),
+    routineId: uuid('routine_id').notNull(),
+    localDate: date('local_date').notNull(),
+    notes: text('notes'),
+  },
+  (t) => [
+    unique('routine_day_key').on(t.routineId, t.localDate),
+    foreignKey({
+      columns: [t.routineId, t.userId],
+      foreignColumns: [routines.id, routines.userId],
+    }),
+    index('routine_completion_day_idx').on(t.userId, t.localDate),
+  ],
+);
+export const vaultItems = pgTable(
+  'vault_item',
+  {
+    ...owned(),
+    version: integer('version').notNull().default(1),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    kind: text('kind').notNull(),
+    archived: boolean('archived').notNull().default(false),
+    sourceInboxId: uuid('source_inbox_id'),
+    convertedTaskId: uuid('converted_task_id'),
+    convertedGoalId: uuid('converted_goal_id'),
+    convertedProjectId: uuid('converted_project_id'),
+  },
+  (t) => [
+    unique('vault_source_key').on(t.userId, t.sourceInboxId),
+    foreignKey({
+      columns: [t.sourceInboxId, t.userId],
+      foreignColumns: [inboxItems.id, inboxItems.userId],
+    }),
+    foreignKey({
+      columns: [t.convertedTaskId, t.userId],
+      foreignColumns: [tasks.id, tasks.userId],
+    }),
+    foreignKey({
+      columns: [t.convertedGoalId, t.userId],
+      foreignColumns: [goals.id, goals.userId],
+    }),
+    foreignKey({
+      columns: [t.convertedProjectId, t.userId],
+      foreignColumns: [projects.id, projects.userId],
+    }),
+    check(
+      'vault_single_conversion',
+      sql`num_nonnulls(${t.convertedTaskId},${t.convertedGoalId},${t.convertedProjectId}) <= 1`,
+    ),
+    check(
+      'vault_kind',
+      sql`${t.kind} in ('idea','someday','not_now','research','career','business','personal','scripture','thought')`,
+    ),
+    index('vault_owner_created_idx').on(t.userId, t.createdAt, t.id),
+  ],
+);
+// Owner-scoped mutation receipts make uncertain deliveries safe across instances.
+export const executionReceipts = pgTable(
+  'execution_receipt',
+  {
+    ...owned(),
+    requestId: uuid('request_id').notNull(),
+    fingerprint: text('fingerprint').notNull(),
+    result: text('result').notNull(),
+  },
+  (t) => [
+    unique('execution_receipt_owner_key').on(t.userId, t.id),
+    unique('execution_receipt_request_key').on(t.userId, t.requestId),
+  ],
+);
+
+export const focusIntervals = pgTable(
+  'focus_interval',
+  {
+    ...owned(),
+    sessionId: uuid('session_id').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.sessionId, t.userId],
+      foreignColumns: [focusSessions.id, focusSessions.userId],
+    }),
+    check('focus_interval_dates', sql`${t.endsAt} is null or ${t.endsAt} >= ${t.startsAt}`),
+    uniqueIndex('one_running_interval')
+      .on(t.sessionId)
+      .where(sql`${t.endsAt} is null`),
+    index('focus_interval_owner_start').on(t.userId, t.startsAt),
   ],
 );
