@@ -18,6 +18,7 @@ import {
   createTaskHttp,
   createExecutionService,
   createExecutionHttp,
+  validateHostedConfiguration,
 } from '@life-os/api';
 
 let handlers:
@@ -29,6 +30,7 @@ let handlers:
   | undefined;
 export function getHandlers() {
   if (handlers) return handlers;
+  if (process.env.VERCEL) validateHostedConfiguration(process.env);
   const { DATABASE_URL, AUTH_SECRET, APP_ORIGIN } = process.env;
   if (!DATABASE_URL || !AUTH_SECRET || !APP_ORIGIN)
     throw new Error('Authentication is not configured.');

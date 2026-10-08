@@ -11,6 +11,8 @@ sandboxed Electron renderer share the same hosted accounts and application.
 
 Hosting/configuration and native Windows verification remain separate release tasks.
 See [progress](docs/progress.md) for verified behavior and practical limits.
+Vercel configuration, migration/runtime permission checks and encrypted backup/restore
+tooling are ready; follow the [hosted release runbook](docs/release-runbook.md).
 
 ## Develop
 

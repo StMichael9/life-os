@@ -17,6 +17,11 @@
     "test:e2e": "playwright test",
     "db:generate": "pnpm --filter @life-os/database generate",
     "db:migrate": "pnpm --filter @life-os/database migrate",
+    "release:config": "pnpm --filter @life-os/api release:config",
+    "release:migrate": "pnpm --filter @life-os/database release:migrate",
+    "release:verify": "pnpm --filter @life-os/database release:verify",
+    "backup": "pnpm --filter @life-os/database backup",
+    "restore": "pnpm --filter @life-os/database restore",
     "desktop:dev": "pnpm --filter @life-os/desktop dev",
     "account:create": "pnpm --filter @life-os/api account:create"
   },

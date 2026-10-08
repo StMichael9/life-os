@@ -4,7 +4,11 @@
 
 Authenticated Phase 1 daily execution works in the production build against isolated PostgreSQL.
 No Vercel project, Neon deployment, live personal account, signed installer or
-production credential has been provisioned. The public Today preview remains
+production credential has been provisioned. Vercel monorepo configuration, redacted
+configuration validation, separate-role SQL, migration/grant verification and encrypted
+backup/restore commands now exist. Real PG17 operations and a verified local HTTPS
+production-Next workflow are rehearsed; hosted provider behavior is still unverified.
+Follow [release-runbook.md](release-runbook.md) for exact setup and acceptance steps. The public Today preview remains
 separate from the authenticated daily workspace. Native Windows persistence is implemented
 but requires local runtime verification before release.
 
@@ -39,7 +43,7 @@ Suggested Vercel configuration:
    frozen lockfile; build command `pnpm --filter @life-os/web build` from the root,
    or `pnpm build` when Vercel's current directory is `apps/web`.
 3. Set the server-only pooled `DATABASE_URL`,
-   using provider-recommended TLS certificate validation. Set `APP_ORIGIN` to the
+   with `sslmode=verify-full` and system CA certificate/hostname validation. Set `APP_ORIGIN` to the
    exact HTTPS deployment origin (no path or trailing slash) for CSRF checks.
    Set a unique random `AUTH_SECRET` of at least 32 bytes; generate with
    `openssl rand -base64 48`. Leave `AUTH_ALLOW_HTTP_LOOPBACK` unset in deployment.
@@ -72,7 +76,8 @@ pnpm --filter @life-os/desktop package:win
 ```
 
 `electron-builder.yml` targets NSIS and creates Start-menu/desktop shortcuts. This
-configuration is not evidence of a tested installer. Packaged builds refuse the
+configuration is not evidence of a tested installer. The separate Local Windows
+chat/check-out follows [windows-handoff.md](windows-handoff.md). Packaged builds refuse the
 development HTTP URL. Use a release-only icon, signing credentials and supported
 Electron version. Test installation, start, offline retry, upgrade, logout, token
 rotation, DPAPI storage and deletion on Windows before shipping. The memory-only cookie partition is restored from a validated main-process
@@ -104,23 +109,30 @@ keep encrypted logical exports outside the active database, restrict export acce
 and rehearse restoration into a separate database. A free tier may offer little or
 no point-in-time recovery. Target a daily encrypted backup (24-hour RPO) and restore
 within one day (24-hour RTO), but these are **unverified targets**, not guarantees.
-Choose storage and scheduling only after confirming cost and access requirements.
+The encrypted logical backup/restore implementation is tested against local PG17,
+including restored account login, private capture recovery, auth-state exclusion and
+tampering/nonempty-target refusal. Choose actual storage and scheduling only after
+confirming cost and access requirements; follow the release runbook.
 
 Migration practice: take a verified backup, apply on a staging branch, verify
 constraints and application compatibility, then deploy an additive migration before
 code depending on it. For destructive changes use expand/migrate/contract across
 releases. Restore drills verify credentials, schema, record counts, ownership and
 recent sample entries. Never send raw journals, prayers or finances to CI artifacts.
-No automated production backup/export job exists yet.
+No automated production backup job/offsite store exists yet. Operator `pnpm backup`
+and guarded `pnpm restore` commands exist; keys and operations URLs never enter Vercel.
 
 ## Initialize controlled accounts
 
-Export `DATABASE_URL`, `AUTH_SECRET` and `APP_ORIGIN` for the intended environment.
+Export `MIGRATION_DATABASE_URL` for migrations; use `DATABASE_URL` only for the
+intended runtime or temporarily for the controlled account operator. Set `AUTH_SECRET`
+and `APP_ORIGIN` for the intended environment.
 Apply migrations with the separate DDL credential, then use an operator credential
 with permission to insert `app_user` and `auth_credential`:
 
 ```sh
-pnpm db:migrate
+pnpm release:migrate
+# Apply ops/postgres/grants.sql as the migrator, then use the operator DATABASE_URL:
 pnpm account:create
 ```
 
@@ -218,7 +230,8 @@ and runs all 46 browser cases. A production build must precede browser tests. Us
 
 Local Cloud verification used PostgreSQL 17 in a disposable container. This verifies
 actual SQL, transactions, locking, ownership, restricted Direction/Task/execution grants and persistence; it does not verify
-Neon pooled connections, production TLS/provider roles, provider quotas or restore operations.
+Neon pooled connections, production TLS/provider roles, provider quotas or hosted restore operations.
+Encrypted logical backup/restore is now verified against separate local PG17 fixture databases.
 Mobile checks use Chromium with an iPhone viewport, not iOS Safari.
 
 ### Required local Windows checks (not performed in Cloud)
@@ -259,5 +272,5 @@ Direction/Task histories and Vault paginate; Today bounds its candidate/choice l
 Overlapping blocks and ambiguous repeated/skipped DST wall times are rejected with
 feedback. Reflections and saved Scripture are private and never productivity-scored.
 Mutation receipts currently retain retry history indefinitely; monitor storage under
-free-tier quotas. Staging latency, indexes under large real datasets, backups/restores
+free-tier quotas. Staging latency, indexes under large real datasets, hosted backup scheduling/recovery
 and manual assistive-technology testing are release work, not verified production facts.

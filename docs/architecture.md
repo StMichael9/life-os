@@ -392,3 +392,26 @@ three preserved Big 3 Task links), 100 blocks,
 The UI discloses collection limits; existing Task/Direction pages retain pagination.
 Drafts remain memory-only, with discard/unload guards and stable retries. No renderer
 storage, preload, IPC, OS timer, external API or Electron permission was added.
+
+## Hosted operations boundary
+
+`apps/web/vercel.json` targets the existing Next monorepo app. Vercel private-service
+initialization validates the exact hosted HTTPS origin, independent secret, verified
+PostgreSQL TLS URL and absence of privileged/public credential configuration. Runtime
+still uses the same services/repositories and owner predicates; no RLS or provider SDK
+was substituted. Hosted deployment itself remains unverified.
+
+`ops/postgres/bootstrap.sql` and `grants.sql` separate standalone migration, runtime,
+controlled-account operator and read-only backup logins. Runtime lacks DDL, account
+INSERT/deletion and password-hash mutation; owner-lock UPDATE(id) remains narrowly scoped.
+Release commands use explicit migration URLs outside the web runtime and verify all
+seven committed migration hashes plus actual runtime privileges. Operations modules
+are imported only by operator CLIs/tests, not exported into the web service bundle.
+
+Encrypted operator backups stream custom pg_dump into AES-256-GCM with a separate
+owner-private binary key. Sessions/rate limits are omitted. Restore authenticates the
+complete archive before executing SQL, refuses populated/mistaken targets, restores in
+one transaction into a separate `_restore` database and requires grants/fresh login.
+No backup key, provider token or administrator connection enters web/Electron. A real
+production backup scheduler/offsite store has not been provisioned; see the release
+runbook for that acceptance gate. Native Windows remains a separate checkout/task.

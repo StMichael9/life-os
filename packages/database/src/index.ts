@@ -28,3 +28,4 @@ export {
 export { createTaskRepository, type TaskRepository } from './tasks';
 
 export { createExecutionRepository, type ExecutionRepository } from './execution';
+export { productionDatabaseUrl } from './production-config';

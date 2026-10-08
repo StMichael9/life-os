@@ -230,3 +230,21 @@ chain on an isolated hosted PostgreSQL branch and test with the restricted app r
 
 Read authorization always requires explicit owner predicates; SQL FKs do not authorize
 SELECT. All Phase 1 operations retain session verification and account-change checks.
+
+## Phase 1 release permission and recovery checkpoint
+
+No application schema/migration was added for operational readiness. Migrations
+0000–0006 still define 22 public application tables. `release:verify` checks the exact
+committed hashes/timestamps in `drizzle.__drizzle_migrations`, not merely table names
+or a migration count. Ownership belongs to the standalone migration login; runtime
+grants and narrowly scoped column permissions are explicit in `ops/postgres/grants.sql`.
+Runtime is denied migration-ledger access. The read-only backup login can inspect the
+ledger/sequences and existing Phase 1 records, without changing any application data.
+
+Logical encrypted snapshots preserve application records, owner constraints, credentials
+and the migration ledger. Session and auth-rate-limit **rows** are excluded while their
+schemas are restored. Recovery therefore requires fresh login; old cookies cannot become
+valid simply by restoring a dump. Restore verifies migration hashes/table inventory and
+zero live auth rows, then the operator reapplies role/schema/table grants. Real PG17
+fixtures verify private capture restoration and fresh Argon2id account login. Actual
+Neon role behavior, production pooling/TLS and hosted recovery timing remain unverified.

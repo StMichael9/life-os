@@ -59,3 +59,4 @@ export { createTaskService } from './tasks';
 export { createTaskHttp } from './tasks-http';
 
 export { createExecutionService, createExecutionHttp } from './execution';
+export { validateHostedConfiguration } from './production-config';

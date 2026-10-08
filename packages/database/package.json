@@ -10,7 +10,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
-    "migrate": "tsx src/migrate.ts"
+    "migrate": "tsx src/migrate.ts",
+    "release:migrate": "tsx src/operations-cli.ts migrate",
+    "release:verify": "tsx src/operations-cli.ts verify",
+    "backup": "tsx src/operations-cli.ts backup",
+    "restore": "tsx src/operations-cli.ts restore"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",

@@ -127,33 +127,78 @@ require reopening; schedule conflicts and stale versions never silently overwrit
   Operator-assisted provisioning is required for daily use; recovery is not fabricated.
 - Mutation receipts retain retry history indefinitely; login limits have a shared global
   budget and no scheduled expired-session cleanup. Monitor storage/free-tier limits.
-- No Vercel/Neon resources, public URL, production secrets, TLS/pooling/runtime grants,
-  backup restore rehearsal or operational load verification was provisioned in Cloud.
+- No Vercel/Neon resources, public URL or production secrets were provisioned in Cloud.
+  Hosted TLS/pooling/provider grants/load remain unverified. Local real-PG17 role and
+  encrypted backup/restore rehearsals now pass; see the operational checkpoint below.
 - Windows DPAPI, real Electron cookie restoration/rotation/logout, GUI, NSIS install/
   upgrade, signing and user-data ACLs require local Windows testing. Existing mocked
   adapter/security tests and the Electron build passed; they do not verify those runtimes.
 - Automated Chromium/axe and mobile viewport tests do not establish manual screen-reader,
   200% zoom, actual iOS Safari or native Windows accessibility/runtime behavior.
 
+## Hosted operational-readiness checkpoint
+
+**Completed locally:** Vercel monorepo configuration; server-only redacted HTTPS/TLS
+configuration validation; separate trusted migration/runtime/operator/read-only backup
+roles and transactional grants; migration-ledger and runtime-permission verification;
+AES-256-GCM logical backup and guarded restore tooling; actual PG17 restore rehearsal;
+production Next HTTPS full-day rehearsal; CI coverage and release/Windows runbooks.
+No product-domain redesign, new app migration, Electron changes or Phase 2 work.
+
+The restricted runtime performs real login → Start Day → plan → schedule → Focus
+pause/resume/finish → retry-safe capture/process → Close Day → logout. Local HTTPS
+verification uses a specifically trusted ephemeral certificate, not a TLS bypass.
+CSRF failures, account spoofing, cross-user reads and revoked-token replay fail.
+Backup tests restore private capture and Argon2id login, omit live auth/session state,
+reapply and verify grants, and refuse wrong keys, tampering, permissive key files,
+nonempty/incorrect targets and overwriting archives. Runtime cannot DDL, mutate password
+hashes, delete/create accounts, TRUNCATE or assume the migration role.
+
+**Prepared, not operationally provisioned:** production environment settings, controlled
+personal account procedure, daily encrypted backup schedule/offsite/key storage procedure,
+hosted acceptance checklist and separate Local Windows instructions. The fixture proves
+implementation; no personal credentials/data or actual backup storage job was created.
+
+**Blocked/unverified externally:** Vercel and Neon plugins are installed, but provider
+tools are not callable in this Cloud session. Neon app connection is recognized; the
+Vercel account connection remains unavailable. No hosted URL, current free-plan eligibility/
+quotas, Neon bootstrap/migration/grants/TLS/pooling, production HTTPS workflow, hosted
+latency or restore timing is claimed. Native Windows DPAPI/session/NSIS testing belongs
+to the separate Local Windows checkout; Cloud does not modify that checkout.
+
+### Verification for this release checkpoint
+
+- Default suite: **102 passed, seven explicitly skipped** (three previous PG-only
+  cases plus three operations tests and one HTTPS rehearsal).
+- Existing real PG17 auth/Inbox, Direction, Tasks and execution suites: **62 passed**.
+- New real PG17 operations: **three passed**; new verified local HTTPS production
+  Next daily workflow: **one passed**. Independent disposable fixture databases only.
+- Migration generation: no schema drift; all seven committed hashes/timestamps and
+  22 application tables verified. **No new migration.**
+- Format check, lint, typecheck, production web and Electron builds all passed.
+  Browser E2E: **46 passed**, including authenticated desktop/mobile and axe checks.
+  The final build and verified local HTTPS rehearsal passed after the config changes.
+- Peer checks and production/full dependency audits passed with no known vulnerabilities.
+- CI was extended; its remote run has not been observed for this checkpoint.
+
 ## Exact next recommended task
 
-**Prepare a Phase 1 staging release for daily use: provision the approved hosted
-PostgreSQL and HTTPS app, apply migrations 0000–0006 with separate migration/runtime
-roles, configure secrets and controlled accounts, then smoke-test a complete
-Start Day → plan → schedule → Focus → capture/process → Close Day → logout cycle
-and rehearse backup/restore.**
+**Complete the free-tier hosted Phase 1 release: connect the Vercel account and resume
+with callable Vercel/Neon tools, confirm free-plan eligibility without chargeable usage,
+provision an isolated Neon17 database with separate roles, migrate/verify 0000–0006,
+deploy the configured Vercel web app, create the personal account interactively, verify
+the hosted full-day/ownership/session workflow, and activate/rehearse the user's daily
+encrypted backup and restore process before relying on the app.**
 
-No staging provisioning or Phase 2 development was started. Native Windows release
-verification remains a separate checklist in `deployment.md`. Once release readiness
-is verified, the next product phase is Phase 2 — Career + Performance; do not treat
-this checkpoint as having implemented it.
+Follow [release-runbook.md](release-runbook.md). Native Windows testing remains the
+separate [Windows handoff](windows-handoff.md). Do not begin Phase 2 during this task.
 
 ## Checkpoint for the next session
 
-The Phase 1 source, reviewed migrations 0005–0006, CI fixture coverage and documentation
-are the coherent checkpoint on branch `work`. Begin by reading this file and the
-architecture/data-model/deployment docs; preserve the implemented session and owner
-boundaries. Repeat fixture checks only against disposable databases. No Phase 1 core
-feature is intentionally left as a placeholder; practical constraints and unverified
-release behavior are listed above. Complete the staging-release task before relying
-on the app for important daily records, and do not infer deployment from a Git push.
+Continue from the pushed operational-readiness commit on `work`; read this file,
+architecture/data-model/deployment and the release runbook. Phase 1 product implementation
+is complete in isolation; hosted daily-use readiness is **partial**, not deployed.
+Use privileged URLs only in trusted operator processes and the runtime role only in
+Vercel. Never run destructive fixtures against hosted/personal data. Complete hosted
+acceptance and production backup setup, integrate actual Local Windows evidence when
+available, then report the real URL/status. A Git push is not deployment.
