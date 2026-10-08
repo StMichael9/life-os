@@ -81,3 +81,14 @@ The initial Scripture uses KJV text. KJV is public domain in many jurisdictions,
 but UK Crown rights need review before UK distribution. The curated text is bundled
 locally; no licensed Scripture or quote API is required. All thoughts are original
 Life OS copy and are labeled as such, with no invented historical attribution.
+
+## Tasks and capture conversion
+
+Tasks reuse the Direction list/detail surface and native dialog styles. Keep one
+primary action, concise outcome text and low-noise status/priority/deadline metadata.
+Detailed decision ratings stay collapsed; no fake progress, score or productivity
+claim is added. Explicit filter labels sit beside their selects. Forms use the
+account timezone for due instants, preserve failed edits and confirm cancellation/
+discard. Inbox conversion preserves source text and keeps uncertain delivery visible
+until a retry confirms the single linked Task. Mobile filters stack above the list;
+details and forms remain keyboard accessible.

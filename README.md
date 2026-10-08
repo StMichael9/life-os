@@ -2,9 +2,10 @@
 
 A private operating system for deliberate living. **Do what matters.**
 
-This repository contains the Phase 0 foundation and authenticated Inbox and Direction slices:
+This repository contains the Phase 0 foundation and authenticated Inbox, Direction and Tasks slices:
 controlled accounts, secure login/session/logout, and owner-only persistent capture
 and listing; Seasons, Goals, Milestones and Projects with owned hierarchy links.
+Tasks support owned Goal/Project links, edits, completion and retry-safe Inbox conversion.
 Authenticated Today shows the real active Season. Other Today planning remains a
 preview; other private domains are not implemented. Hosted deployment and native Windows
 verification remain outstanding; see [progress](docs/progress.md).
@@ -19,7 +20,7 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`. Today can be previewed without database credentials.
-For login, Inbox and Direction, configure server variables from `.env.example` in the shell
+For login, Inbox, Direction and Tasks, configure server variables from `.env.example` in the shell
 (or an app-local Next env file); CLI commands need exported variables. Use a unique
 random `AUTH_SECRET`, exact `APP_ORIGIN`, and loopback HTTP opt-in only for local dev.
 Never commit real credentials.
@@ -54,7 +55,7 @@ pnpm audit --prod --audit-level=high
 ```
 
 Unit tests apply committed migrations to PGlite by default. Real PostgreSQL and the
-eighteen authenticated browser cases require separate disposable fixture databases;
+26 authenticated browser cases require separate disposable fixture databases;
 [deployment](docs/deployment.md) documents the guarded URLs and destructive fixture
 setup. CI provisions these databases. Without an E2E URL, auth cases explicitly skip.
 Browser tests use the production build; an existing Chromium can be selected via

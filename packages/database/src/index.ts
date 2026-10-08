@@ -25,3 +25,4 @@ export {
   DirectionInvalid,
   type DirectionRepository,
 } from './direction';
+export { createTaskRepository, type TaskRepository } from './tasks';

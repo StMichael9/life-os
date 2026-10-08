@@ -1643,3 +1643,130 @@ blockquote {
     width: 100%;
   }
 }
+
+/* Tasks share the Direction language; a small execution surface, not a dashboard. */
+.task-filters {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+}
+.task-filters .task-filter {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 180px;
+}
+.task-filters select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-width: 320px;
+}
+.task-ratings {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.task-ratings summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.task-ratings .direction-fields {
+  margin-top: 12px;
+}
+.capture-convert {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--accent);
+  font-size: 13px;
+}
+.tasks-page .detail-actions {
+  margin-top: 24px;
+}
+@media (max-width: 760px) {
+  .task-filters .task-filter {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .task-filters select {
+    max-width: 100%;
+    width: 100%;
+  }
+  .task-filters > button {
+    width: 100%;
+  }
+  .tasks-page .private-topbar nav {
+    flex-wrap: wrap;
+  }
+}
+
+.task-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.task-row {
+  flex-direction: column;
+  gap: 10px;
+}
+.task-row .record-title {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.task-row .record-summary {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.tasks-page .hierarchy-chain {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tasks-page .hierarchy-chain a::after {
+  content: ' →';
+  color: var(--quiet);
+}
+@media (max-width: 760px) {
+  .task-intro {
+    align-items: start;
+    flex-direction: column;
+  }
+  .tasks-page .private-topbar nav {
+    gap: 16px;
+  }
+}
+.direction-task-link {
+  color: var(--accent);
+  display: inline-block;
+  margin: 0 0 18px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 13px;
+}
+
+.task-filter > label {
+  color: var(--muted);
+}
+.tasks-page .direction-list {
+  padding: 22px;
+}
+.tasks-page .direction-list .panel-heading {
+  margin-bottom: 18px;
+}
+.tasks-page .direction-list h2 {
+  font-size: 17px;
+  color: var(--text);
+}
+.tasks-page .detail-top .button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.tasks-page .detail-top > div {
+  min-width: 0;
+}

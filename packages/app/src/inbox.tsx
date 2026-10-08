@@ -179,6 +179,7 @@ export function Inbox() {
         <nav aria-label="Workspace navigation">
           <a href="/">Today</a>
           <a href="/direction">Direction</a>
+          <a href="/tasks">Tasks</a>
         </nav>
         <div>
           {profile && <span>{profile.displayName}</span>}
@@ -266,6 +267,11 @@ export function Inbox() {
                   minute: '2-digit',
                 }).format(new Date(item.createdAt))}
               </time>
+              {profile && (
+                <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
+                  Turn into Task
+                </a>
+              )}
             </li>
           ))}
         </ul>

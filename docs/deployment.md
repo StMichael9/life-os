@@ -2,7 +2,7 @@
 
 ## Current state
 
-Authenticated Inbox and Direction work in the production build against isolated PostgreSQL.
+Authenticated Inbox, Direction and Tasks work in the production build against isolated PostgreSQL.
 No Vercel project, Neon deployment, live personal account, signed installer or
 production credential has been provisioned. The public Today preview remains
 separate from authenticated Inbox and Direction. Native Windows persistence is implemented
@@ -132,18 +132,18 @@ securely deliver the initial password; recovery currently requires an additional
 implementation, not editing a hash manually.
 
 Runtime needs SELECT on `app_user`, `auth_credential` and `vision`;
-SELECT/INSERT/UPDATE on `auth_session`, `season`, `goal`, `milestone` and `project`;
+SELECT/INSERT/UPDATE on `auth_session`, `season`, `goal`, `milestone`, `project` and `task`;
 SELECT/INSERT/UPDATE/DELETE on `auth_rate_limit`; SELECT/INSERT on `inbox_item` and
-`category`; SELECT/INSERT/DELETE on `season_allocation`; and public schema USAGE.
-Direction transactions SELECT the owner's `app_user` row FOR UPDATE without changing
+`category`; additionally UPDATE(processed_at) on `inbox_item` for conversion; SELECT/INSERT/DELETE on `season_allocation`; and public schema USAGE.
+Direction and Task transactions SELECT the owner's `app_user` row FOR UPDATE without changing
 it. PostgreSQL requires an UPDATE privilege for this lock; grant **UPDATE(id)** on
 `app_user`, not general profile/credential writes. Give the operator separate INSERT
 permissions for controlled account creation. Keep DDL, TRUNCATE, credential writes,
 record deletion and all other domain writes out of the deployed runtime role.
 
-An isolated PostgreSQL 17 test exercises these Direction grants via SET LOCAL ROLE,
+An isolated PostgreSQL 17 test exercises Direction and Task grants via SET LOCAL ROLE,
 including authenticated save/activation/read/isolation and denial of account creation
-and DDL. This verifies SQL privileges locally, not provider login/TLS/pooling or actual
+and DDL; the Task role also cannot delete captures. This verifies SQL privileges locally, not provider login/TLS/pooling or actual
 staging grants. Provision and verify the intended login role on staging before
 production. RLS is not enabled.
 
@@ -155,7 +155,11 @@ precision is needed; do not drop columns or reverse a migration in place without
 a recovery plan. Migration 0003 adds version columns to the existing four Direction tables. Deploy
 it before the Direction code; no destructive rollback is needed for old code. A
 pre-0003 upgrade test verifies preservation of notes, dates and hierarchy links;
-other migration tests also exercise fresh databases.
+other migration tests also exercise fresh databases. Migration 0004 adds Task
+versions/priority/completion and owned conversion provenance. Its SQL adds the Inbox
+owner key before the source FK. Apply before Task code. A seeded pre-0004 upgrade
+test preserves captures, Task notes, due instants, durations and Project links.
+No production deployment or destructive rollback was performed.
 
 ## Verification commands
 
@@ -172,30 +176,32 @@ pnpm audit --prod --audit-level=high
 
 `pnpm test` includes original migration/constraint tests plus auth, HTTP and Electron
 adapter tests, applying the committed migrations to in-memory PGlite. To repeat on
-real PostgreSQL, create three **disposable empty databases** ending in `_tests` and
-`_e2e` (auth and Direction use separate fixture databases), then export fixture-only URLs:
+real PostgreSQL, create four **disposable empty databases** ending in `_tests` and
+`_e2e` (auth, Direction and Tasks use separate fixture databases), then export fixture-only URLs:
 
 ```sh
 export LIFE_OS_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_auth_tests'
 export LIFE_OS_DIRECTION_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_direction_tests'
+export LIFE_OS_TASKS_TEST_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_tasks_tests'
 export LIFE_OS_E2E_DATABASE_URL='postgresql://fixture_user:fixture_password@127.0.0.1:5432/life_os_e2e'
 pnpm exec vitest run packages/api/src/auth-inbox.test.ts
 pnpm exec vitest run packages/api/src/direction.test.ts
+pnpm exec vitest run packages/api/src/tasks.test.ts
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-Both suites migrate and **TRUNCATE fixtures**; never point them at important data.
+All three server suites migrate and **TRUNCATE fixtures**; never point them at important data.
 Suffix guards are an extra check, not permission to use an existing data-bearing DB.
 Browser fixture accounts and secrets are test-only, internal imports never exposed
-through app routes. Without the E2E URL the eighteen authenticated browser cases
-explicitly skip; the six public-preview cases still run. The restricted-role unit
-case is PostgreSQL-only and skips in the default PGlite run. CI provisions PostgreSQL 17
-and runs all 24 browser cases. A production build must precede browser tests. Use
+through app routes. Without the E2E URL the 26 authenticated browser cases
+explicitly skip; the six public-preview cases still run. The two restricted-role unit
+cases are PostgreSQL-only and skip in the default PGlite run. CI provisions PostgreSQL 17
+and runs all 32 browser cases. A production build must precede browser tests. Use
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for an installed Chromium if needed.
 
 Local Cloud verification used PostgreSQL 17 in a disposable container. This verifies
-actual SQL, transactions, locking, ownership, restricted Direction grants and persistence; it does not verify
+actual SQL, transactions, locking, ownership, restricted Direction/Task grants and persistence; it does not verify
 Neon pooled connections, production TLS/provider roles, provider quotas or restore operations.
 Mobile checks use Chromium with an iPhone viewport, not iOS Safari.
 

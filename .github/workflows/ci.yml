@@ -46,6 +46,12 @@ jobs:
       - run: pnpm exec vitest run packages/api/src/direction.test.ts
         env:
           LIFE_OS_DIRECTION_TEST_DATABASE_URL: postgresql://life_os_test:life_os_test_only@127.0.0.1:5432/life_os_direction_tests
+      - run: >-
+          docker exec ${{ job.services.postgres.id }}
+          psql -U life_os_test -d life_os_auth_tests -c 'CREATE DATABASE life_os_tasks_tests'
+      - run: pnpm exec vitest run packages/api/src/tasks.test.ts
+        env:
+          LIFE_OS_TASKS_TEST_DATABASE_URL: postgresql://life_os_test:life_os_test_only@127.0.0.1:5432/life_os_tasks_tests
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e

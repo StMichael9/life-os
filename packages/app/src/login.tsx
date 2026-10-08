@@ -19,7 +19,9 @@ export function Login() {
       });
       form.reset();
       const next = new URL(window.location.href).searchParams.get('next');
-      window.location.assign(next === '/direction' || next === '/' ? next : '/inbox');
+      window.location.assign(
+        next === '/tasks' || next === '/direction' || next === '/' ? next : '/inbox',
+      );
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Sign-in failed. Please try again.');
     } finally {

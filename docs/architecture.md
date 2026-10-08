@@ -2,7 +2,7 @@
 
 ## Status and governing decisions
 
-Phase 0 foundation, authenticated Inbox and the Phase 1 Direction slice are implemented.
+Phase 0 foundation, authenticated Inbox, Direction and Tasks slices are implemented.
 Continue with one coherent vertical slice at a time.
 The complete destination is `product-spec.md`; it is not a first-run checklist.
 No LLM, subscription API, banking connector, or telemetry service is required.
@@ -15,7 +15,7 @@ claims of persistence, incorrect local-day boundaries, and premature feature bre
 | --------------------- | --------------------------------------------------------------------------- | ---------------------------------- |
 | `apps/web`            | Next.js App Router composition, security headers, HTTP/auth adapters        | shared app, server services        |
 | `apps/desktop`        | Electron lifecycle and trust boundary; packaged Windows shell               | Electron and pure security helpers |
-| `packages/app`        | Shared React product views; Today, login, Inbox and Direction               | ui, shared, validation             |
+| `packages/app`        | Shared React product views; Today, login, Inbox, Direction and Tasks        | ui, shared, validation             |
 | `packages/ui`         | Semantic primitives, global design tokens and responsive styles             | React                              |
 | `packages/shared`     | Browser-safe local-date and versioned daily-content functions               | platform APIs only                 |
 | `packages/validation` | Zod schemas for untrusted inputs                                            | Zod                                |
@@ -41,7 +41,7 @@ Sandboxed Electron ──────┘                          ─ validated 
 ```
 
 The public Today page serves bundled daily content and clearly labeled planning
-empty states. `/login`, `/inbox` and `/direction` use real server services; private data is never
+empty states. `/login`, `/inbox`, `/direction` and `/tasks` use real server services; private data is never
 served from the preview model. The Next adapters lazily compose the PostgreSQL
 repositories and authentication service in `apps/web/lib/services.ts` (server-only).
 Missing `DATABASE_URL`, `AUTH_SECRET` or a trusted `APP_ORIGIN` fails closed with 503.
@@ -134,7 +134,7 @@ private records while retaining unsent text; account switches require reload/sig
 before capture. Logout confirms draft discard and waits for server revocation.
 Foreground, visibility and visible 60-second polling revalidate session and recent
 Inbox data. Refresh reloads the most recent page; older pages can be loaded again.
-There is no offline write queue, processing/conversion, edit or delete operation yet.
+Inbox conversion into a Task is now available; other processing, capture editing/deletion and offline write queues remain deferred.
 
 ### Electron persistence
 
@@ -171,7 +171,7 @@ status filtering of loaded records, deep-linked detail panels, and native modal
 create/edit forms. Goals include milestone management; detail breadcrumbs resolve
 Vision → Goal → Milestone → Project using owned joins. Independent Projects remain
 valid per the existing model; a Project may have one direct Goal or one Milestone,
-never both. No Task API/UI or fabricated progress metric is introduced.
+never both. Tasks attach to this hierarchy through the separate Execution slice; no fabricated progress metric is introduced.
 
 | Endpoint                                    | Contract                                                                  |
 | ------------------------------------------- | ------------------------------------------------------------------------- |
@@ -220,6 +220,50 @@ preview and never contacts private repositories. It shows real name/objective/da
 and up to six allocations, linking to the full strategy; the rest of Today remains
 planning guidance. No One Thing, Big 3 or other dashboard persistence was added.
 
+## Implemented Tasks / Execution slice
+
+`/tasks` provides owner-scoped create/edit/detail/list, completion/reopening and
+server-filtered status/direct Goal/Project lists. Tasks use the original single-parent
+model: one optional Project or direct Goal, with an optional category. Detail resolves
+Vision → Goal → Milestone → Project → Task through owned relations. Direction details
+link to directly attached Tasks; Goal filtering does not include inherited Project Tasks.
+The shared React view is also the hosted Electron renderer; no native privilege changes.
+
+Commands include UUID ID, version, title, description/notes, priority 1–5 (1 highest),
+status, due instant, estimate/actual minutes, energy and optional 0–5 decision ratings.
+Ratings are stored assessments, not a generated priority score; this slice adds no
+recommendation engine, schedule, Focus, One Thing or Big 3. Completion records a
+server timestamp, preserves it through completed edits and clears it when reopened.
+Legacy completed Tasks have no invented completion instant. Due forms use the account
+IANA timezone and preserve seconds; skipped/repeated DST wall times require another
+unambiguous time. Actual duration is manually recorded, not a running timer.
+
+| Endpoint                          | Contract                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------- |
+| GET `/api/tasks`                  | 50 rows with owned UUID `before`; optional `status`, direct `goalId` or `projectId` |
+| GET `/api/tasks/{id}`             | Owned Task and complete owned ancestor trail                                        |
+| POST `/api/tasks`                 | Strict full create command, UUID/version 0, identical replay supported              |
+| PATCH `/api/tasks/{id}`           | Matching UUID/current version; stale replacement returns 409                        |
+| GET `/api/tasks/from-inbox/{id}`  | Owned original capture and existing conversion ID, if any                           |
+| POST `/api/tasks/from-inbox/{id}` | Atomically create one Task and mark the capture processed                           |
+
+Task transactions share Direction's owner row lock, then lock the owned capture when
+converting. The original capture remains intact. Composite source ownership FK and
+unique `(user_id, source_inbox_id)` provenance independently reject foreign links and
+duplicate conversions. A SHA-256 fingerprint of the normalized initial conversion
+command persists server-side; it is excluded from DTOs. Identical retries return the
+linked current Task even after later edits. Changed replays, another Task ID or already
+processed captures cannot create another Task. Link validation, insertion and processing
+all roll back on failure. No Task or capture deletion endpoint is exposed.
+
+Reads carry verified account stamps and UI mutations use the same account precondition,
+CSRF, exact-Origin, session and 16 KiB limits as Direction. Private records/Task drafts
+clear on session/account change. Forms keep failed edits in memory, reuse create UUIDs,
+and confirm discard/cancellation; native dialogs preserve keyboard/focus behavior.
+Foreground and visible polling refresh server data without overwriting open forms.
+Task filters apply in SQL before pagination; parent selectors load additional pages.
+No localStorage, durable draft queue or offline writes are introduced.
+
 ## Database and concurrency
 
 UUIDs, UTC timestamptz instants, explicit local calendar dates, numeric measurements,
@@ -230,9 +274,7 @@ remain mandatory. Deployment requires a restricted app role and a separate migra
 DDL role; provider-specific roles have not yet been provisioned or verified. RLS may be added as defense in depth after role and pooling semantics are
 tested. Never assume RLS protects an owner/superuser connection.
 
-Transactions atomically save/activate Seasons with complete allocations. Future
-transactions will replace Big 3,
-convert Inbox captures, and finish focus sessions. Allocation totals must be validated
+Transactions atomically save/activate Seasons with complete allocations. Inbox-to-Task conversion is transactional. Future transactions will replace Big 3 and finish focus sessions. Allocation totals must be validated
 as a whole; row-level 0–100 checks alone do not enforce a 100% total. Future updates
 use `updated_at`/version preconditions to detect conflicting edits; last-write-wins
 must not silently discard long reflections. The database maintains updated timestamps.

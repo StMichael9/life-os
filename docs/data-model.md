@@ -15,6 +15,13 @@ are additive; no original table or content is dropped. There are now 17 tables.
 Season, Goal, Milestone and Project. Existing fields, parent constraints, dates,
 notes, IDs and timestamp triggers are preserved. No tables or content are dropped.
 An upgrade test seeds pre-0003 records and verifies preservation and repeat migration.
+`0004_tasks_conversion.sql`: adds Task version, manual priority, completion instant,
+source Inbox ID and immutable conversion fingerprint; adds Inbox `(id, user_id)`
+uniqueness before the new composite source FK. A unique owner/source key enforces
+one conversion per capture. The provenance check requires both source and hash or
+neither. Existing Tasks, parents, due instants, durations and captures are preserved;
+legacy completed Tasks retain unknown completion time rather than invented history.
+No table or content is removed. Upgrade and real PostgreSQL tests apply the chain.
 Migration metadata and snapshots are committed; generation must not alter old SQL
 once deployed. Destructive rollback is not automatic.
 
@@ -84,7 +91,7 @@ filters; composite FKs alone are not row-level read authorization.
   increments the previous Season's version when returning it to planned.
 - Record removal is not exposed: archive/complete preserves future Task parent links.
   Existing Task `(project_id, user_id)` and `(goal_id, user_id)` FKs are unchanged and
-  ready for the next slice. No Task records are created by Direction.
+  used by the Tasks slice. Direction itself does not create Task records.
 
 Lists are 50 rows plus a lookahead; cursor is an owned anchor UUID. Timestamp tuple
 comparison happens in SQL for stable microsecond pagination. Detail ancestor queries,
@@ -92,6 +99,31 @@ lookup categories/Visions and every list/change include the verified owner. Cate
 creation supports at most 100 categories; lookup metadata exposes up to 100 existing
 Visions. Category rename/removal and Vision CRUD are deferred. Read-only snapshots
 use repeatable read; writes serialize through an owner row lock and retain DB FKs.
+
+## Task and conversion invariants
+
+- One optional owned Project or direct Goal, never both, plus an owned optional
+  category. Inherited Goal/Milestone/Vision links are resolved through owned joins.
+- Strict shared commands bound text, priority 1–5, ratings 0–5, estimate 1–1440
+  minutes and manually recorded actual duration 0–1,000,000 minutes. All six existing
+  work statuses are supported. Due timestamps travel as explicit ISO instants;
+  the UI converts account-local times without silent DST shifts.
+- Version 0 creates stored version 1; updates increment it. Stale edits conflict.
+  Completion uses a server timestamp, preserves it through completed edits and
+  clears it when leaving completed status. Existing completion history is not guessed.
+- Task conversion locks owner then capture, validates owned parents/categories,
+  inserts one Task and sets Inbox `processed_at` in the same transaction. Original
+  capture body/request ID remains. Failed validation or insertion leaves the Inbox
+  unchanged. Task source is read-only provenance; clients cannot set/change it.
+- `source_inbox_id` references `(inbox_item.id, user_id)`; one owner/source pair is
+  unique. `conversion_hash` is a server-only SHA-256 fingerprint of the normalized
+  original command. Exact replay returns the existing current Task even after later
+  edits; changed payload/Task ID conflicts. No original command is used to overwrite
+  later edits. Conversion fingerprint is omitted from every API DTO.
+- Lists use repeatable-read snapshots, owned cursor anchors and timestamp tuple
+  comparisons in SQL. Status/direct-parent filters precede 50-row pagination.
+  The Goal filter selects direct Goal Tasks; inherited Tasks are viewed via Project.
+  Removal is not exposed; cancel/reopen preserves future daily-plan/Focus references.
 
 ## Authentication and Inbox invariants
 

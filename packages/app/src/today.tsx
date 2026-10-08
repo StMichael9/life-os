@@ -7,6 +7,7 @@ import {
   Cross,
   Globe2,
   Layers3,
+  ListTodo,
   ShieldCheck,
   Sun,
   Target,
@@ -84,6 +85,9 @@ export function Today({
           </a>
           <a className="nav-link" href="/direction">
             <Compass size={18} /> Direction
+          </a>
+          <a className="nav-link" href="/tasks">
+            <ListTodo size={18} /> Tasks
           </a>
           <a className="nav-link" href="#daily-plan">
             <Target size={18} /> Daily priorities

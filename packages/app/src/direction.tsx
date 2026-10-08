@@ -362,6 +362,7 @@ export function Direction({
         <nav aria-label="Workspace navigation">
           <a href="/">Today</a>
           <a href="/inbox">Inbox</a>
+          <a href="/tasks">Tasks</a>
           <a href="/direction" aria-current="page">
             Direction
           </a>
@@ -589,6 +590,14 @@ export function Direction({
                   <h2 id="detail-heading" ref={detailHeading} tabIndex={-1}>
                     {title(current)}
                   </h2>
+                  {(detail.kind === 'goals' || detail.kind === 'projects') && (
+                    <a
+                      className="direction-task-link"
+                      href={`/tasks?${detail.kind === 'goals' ? 'goalId' : 'projectId'}=${current.id}`}
+                    >
+                      View directly linked Tasks
+                    </a>
+                  )}
                   {'objective' in current && (
                     <>
                       <Eyebrow>PRIMARY OBJECTIVE</Eyebrow>

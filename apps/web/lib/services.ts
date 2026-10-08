@@ -4,6 +4,7 @@ import {
   createAuthRepository,
   createInboxRepository,
   createDirectionRepository,
+  createTaskRepository,
 } from '@life-os/database';
 import {
   createAuthService,
@@ -12,10 +13,15 @@ import {
   createHttpHandlers,
   createDirectionService,
   createDirectionHttp,
+  createTaskService,
+  createTaskHttp,
 } from '@life-os/api';
 
 let handlers:
-  | (ReturnType<typeof createHttpHandlers> & { direction: ReturnType<typeof createDirectionHttp> })
+  | (ReturnType<typeof createHttpHandlers> & {
+      direction: ReturnType<typeof createDirectionHttp>;
+      tasks: ReturnType<typeof createTaskHttp>;
+    })
   | undefined;
 export function getHandlers() {
   if (handlers) return handlers;
@@ -35,6 +41,7 @@ export function getHandlers() {
       createDirectionService(auth, createDirectionRepository(db)),
       security,
     ),
+    tasks: createTaskHttp(createTaskService(auth, createTaskRepository(db)), security),
   };
   return handlers;
 }

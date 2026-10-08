@@ -227,6 +227,11 @@ export const tasks = pgTable(
   'task',
   {
     ...owned(),
+    version: integer('version').notNull().default(1),
+    priority: integer('priority').notNull().default(3),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    sourceInboxId: uuid('source_inbox_id'),
+    conversionHash: text('conversion_hash'),
     projectId: uuid('project_id'),
     goalId: uuid('goal_id'),
     categoryId: uuid('category_id'),
@@ -245,6 +250,16 @@ export const tasks = pgTable(
   },
   (t) => [
     unique('task_owner_key').on(t.id, t.userId),
+    unique('task_source_inbox_key').on(t.userId, t.sourceInboxId),
+    foreignKey({
+      columns: [t.sourceInboxId, t.userId],
+      foreignColumns: [inboxItems.id, inboxItems.userId],
+    }),
+    check('task_priority', sql`${t.priority} between 1 and 5`),
+    check(
+      'task_conversion_provenance',
+      sql`(${t.sourceInboxId} is null and ${t.conversionHash} is null) or (${t.sourceInboxId} is not null and ${t.conversionHash} is not null and ${t.conversionHash} ~ '^[0-9a-f]{64}$')`,
+    ),
     foreignKey({
       columns: [t.projectId, t.userId],
       foreignColumns: [projects.id, projects.userId],
@@ -277,6 +292,7 @@ export const inboxItems = pgTable(
   },
   (t) => [
     unique('inbox_owner_request_key').on(t.userId, t.requestId),
+    unique('inbox_owner_key').on(t.id, t.userId),
     index('inbox_user_created_idx').on(t.userId, t.createdAt, t.id),
     check('inbox_body_length', sql`length(trim(${t.body})) between 1 and 10000`),
   ],

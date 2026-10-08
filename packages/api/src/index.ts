@@ -50,3 +50,5 @@ export { createHttpHandlers } from './http';
 
 export { createDirectionService } from './direction';
 export { createDirectionHttp } from './direction-http';
+export { createTaskService } from './tasks';
+export { createTaskHttp } from './tasks-http';

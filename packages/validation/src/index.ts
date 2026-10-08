@@ -190,3 +190,46 @@ export type GoalCommand = z.infer<typeof goalCommandSchema>;
 export type MilestoneCommand = z.infer<typeof milestoneCommandSchema>;
 export type ProjectCommand = z.infer<typeof projectCommandSchema>;
 export type CategoryCommand = z.infer<typeof categoryCommandSchema>;
+
+export const taskStatusSchema = z.enum([
+  'inbox',
+  'planned',
+  'in_progress',
+  'completed',
+  'deferred',
+  'cancelled',
+]);
+const rating = z.number().int().min(0).max(5);
+export const taskCommandSchema = z
+  .object({
+    ...recordCommand,
+    title: z.string().trim().min(1).max(200),
+    description: nullableText(10_000),
+    notes: nullableText(4000),
+    projectId: nullableId,
+    goalId: nullableId,
+    categoryId: nullableId,
+    priority: z.number().int().min(1).max(5),
+    status: taskStatusSchema,
+    dueAt: z.iso
+      .datetime({ offset: true })
+      .refine((value) => Number.isFinite(Date.parse(value)), 'Choose a valid due time.')
+      .nullable(),
+    estimateMinutes: z.number().int().min(1).max(1440).nullable(),
+    actualMinutes: z.number().int().min(0).max(1_000_000).nullable(),
+    impact: rating,
+    urgency: rating,
+    opportunity: rating,
+    goalAlignment: rating,
+    energy: z.enum(['low', 'medium', 'high']),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.goalId && data.projectId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['projectId'],
+        message: 'Choose a Goal or a Project, not both.',
+      });
+  });
+export type TaskCommand = z.infer<typeof taskCommandSchema>;
