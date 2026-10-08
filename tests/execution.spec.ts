@@ -16,6 +16,77 @@ test.describe('integrated Phase 1 execution', () => {
     await expect(page.getByRole('button', { name: 'Edit priorities' })).toBeVisible();
   }
   const day = () => (test.info().project.name === 'mobile' ? '2030-10-09' : '2030-10-08');
+  test('blocks date-sensitive actions until the selected day loads, including returning to Today', async ({
+    page,
+  }) => {
+    await login(page);
+    const initialDate = await page.locator('.day-toolbar time').getAttribute('datetime');
+    const selected = test.info().project.name === 'mobile' ? '2031-10-09' : '2031-10-08';
+    let release!: () => void;
+    let requested!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    await page.route('**/api/execution/today?*', async (route) => {
+      if (new URL(route.request().url()).searchParams.get('date') === selected) {
+        requested();
+        await held;
+      }
+      await route.continue();
+    });
+    await page.getByLabel('Selected day').fill(selected);
+    try {
+      await started;
+      expect(await page.locator('.day-toolbar time').getAttribute('datetime')).toBe(initialDate);
+      for (const name of [
+        'Start Day',
+        'Edit priorities',
+        'Add block',
+        'Save Scripture',
+        'Save thought',
+      ])
+        await expect(page.getByRole('button', { name, exact: true })).toBeDisabled();
+      await page
+        .getByRole('button', { name: 'Start Day', exact: true })
+        .evaluate((element: HTMLButtonElement) => element.click());
+      await expect(page.getByRole('dialog')).not.toBeVisible();
+    } finally {
+      release();
+    }
+    await expect(page.locator('.day-toolbar time')).toHaveAttribute('datetime', selected);
+    await page.getByRole('button', { name: 'Start Day', exact: true }).click();
+    const form = page.getByRole('dialog');
+    await form.getByLabel('The One Thing', { exact: true }).fill('Use the selected day');
+    await form.getByRole('button', { name: 'Start Day', exact: true }).click();
+    await expect(form).not.toBeVisible();
+    const persisted = await page.request.get('/api/execution/today?date=' + selected);
+    expect((await persisted.json()).plan.oneThing).toBe('Use the selected day');
+
+    await page.unroute('**/api/execution/today?*');
+    let releaseToday!: () => void;
+    const heldToday = new Promise<void>((resolve) => {
+      releaseToday = resolve;
+    });
+    await page.route('**/api/execution/today?*', async (route) => {
+      if (!new URL(route.request().url()).searchParams.has('date')) await heldToday;
+      await route.continue();
+    });
+    await page.getByRole('button', { name: 'Today', exact: true }).click();
+    try {
+      await expect(page.getByRole('button', { name: 'Close Day', exact: true })).toBeDisabled();
+      await expect(
+        page.getByRole('button', { name: 'Edit priorities', exact: true }),
+      ).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Add block', exact: true })).toBeDisabled();
+    } finally {
+      releaseToday();
+    }
+    await expect(page.locator('.day-toolbar time')).toHaveAttribute('datetime', initialDate!);
+    await expect(page.getByRole('button', { name: 'Edit priorities', exact: true })).toBeEnabled();
+  });
   test('plans, starts, completes and closes a local day with saved reflection and accessible forms', async ({
     page,
   }) => {

@@ -13,6 +13,7 @@
     "migrate": "tsx src/migrate.ts",
     "release:migrate": "tsx src/operations-cli.ts migrate",
     "release:verify": "tsx src/operations-cli.ts verify",
+    "release:runtime": "tsx src/operations-cli.ts runtime",
     "backup": "tsx src/operations-cli.ts backup",
     "restore": "tsx src/operations-cli.ts restore"
   },

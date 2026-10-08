@@ -16,9 +16,14 @@ DO $$ DECLARE role_name text; BEGIN
   EXECUTE format('GRANT CONNECT ON DATABASE %I TO life_os_migrator, life_os_runtime, life_os_operator, life_os_backup', current_database());
   EXECUTE format('GRANT CREATE ON DATABASE %I TO life_os_migrator', current_database());
 END; $$;
+-- PostgreSQL 16+ requires explicit SET permission for a non-superuser owner transfer.
+-- Only the trusted administrator can assume the migrator; the runtime cannot.
+GRANT life_os_migrator TO CURRENT_USER WITH SET TRUE, INHERIT FALSE;
 ALTER SCHEMA public OWNER TO life_os_migrator;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE, CREATE ON SCHEMA public TO life_os_migrator;
 GRANT USAGE ON SCHEMA public TO life_os_runtime, life_os_operator, life_os_backup;
+SET LOCAL ROLE life_os_migrator;
 ALTER DEFAULT PRIVILEGES FOR ROLE life_os_migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+RESET ROLE;
 COMMIT;

@@ -17,3 +17,7 @@ backups/
 *.lifeos.enc
 *.dump
 *.pgpass
+.neon
+.agents/skills/
+.codex/
+skills-lock.json

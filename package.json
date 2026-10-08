@@ -20,14 +20,17 @@
     "release:config": "pnpm --filter @life-os/api release:config",
     "release:migrate": "pnpm --filter @life-os/database release:migrate",
     "release:verify": "pnpm --filter @life-os/database release:verify",
+    "release:runtime": "pnpm --filter @life-os/database release:runtime",
     "backup": "pnpm --filter @life-os/database backup",
     "restore": "pnpm --filter @life-os/database restore",
     "desktop:dev": "pnpm --filter @life-os/desktop dev",
     "account:create": "pnpm --filter @life-os/api account:create"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@electric-sql/pglite": "^0.3.14",
     "@eslint/js": "^10.0.0",
+    "@neon/config": "^1.8.4",
     "@playwright/test": "^1.58.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
@@ -37,8 +40,7 @@
     "prettier": "^3.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.55.0",
-    "vitest": "^4.0.18",
-    "@axe-core/playwright": "^4.11.0"
+    "vitest": "^4.0.18"
   },
   "type": "module"
 }

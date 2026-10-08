@@ -3,14 +3,16 @@
 ## Current state
 
 Authenticated Phase 1 daily execution works in the production build against isolated PostgreSQL.
-No Vercel project, Neon deployment, live personal account, signed installer or
-production credential has been provisioned. Vercel monorepo configuration, redacted
+Vercel Hobby project life-os and the user-selected Neon Free/PG18 project now exist.
+Neon staging received migrations/grants; its production branch remains empty. No web
+deployment, personal account, signed installer or Vercel application secret exists.
+Work is paused at the user's request. See progress for exact IDs and pending credentials. Vercel monorepo configuration, redacted
 configuration validation, separate-role SQL, migration/grant verification and encrypted
 backup/restore commands now exist. Real PG17 operations and a verified local HTTPS
 production-Next workflow are rehearsed; hosted provider behavior is still unverified.
 Follow [release-runbook.md](release-runbook.md) for exact setup and acceptance steps. The public Today preview remains
-separate from the authenticated daily workspace. Native Windows persistence is implemented
-but requires local runtime verification before release.
+separate from the authenticated daily workspace. The separate Windows chat reports native synthetic DPAPI/cookie and GUI security checks
+passing; installer and real hosted-backend verification remain incomplete.
 
 ## Environment separation
 

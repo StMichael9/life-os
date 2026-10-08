@@ -144,6 +144,8 @@ roles and transactional grants; migration-ledger and runtime-permission verifica
 AES-256-GCM logical backup and guarded restore tooling; actual PG17 restore rehearsal;
 production Next HTTPS full-day rehearsal; CI coverage and release/Windows runbooks.
 No product-domain redesign, new app migration, Electron changes or Phase 2 work.
+Windows QA identified an immediate Selected day / Start Day race; shared web code now
+disables date-sensitive actions and mutation paths until loaded data matches selection.
 
 The restricted runtime performs real login → Start Day → plan → schedule → Focus
 pause/resume/finish → retry-safe capture/process → Close Day → logout. Local HTTPS
@@ -159,12 +161,50 @@ personal account procedure, daily encrypted backup schedule/offsite/key storage 
 hosted acceptance checklist and separate Local Windows instructions. The fixture proves
 implementation; no personal credentials/data or actual backup storage job was created.
 
-**Blocked/unverified externally:** Vercel and Neon plugins are installed, but provider
-tools are not callable in this Cloud session. Neon app connection is recognized; the
-Vercel account connection remains unavailable. No hosted URL, current free-plan eligibility/
-quotas, Neon bootstrap/migration/grants/TLS/pooling, production HTTPS workflow, hosted
-latency or restore timing is claimed. Native Windows DPAPI/session/NSIS testing belongs
-to the separate Local Windows checkout; Cloud does not modify that checkout.
+**Provider access now available:** Vercel account is connected on Hobby. Project
+`life-os` (`prj_AIPTfML0oCOdtfRaoNenxOX8wYa0`) exists with apps/web, Node24,
+workspace inclusion and Ohio (`cle1`) region. It has no deployment, installed application
+secrets or verified URL. Automatic Git builds are deliberately skipped with the project
+Ignored Build Step `exit 0`; remove this only when resuming the reviewed release. No paid plan/features were enabled.
+
+The user selected Neon Free project `lively-surf-21544686` (Life-OS), PostgreSQL **18.6**,
+AWS Ohio. Production branch `br-super-star-b5edgceo` remains empty (**zero public tables**)
+and has no personal account/data. The separate `staging-release` branch
+`br-fragrant-feather-b51tx7bt` received reviewed migrations 0000–0006 and explicit grants;
+all seven hashes/timestamps match, and all 22 public tables belong to life_os_migrator.
+Remote SQL ran through the authenticated Neon tools, not the blocked Cloud CLI.
+Compute max/min was capped at 0.25 CU and pooling enabled on the production endpoint.
+Changing its suspend interval is rejected by this Free account; the API reports zero.
+Do not claim verified idle suspension or hosted uptime. Branch creation stays within
+its reported ten-branch limit; monitor the actual Free allowance.
+
+**Paused safely at the user's request:** no web deployment or production migration
+was started. The staging runtime remains **NOLOGIN**: Neon's password-reset API rejects
+SQL-created roles without passwords. Provision a native restricted password credential
+securely and verify standalone login/grants/TLS before deploying. No runtime/secret was
+installed in Vercel. Both Neon bootstrap and local PG17 checks identified/fixed the
+PG16+ need for explicit administrator SET permission and a migrator-local default-
+privilege change; runtime still cannot assume the migrator.
+
+Neon CLI 8.0.12, project-local skills and project-scoped OAuth MCP config are installed.
+The verified project/production branch is pinned in local gitignored `.neon` using the
+CLI context writer. `neon.ts` is exactly the requested empty defineConfig({}), with
+@neon/config in the frozen lockfile. Cloud's network policy blocks direct Neon API
+access: CLI login/link/deploy is **not verified/successful**. Authenticated MCP checks
+verified project/branch identity; no API key, account-wide credential or .env export
+was generated. Empty configuration enables no Neon Auth/Functions/Storage/AI services.
+
+The separate Windows checkpoint is pushed as **2963ae02785ac7ace884a51fc1f1bb6f01d38ee5**
+on `windows/desktop-qa`, based on 3a94679. It is not merged into work. It fixes trusted
+main-frame offline retry and adds reproducible test:native (nine native DPAPI/cookie
+processes) and test:gui (three real Electron scenarios). That chat reports all 102
+existing tests, formatting/lint/typecheck and Next/Electron builds passing on Windows,
+plus QA NSIS0.1.0 built/installed with shortcuts/offline modal observed. Hosted origin/
+session acceptance, final signing/icon, upgrade/uninstall remain unverified. These are
+reported Local results, not independent Cloud verification. Reconcile its additive docs
+with these newer Cloud notes before merging. The shared day-selection race is fixed in
+Cloud; an additional reported Focus-resume race requires its reproduction/details to be
+reviewed. Both chats are paused at the user's request; Cloud did not alter its checkout.
 
 ### Verification for this release checkpoint
 
@@ -176,19 +216,21 @@ to the separate Local Windows checkout; Cloud does not modify that checkout.
 - Migration generation: no schema drift; all seven committed hashes/timestamps and
   22 application tables verified. **No new migration.**
 - Format check, lint, typecheck, production web and Electron builds all passed.
-  Browser E2E: **46 passed**, including authenticated desktop/mobile and axe checks.
+  Browser E2E: **48 passed**, including authenticated desktop/mobile and axe checks.
+  New delayed-request tests prove immediate date changes cannot open/save the old
+  day and returning to Today also blocks date-sensitive actions.
   The final build and verified local HTTPS rehearsal passed after the config changes.
 - Peer checks and production/full dependency audits passed with no known vulnerabilities.
 - CI was extended; its remote run has not been observed for this checkpoint.
 
 ## Exact next recommended task
 
-**Complete the free-tier hosted Phase 1 release: connect the Vercel account and resume
-with callable Vercel/Neon tools, confirm free-plan eligibility without chargeable usage,
-provision an isolated Neon17 database with separate roles, migrate/verify 0000–0006,
-deploy the configured Vercel web app, create the personal account interactively, verify
-the hosted full-day/ownership/session workflow, and activate/rehearse the user's daily
-encrypted backup and restore process before relying on the app.**
+**Resume the paused free-tier release: securely provision and verify the standalone
+restricted runtime credential on Neon staging, finish the Vercel build-time runtime
+permission/TLS gate and deploy the reviewed staging build. Verify the complete hosted
+workflow and owner isolation; then migrate the still-empty production branch with
+separate roles, configure controlled personal account creation, activate/rehearse daily
+encrypted backup/restore using PG18 clients, and complete hosted Windows acceptance.**
 
 Follow [release-runbook.md](release-runbook.md). Native Windows testing remains the
 separate [Windows handoff](windows-handoff.md). Do not begin Phase 2 during this task.
@@ -199,6 +241,8 @@ Continue from the pushed operational-readiness commit on `work`; read this file,
 architecture/data-model/deployment and the release runbook. Phase 1 product implementation
 is complete in isolation; hosted daily-use readiness is **partial**, not deployed.
 Use privileged URLs only in trusted operator processes and the runtime role only in
-Vercel. Never run destructive fixtures against hosted/personal data. Complete hosted
+Vercel. A new release:runtime command checks the actual runtime login with no privileged
+credential, and vercel.json gates builds on it. Final gates for the last tooling/build-
+command edits remain to be run when work resumes after the requested pause. Never run destructive fixtures against hosted/personal data. Complete hosted
 acceptance and production backup setup, integrate actual Local Windows evidence when
 available, then report the real URL/status. A Git push is not deployment.

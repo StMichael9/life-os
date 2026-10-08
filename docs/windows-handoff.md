@@ -7,8 +7,8 @@ Use its pushed `work` tip after checking the Cloud report; keep a separate Windo
 branch/check-out. Cloud has not changed Electron code or the Windows checkout.
 
 **No hosted backend URL is verified or available at this handoff.** A GitHub repository
-URL is not a running app. Vercel/Neon provider setup remains pending callable account
-access. Native tests can begin against an approved local HTTPS backend, then must be
+URL is not a running app. Vercel/Neon are now connected; Vercel has no deployment, and Neon has only staged
+migrations/grants while production is empty. Cloud stopped at the user's request. Native tests can begin against an approved local HTTPS backend, then must be
 repeated against the exact approved hosted staging origin. Do not access production
 personal data. No Windows DPAPI or NSIS runtime result is claimed by Cloud.
 
@@ -46,3 +46,20 @@ notes to progress/deployment docs so Cloud and Windows results remain distinguis
 
 Windows success does not establish hosted deployment or backup readiness. The full
 hosted web acceptance and operator backup runbook is in [release-runbook.md](release-runbook.md).
+
+## Reported Local Windows findings (not independently verified in Cloud)
+
+The separate Windows chat reports Electron44.6 native DPAPI/cookie checks across nine
+synthetic processes and real GUI security tests passing. Its stopped/pushed checkpoint is 2963ae02785ac7ace884a51fc1f1bb6f01d38ee5 on
+windows/desktop-qa (not merged). Native/GUI harnesses and trusted offline retry are
+implemented; QA NSIS0.1.0 installation, shortcuts and offline modal were observed.
+Signing/icon, upgrade/uninstall and hosted-origin session checks remain pending. It identified an immediate Selected day / Start Day race; Cloud fixed the
+shared date-sensitive actions and added delayed-response desktop/mobile regressions
+(48 browser cases pass). The isolated Windows branch should incorporate that pushed
+shared fix before repeating its UI workflow. Hosted-backend testing remains pending
+a verified staging URL; no personal production data was used.
+
+On resume, review that isolated Windows commit and reconcile its additive docs before
+merging. Include the Cloud date-selection fix in the next Windows run. Review the
+additional reported Focus-resume race with its actual reproduction; it is not marked
+fixed. Both chats have stopped at the user's request.

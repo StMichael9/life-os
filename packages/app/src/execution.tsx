@@ -20,9 +20,11 @@ export function Execution({
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true);
   const [date, setDate] = useState(''),
+    [loadedDate, setLoadedDate] = useState<string | null>(null),
     [minutes, setMinutes] = useState(90),
     [energy, setEnergy] = useState('medium'),
     [editor, setEditor] = useState<ExecutionEditor | null>(null);
+  const dayReady = data !== null && loadedDate === date;
   const [vault, setVault] = useState<VaultItem[]>([]),
     [next, setNext] = useState<string | null>(null),
     [kind, setKind] = useState(''),
@@ -43,6 +45,7 @@ export function Execution({
     generation.current++;
     account.current = null;
     setData(null);
+    setLoadedDate(null);
     setProfile(null);
     setVault([]);
     setEditor(null);
@@ -76,6 +79,7 @@ export function Execution({
       const snapshot = await requestJson<ExecutionSnapshot>('/api/execution/today?' + query);
       if (epoch !== generation.current || snapshot.ownerId !== account.current) return;
       setData(snapshot);
+      setLoadedDate(date);
       setClockOffset(Date.parse(snapshot.serverNow) - Date.now());
       if (section === 'vault') {
         const q = new URLSearchParams({ archived: String(archived), ...(kind ? { kind } : {}) });
@@ -180,6 +184,8 @@ export function Execution({
     return p.id;
   }
   async function mutate(command: ExecutionCommand) {
+    if (['plan', 'schedule', 'routine-check'].includes(command.action) && !dayReady)
+      throw new Error('Wait for the selected day to load before saving.');
     if (mutating.current) throw new Error('Wait for the previous save to finish.');
     mutating.current = true;
     setBusy(true);
@@ -216,7 +222,7 @@ export function Execution({
     }
   }
   function outcomeCheck(index: number, completed: boolean) {
-    if (!data?.plan || busy) return;
+    if (!data?.plan || busy || !dayReady) return;
     const c = planCommand('save');
     if (c.action !== 'plan') return;
     c.outcomes[index]!.completed = completed;
@@ -231,7 +237,7 @@ export function Execution({
     });
   }
   function routineCheck(id: string, completed: boolean) {
-    if (!data || busy) return;
+    if (!data || busy || !dayReady) return;
     const r = data.routines.find((r) => r.id === id)!;
     void optimisticAction(
       {
@@ -281,7 +287,7 @@ export function Execution({
     }
   }
   async function saveContent(type: 'scripture' | 'thought') {
-    if (!data) return;
+    if (!data || !dayReady) return;
     const c = data.content;
     await action({
       action: 'vault',
@@ -500,6 +506,7 @@ export function Execution({
               Today
             </button>
             <time dateTime={data.date}>{data.date}</time>
+            {!dayReady && <span role="status">Loading selected day…</span>}
             <span className="muted">{data.timeZone}</span>
             <span className="day-state">
               {data.plan?.closedAt
@@ -556,7 +563,7 @@ export function Execution({
                 <div className="execution-actions">
                   <button
                     className="button button-primary"
-                    disabled={busy || !!data.plan?.closedAt}
+                    disabled={busy || !dayReady || !!data.plan?.closedAt}
                     onClick={() => setEditor({ kind: 'plan', workflow: 'save' })}
                   >
                     Edit priorities
@@ -564,7 +571,7 @@ export function Execution({
                   {!data.plan?.startedAt && (
                     <button
                       className="button"
-                      disabled={busy}
+                      disabled={busy || !dayReady}
                       onClick={() => setEditor({ kind: 'plan', workflow: 'start' })}
                     >
                       Start Day
@@ -573,7 +580,7 @@ export function Execution({
                   {data.plan?.startedAt && !data.plan.closedAt && (
                     <button
                       className="button"
-                      disabled={busy}
+                      disabled={busy || !dayReady}
                       onClick={() => setEditor({ kind: 'plan', workflow: 'close' })}
                     >
                       Close Day
@@ -582,7 +589,7 @@ export function Execution({
                   {data.plan?.closedAt && (
                     <button
                       className="button"
-                      disabled={busy}
+                      disabled={busy || !dayReady}
                       onClick={() => {
                         if (confirm('Reopen this day for changes?'))
                           void action(planCommand('reopen'));
@@ -603,7 +610,7 @@ export function Execution({
                         <label>
                           <input
                             type="checkbox"
-                            disabled={busy || !!data.plan?.closedAt}
+                            disabled={busy || !dayReady || !!data.plan?.closedAt}
                             checked={!!o.completedAt}
                             onChange={(e) => outcomeCheck(i, e.target.checked)}
                           />
@@ -652,7 +659,7 @@ export function Execution({
               </div>
               <button
                 className="button"
-                disabled={busy}
+                disabled={busy || !dayReady}
                 onClick={() => setEditor({ kind: 'schedule' })}
               >
                 Add block
@@ -682,16 +689,19 @@ export function Execution({
                     <div className="execution-actions">
                       <button
                         className="button"
-                        disabled={busy}
+                        disabled={busy || !dayReady}
                         onClick={() => setEditor({ kind: 'schedule', record: b })}
                       >
                         Edit
                       </button>
                       <button
                         className="button"
-                        disabled={busy}
+                        disabled={busy || !dayReady}
                         onClick={() => {
-                          if (confirm('Remove this time block? The linked Task is kept.'))
+                          if (
+                            dayReady &&
+                            confirm('Remove this time block? The linked Task is kept.')
+                          )
                             void action({
                               action: 'schedule',
                               requestId: uuid(),
@@ -836,7 +846,7 @@ export function Execution({
                         <input
                           type="checkbox"
                           checked={r.completed}
-                          disabled={busy || !r.scheduled}
+                          disabled={busy || !dayReady || !r.scheduled}
                           onChange={(e) => routineCheck(r.id, e.target.checked)}
                         />
                         <span>
@@ -851,7 +861,7 @@ export function Execution({
                         {r.completed && !r.archived && (
                           <button
                             className="button"
-                            disabled={busy}
+                            disabled={busy || !dayReady}
                             onClick={() => setEditor({ kind: 'routine-note', record: r })}
                           >
                             Day note
@@ -1008,7 +1018,7 @@ export function Execution({
                 <blockquote>{data.content.scripture.text}</blockquote>
                 <button
                   className="button"
-                  disabled={busy}
+                  disabled={busy || !dayReady}
                   onClick={() => void saveContent('scripture')}
                 >
                   Save Scripture
@@ -1021,7 +1031,7 @@ export function Execution({
                 <p className="muted">Life OS · original thought</p>
                 <button
                   className="button"
-                  disabled={busy}
+                  disabled={busy || !dayReady}
                   onClick={() => void saveContent('thought')}
                 >
                   Save thought

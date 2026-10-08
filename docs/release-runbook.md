@@ -5,11 +5,19 @@
 The release tooling is implemented and rehearsed with disposable PostgreSQL 17 and a
 production Next build behind verified local HTTPS. This is **not a deployed URL** or
 verification of Vercel, Neon, their billing eligibility, pooling or production TLS.
-Vercel and Neon plugins are installed; neither exposes callable provider tools to the
-current Cloud session. Neon account connection is recognized; the Vercel app account
-connection is not available. No provider resources, personal account or paid service
-was created. Reconnect Vercel's account and resume in a session with both providers'
-tools loaded, or perform the console steps below. Never paste credentials into chat.
+Provider tools are now connected. Vercel Hobby project life-os exists; Neon Free
+project lively-surf-21544686 is PostgreSQL18 in Ohio. Staging migrations/grants are
+applied and their ledger/ownership checked; production is still empty. The release is
+paused at the user's request, with no deployment/secrets/personal account. Vercel
+automatic builds are skipped using project Ignored Build Step exit 0; remove that gate
+only when ready to resume the reviewed release. See progress
+for exact IDs, credential provisioning and pending standalone-runtime verification.
+
+Local CLI/API networking is blocked by this Cloud environment's enforced host policy.
+CLI 8.0.12 and local skills/OAuth MCP config exist; the verified project/branch is
+pinned in gitignored .neon. The empty neon.ts enables no optional services. neon deploy
+failed to reach the API; this is not a deployed configuration claim. Resume with the
+connected provider tools or an approved CLI/network environment without sharing secrets.
 
 Confirm personal-use eligibility and the actual free plans in both consoles before
 creating resources. Do not supply billing consent, upgrade plans, enable paid add-ons
@@ -23,7 +31,7 @@ the only backup.
 
 ## Database initialization (trusted operator only)
 
-1. Create an explicitly isolated PostgreSQL **17** database in an eligible free Neon
+1. Create an explicitly isolated PostgreSQL **18** database (the actual user-selected project version) in an eligible free Neon
    project. Use a region compatible with the Vercel app; verify current free options.
    Production, staging and restore targets must have distinct databases and secrets.
    Use a fresh empty database; this runbook does not transfer ownership of an existing
@@ -36,8 +44,9 @@ the only backup.
 3. Enable LOGIN for `life_os_migrator`, `life_os_runtime`, `life_os_operator` and
    `life_os_backup`. Set independent random passwords with interactive `psql
 \password role_name`. Do not use password-bearing SQL in shell history/argv.
-   No role may inherit or be a member of an administrator/database-owner/migration
-   role. Provider-created role memberships must be reviewed; do not bypass the
+   The runtime/operator/backup roles must not inherit or be members of administrator,
+   database-owner or migration roles. Bootstrap gives only the trusted administrator
+   explicit SET permission to the migrator for ownership/default-privilege setup. Provider-created role memberships must be reviewed; do not bypass the
    permission verifier if it rejects them. Actual Neon administrator capabilities
    and these grants still need verification.
 4. Export the direct migrator URL as `MIGRATION_DATABASE_URL` in this operator process
@@ -59,7 +68,7 @@ the only backup.
 
 All hosted URLs must use `sslmode=verify-full`. Replace an insecure/default `require`
 mode; do not append duplicate modes or disable certificate checks. Node uses trusted
-system CAs; native PostgreSQL 17 clients use `PGSSLROOTCERT=system` with verify-full.
+system CAs; native matching PostgreSQL clients use `PGSSLROOTCERT=system` with verify-full.
 Use direct connections for migrations/backups and provider pooling for the runtime.
 Production operator URLs must not set `LIFE_OS_OPERATIONS_ALLOW_LOCAL`. Its opt-in
 exists only for loopback `_tests`, `_e2e` and `_restore` fixtures. A URL/schema check
@@ -70,7 +79,8 @@ alone is not proof of remote TLS: run the commands on the actual hosted database
 1. Import `StMichael9/life-os`, selecting the reviewed release commit from `work`.
    Project Root Directory is **apps/web**. Enable inclusion of files outside that
    directory. `apps/web/vercel.json` installs from the workspace root with the frozen
-   lockfile and builds the web package from its directory. Use Node 24 and pinned
+   lockfile, verifies the standalone runtime privileges over verified database TLS with
+   pnpm release:runtime, then builds the web package from its directory. Use Node 24 and pinned
    pnpm 11.19.0. Do not deploy or package Electron through Vercel.
 2. Choose the stable HTTPS Vercel subdomain; no paid custom domain is necessary.
    Install only server-side `DATABASE_URL` (runtime role), exact `APP_ORIGIN` (no
@@ -126,7 +136,7 @@ Operations require a trusted POSIX machine (Linux/macOS or a trusted WSL environ
 PostgreSQL client tools matching the server major, and owner-only local files. These
 are operator tasks, not HTTP endpoints, Electron renderer features or Vercel cron jobs.
 The Cloud fixture uses PG17 tools inside its disposable container; production must
-install trusted PG17 tools. Permission checks reject Windows filesystems without
+install trusted PG18 tools. Permission checks reject Windows filesystems without
 POSIX ownership rather than accepting insecure storage.
 
 Create a private directory **outside the repository**, set `umask 077`, and generate
@@ -155,7 +165,7 @@ RPO/RTO are targets, not measured hosted guarantees.**
 
 To rehearse recovery:
 
-1. Create a separate empty PostgreSQL 17 database whose name ends in `_restore`.
+1. Create a separate empty PostgreSQL database matching the source major (18 for this project) whose name ends in `_restore`.
    Bootstrap it with the trusted administrator. Use its migration login, never the
    active database. Keep it inaccessible to the public app during rehearsal.
 2. Export `RESTORE_DATABASE_URL`, the key/archive file variables, and

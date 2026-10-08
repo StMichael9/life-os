@@ -39,6 +39,10 @@ try {
     console.log(
       await withOperationsClient(required('DATABASE_URL'), allowLocal, verifyRuntimePermissions),
     );
+  } else if (mode === 'runtime') {
+    console.log(
+      await withOperationsClient(required('DATABASE_URL'), false, verifyRuntimePermissions),
+    );
   } else if (mode === 'backup') {
     console.log(
       await createEncryptedBackup({
@@ -60,7 +64,7 @@ try {
         ...(process.env.PG_RESTORE_BIN ? { pgRestore: process.env.PG_RESTORE_BIN } : {}),
       }),
     );
-  } else throw new OperationsError('Choose migrate, verify, backup or restore.');
+  } else throw new OperationsError('Choose migrate, verify, runtime, backup or restore.');
 } catch (e) {
   // Only deliberate redacted operator messages are shown; never print DB/crypto/tool errors.
   console.error(

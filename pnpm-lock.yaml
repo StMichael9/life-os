@@ -21,6 +21,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.0
         version: 10.0.1(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))
+      '@neon/config':
+        specifier: ^1.8.4
+        version: 1.8.4
       '@playwright/test':
         specifier: ^1.58.0
         version: 1.63.0
@@ -895,6 +898,14 @@ packages:
   '@malept/flatpak-bundler@0.4.0':
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
+
+  '@neon/config@1.8.4':
+    resolution: {integrity: sha512-N4J8XxFicf6XoGNceAAAGfzZGedZjV/iOGnbpPAQV2qkIP4oLnkvumdR5kstEmoVgktJV7DfqVd9I6923JZGtg==}
+    engines: {node: '>=20.19.0'}
+
+  '@neon/sdk@7.0.1':
+    resolution: {integrity: sha512-Zyo84tVyK3cO/vkREgFSPZ0llGoWNgcbbz38/UkqyqKN/Ky6huHibTCyvnlnBV1aeWnJhEhg9W0HIylE6sCS0g==}
+    engines: {node: '>=20.19.0'}
 
   '@next/env@16.3.8':
     resolution: {integrity: sha512-Al9zqHVV7TJv0eFuOU4U7Lvv74PTih4Ch63sk2xCIpSTkE3udFnaOcnzP2lQVymiL7yS9Cj2iClUXlR3EQ5sEw==}
@@ -3555,6 +3566,14 @@ snapshots:
       tmp-promise: 3.0.3
     transitivePeerDependencies:
       - supports-color
+
+  '@neon/config@1.8.4':
+    dependencies:
+      '@neon/sdk': 7.0.1
+      jiti: 2.7.0
+      zod: 4.6.5
+
+  '@neon/sdk@7.0.1': {}
 
   '@next/env@16.3.8': {}
 
