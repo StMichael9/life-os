@@ -221,6 +221,85 @@ actual SQL, transactions, locking, ownership, restricted Direction/Task/executio
 Neon pooled connections, production TLS/provider roles, provider quotas or restore operations.
 Mobile checks use Chromium with an iPhone viewport, not iOS Safari.
 
+### Local Windows verification — 2026-10-08
+
+Verified on this laptop from completed Phase 1 `work` checkpoint
+`3a946798b288e9473a2e5f9124510012be9ec289`, isolated branch
+`windows/desktop-qa`. No Cloud branch was reset or overwritten. The checkout is
+`work/life-os` inside the local project directory; QA databases, caches and installer
+artifacts are outside that checkout in `work/windows-qa`.
+
+- Windows build 26200; Node 24.12.0, pnpm 11.25.0, Git 2.50.0.windows.1;
+  locked Electron 44.6.0 and electron-builder 26.15.3. The repository requests pnpm
+  11.19.0; this machine used its existing pnpm 11 with the frozen lockfile, without
+  changing dependency versions. PostgreSQL 16.9 and Windows SDK tools already exist.
+- A new disposable PostgreSQL cluster listens only at `127.0.0.1:55432`.
+  Auth, Direction, Tasks, execution and browser fixtures use five new databases
+  ending in `_tests`/`_e2e`. No existing/production database or user data was used.
+- Root TypeScript, lint, production Next/Electron build and all **102 tests** passed
+  on Windows with the four real PostgreSQL fixture URLs. Three restricted-role
+  cases that skip under PGlite ran here. The full 46 browser cases were not rerun
+  on Windows; the separate native Electron checks below are additional evidence.
+- **Three real Electron GUI tests passed:** sandbox/context isolation/Node denial,
+  foreign renderer navigation/popup/geolocation denial; failure/retry after startup
+  using a stopped/restarted static loopback socket; authenticated Today/Start Day,
+  task save/reload, schedule creation, running Focus countdown, pause/reload/resume/
+  finish, Ctrl+K/Escape and native window widths 1380/800/390 without horizontal overflow.
+  The workflow had no uncaught renderer exceptions. It used the production Next
+  build and disposable accounts, not a production backend.
+- **Nine native Windows persistence phases passed in separate Electron processes.**
+  Real `safeStorage` encrypts the production persistence adapter's synthetic HTTPS
+  cookie record; initial/latest-cookie restoration, replacement, removal/restart,
+  corruption, expired/foreign records and development HTTP were checked. Ciphertext
+  contains neither token nor origin in plaintext. Encryption unavailability was
+  simulated explicitly; no native OS-encryption outage is claimed. These are native
+  DPAPI/cookie-adapter results, not hosted login/rotation/expiry verification.
+- The original POSIX mode-bit assertion failed on Windows and was corrected to
+  apply only to POSIX systems. Windows access depends on ACLs. The inspected QA
+  temporary-directory ACL included the current account, SYSTEM, Administrators and
+  the Codex app-container SID. A production credential-directory ACL and other-user
+  access still need verification after an actual hosted login.
+- An unsigned x64 **Life OS QA 0.1.0** NSIS installer built and installed into an
+  isolated QA folder (exit 0); the per-user uninstall registration, desktop shortcut
+  and Start-menu shortcut were observed. The installed executable launched and its
+  native offline dialog was inspected, including its Close button. This artifact
+  embeds **`https://127.0.0.1:3443` solely as an unreachable test origin**. It is not a
+  release or a functioning daily-use backend. Electron/Chromium are bundled; no web
+  server, PostgreSQL, Python or external Node runtime is packaged or required by the shell.
+  Actual no-Node clean-machine use remains untested. The build uses the default
+  Electron icon and has `NotSigned` status. SmartScreen, signing, version upgrade and
+  uninstall execution remain unverified.
+- Native UI control was stopped with Escape during final visual inspection; no
+  further native UI actions were taken. The automated authenticated window tests
+  passed; an exhaustive manual accessibility/dialog/window review is not claimed.
+
+The Electron fix adds guarded `did-fail-load` recovery for trusted main-frame loads
+after startup. It retries the failed URL, ignores aborted/subframe requests and shares
+one recovery operation, preserving origin, permission and TLS restrictions.
+
+Repeat the dedicated checks after a normal install/build (from the workspace root):
+
+```powershell
+pnpm --filter @life-os/desktop test:native
+$env:LIFE_OS_E2E_DATABASE_URL = 'postgresql://fixture_user:fixture_password@127.0.0.1:55432/life_os_windows_e2e'
+pnpm --filter @life-os/desktop test:gui
+```
+
+Use a newly created disposable `_e2e` database: GUI global setup migrates it and
+TRUNCATES account/rate-limit fixture tables. `test:gui` makes a development-only
+loopback build, starts the production Next build temporarily and isolates Electron
+profiles. `test:native` creates and removes its own temporary profile and never makes
+requests to its synthetic cookie host. Neither test harness enters the shipped bundle.
+
+Release gates remain: obtain the Cloud-approved stable HTTPS origin and staging
+account; verify the same records in browser/Electron; perform real session restart,
+15-minute server rotation, expiry/revocation and logout; reject an invalid certificate;
+inspect production user-data ACLs; embed that origin with `package:win`, supply an
+application icon, then test install/version upgrade/uninstall and signed/unsigned
+Windows behavior on the final artifact. Do not ship the QA installer for daily use.
+The shared UI's selected-day and Focus-resume request races were reported to Cloud;
+wait for loaded-day/updated-Focus state before operating during QA.
+
 ### Required local Windows checks (not performed in Cloud)
 
 - Launch Electron against staging HTTPS and verify the same account/data as web.

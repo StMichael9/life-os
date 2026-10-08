@@ -150,6 +150,31 @@ this checkpoint as having implemented it.
 
 ## Checkpoint for the next session
 
+### Windows/Electron checkpoint — 2026-10-08
+
+Local Windows branch `windows/desktop-qa` starts from Phase 1 `work` commit
+`3a94679`. Added reproducible native Windows DPAPI/cookie-process checks and real
+Electron GUI tests; corrected the POSIX-only permission assertion on Windows.
+Fixed Electron recovery after a post-startup trusted page load fails, retaining
+all existing renderer/origin/TLS/permission protections.
+
+Windows results: production Next/Electron build, TypeScript/lint and 102 existing
+tests passed against disposable PostgreSQL fixtures; nine native persistence phases
+and three actual Electron GUI scenarios passed. The authenticated desktop exercised
+planning, Tasks, schedule, Focus, resize and keyboard dialogs without uncaught
+renderer exceptions. An unsigned, differently identified **Life OS QA** NSIS build
+installed and launched from its Start-menu shortcut; its loopback HTTPS target is
+strictly a test origin, not a production deployment. No production installer,
+hosted-session end-to-end verification, upgrade/uninstall execution or signing is
+claimed. Native UI control was stopped with Escape during final visual QA.
+
+Cloud was notified of two shared-UI request races (selected date before Start Day,
+Resume before Finish Focus); the desktop tests wait for the confirmed server state.
+No Phase 2–6 work, second backend, database migration or shared product refactor was
+introduced. See `deployment.md`'s dated Windows verification for reproducible
+commands, installer limitations and exact release gates. Existing Cloud deployment
+preparation continues independently.
+
 The Phase 1 source, reviewed migrations 0005–0006, CI fixture coverage and documentation
 are the coherent checkpoint on branch `work`. Begin by reading this file and the
 architecture/data-model/deployment docs; preserve the implemented session and owner
