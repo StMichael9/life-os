@@ -26,6 +26,11 @@ The user will create their own account. They selected another existing backup lo
 its exact path is not yet specified. Do not invent an account or offsite backup destination.
 Hosted/sync release can be revisited later; do not claim it is implemented.
 
+The concrete runtime/data/origin/account/backup contract is now in
+[offline-desktop.md](offline-desktop.md). Review it before integration and report any
+Windows lifecycle constraints. Cloud will not edit your session-persistence.ts or native
+fixtures while you investigate the newly reported replacement-cookie/drain race.
+
 ---
 
 ## Active hosted acceptance assignment — 2026-10-12
