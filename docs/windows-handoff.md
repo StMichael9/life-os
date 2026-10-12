@@ -36,14 +36,19 @@ QA. Cloud will request a specific local integration/test when the backend/build 
 
 ## Bounded integration now ready — 2026-10-12
 
-The Cloud work tip now implements the private standalone backend described in
+Cloud backend checkpoint **605d779** (pushed on work) implements the private standalone backend described in
 [offline-desktop.md](offline-desktop.md). Fetch work before integration; preserve your
 86e25f1 native session fix. Build pnpm build and package the ENTIRE
 apps/web/.next/standalone tree. The tested entry inside that resource tree is
 apps/web/desktop-server.mjs. Configure/readiness/stop messages, migration location,
 first-account header capability and trust requirements are specified in the contract.
-No new desktop dependency has been requested by Cloud; coordinate dependency changes
-rather than editing the shared lockfile concurrently.
+Cloud added the requested exact desktop devDependency **selfsigned 5.5.0**, bundled
+by esbuild for offline certificate generation. Its generated SHA-256/RSA2048 IP-SAN
+127.0.0.1 certificate/key passed X509 identity checks and a verified HTTPS request
+with that certificate as the sole CA in Cloud. Native Electron pinning still requires
+your tests. Set explicit algorithm, expiry and IP SAN; do not use default SHA-1 or
+disable certificate verification. Coordinate further dependency changes rather than
+editing the shared lockfile concurrently.
 
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,
