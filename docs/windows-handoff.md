@@ -52,12 +52,23 @@ your tests. Set explicit algorithm, expiry and IP SAN; do not use default SHA-1 
 disable certificate verification. Coordinate further dependency changes rather than
 editing the shared lockfile concurrently.
 
-**Important shared correction:** the next Cloud work tip includes a process-global
+**Important shared correction: pushed commit 9b2394c** includes a process-global
 service registry across Next SSR/API graphs. This fixes duplicate-engine initialization
 that could hide first-account setup or redirect authenticated SSR. Fetch that update
 and rebuild Windows standalone resources before final acceptance; do not work around
 it by resetting the database or altering desktop authentication. The same checkpoint
 adds guarded dead-PID recovery, encrypted backup/candidate restore and startup cancellation.
+
+**Native startup finding:** your utilityProcess integration/build and ACL/cookie checks
+are reported separately; its first readiness probe failed TLS verification before a
+window loaded. You subsequently report a unique CA cA:true + serverAuth leaf cA:false
+chain opens the window under actual utility/BoringSSL; discard CA private material,
+protect only leaf key/chain, keep exact leaf pinning and install nothing in OS trust. Cloud added bounded startup phase/allowlisted code/optional HTTP status
+fields, plus a dedicated direct HTTPS agent that checks the ordinary chain/IP AND exact
+assigned fingerprint. Fetch that entry and rebuild the Windows resource tree. Do not
+add rejectUnauthorized:false or global certificate/proxy trust bypasses. Verify the
+unique certificate/CA/key-usage chain under actual Electron Node TLS and report only
+non-secret metadata/status. Cloud Node TLS success is not Windows utility verification.
 
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,

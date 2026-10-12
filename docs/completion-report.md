@@ -33,14 +33,17 @@ request after that pause; hosted acceptance remains paused.
   Trusted parent-channel commands drain HTTP writes; no renderer filesystem bridge exists.
 - Cloud verification: 108 default tests passed (eight guarded skips); the opt-in offline
   backend test passed its full-day flow/restart, encrypted parent-channel backup/restore
-  and canceled startup over real HTTPS. Real PostgreSQL domain tests: 62 passed. The previous browser suite passed 48; the registry-change rerun passed 47 with one
-  intercepted desktop account-switch timeout under investigation. The mobile equivalent
-  passed. Browser verification remains partial until this is resolved. Typecheck/lint and production web/Electron builds passed;
+  and canceled startup over real HTTPS. Real PostgreSQL domain tests: 62 passed. Final browser E2E: 48 passed. The account-switch fixture now intercepts the actual
+  capture submission, retaining its owner/rejection checks; six focused runs also pass. Typecheck/lint and production web/Electron builds passed;
   dependency audits found no known vulnerabilities. Native offline installation is pending.
 - The Windows lead reports a cookie notification/shutdown-drain fix on isolated commit
   86e25f1, with deterministic regression and two native nine-phase runs. It is not yet
   merged or independently verified in Cloud. The user resumed the Windows lead for bounded
-  integration; no idle QA is requested.
+  integration; no idle QA is requested. It reports automatic utility-process integration,
+  Windows web/Electron builds and ACL/cookie checks. It reports private CA + leaf
+  chain readiness and the native window opening with exact leaf pinning and no OS
+  trust installation. First-account/restart tests require rebuilding with the pushed
+  9b2394c shared-service correction; full installed offline acceptance remains pending.
 
 ## Remaining Phase 1 release work
 

@@ -322,21 +322,29 @@ test.describe('integrated Phase 1 execution', () => {
     const dialog = page.getByRole('dialog');
     const text = 'Private command draft ' + test.info().project.name;
     await dialog.getByLabel('Quick Inbox capture').fill(text);
-    // Switch the shared cookie after the UI verified Alice, during CSRF renewal.
-    await page.route(
-      '**/api/auth/csrf',
-      async (route) => {
-        const response = await route.fetch();
-        const { token } = await response.json();
-        const switched = await page.request.post('/api/auth/login', {
-          headers: { Origin: 'http://127.0.0.1:3000', 'X-CSRF-Token': token },
-          data: { email: 'bob@example.test', password: E2E_PASSWORD },
-        });
-        expect(switched.ok()).toBe(true);
-        await route.fulfill({ response });
-      },
-      { times: 1 },
-    );
+    // Switch at the actual capture submission; background refresh may also request CSRF.
+    // Keep Alice's owner stamp while using Bob's legitimate session/CSRF cookie pair.
+    await page.route('**/api/inbox', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue();
+        return;
+      }
+      const response = await page.request.get('/api/auth/csrf');
+      const { token } = await response.json();
+      const switched = await page.request.post('/api/auth/login', {
+        headers: { Origin: 'http://127.0.0.1:3000', 'X-CSRF-Token': token },
+        data: { email: 'bob@example.test', password: E2E_PASSWORD },
+      });
+      expect(switched.ok()).toBe(true);
+      const cookies = await page.context().cookies('http://127.0.0.1:3000');
+      await route.continue({
+        headers: {
+          ...route.request().headers(),
+          cookie: cookies.map((cookie) => cookie.name + '=' + cookie.value).join('; '),
+          'x-csrf-token': token,
+        },
+      });
+    });
     const result = page.waitForResponse(
       (r) => r.url().endsWith('/api/inbox') && r.request().method() === 'POST',
     );

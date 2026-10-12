@@ -329,10 +329,11 @@ packaged-backend test passed real loopback TLS, authenticated SSR, a complete da
 workflow, owner isolation, retry-safe capture, shutdown/restart durability and logout
 replay, encrypted IPC backup/candidate restore, fresh login and startup cancellation. The forced-process-stop
 recovery test preserves committed data; wrong keys/tampering/migration mismatch/live
-leases are rejected. Browser E2E passed 48 before the service-registry correction;
-its rerun passed 47, with one desktop intercepted account-switch case timing out.
-The mobile equivalent passed; a focused rerun is underway. Do not mark that gate
-clean until its result is recorded.
+leases are rejected. Final browser E2E: **48 passed**, desktop/mobile and axe. The
+account-switch fixture now changes the session at the actual capture submission,
+retaining Alice's owner stamp with Bob's valid session/CSRF pair. Its earlier broad
+CSRF interception timed out intermittently; six focused runs and the full suite
+pass after this fixture correction. The ownership/rejection assertions are retained.
 The real PostgreSQL 17 domain suites also pass: 62 tests. Typecheck, lint, production
 web/Electron builds, frozen lockfile/peer checks and dependency audits passed. No new
 migration was added. CI checks are prepared; its remote run is not claimed.
@@ -353,6 +354,16 @@ The user subsequently resumed it for one bounded offline integration. Backend wo
 checkpoint 605d779 and exact selfsigned 5.5.0 dependency checkpoint 191755f are pushed;
 the private entry/protocol is in offline-desktop.md. Do not continuously poll it or
 resume further work without a concrete native need.
+
+Windows reports that its private per-installation CA + loopback serverAuth leaf
+chain fixes utility/BoringSSL readiness and opens the actual native window. CA private
+key is discarded; only protected leaf key/chain persist, exact leaf fingerprint is
+pinned, and nothing is installed in Windows trust. This is Local evidence, not Cloud
+native verification. Its old 605d779/191755f resources still hid first-account setup;
+shared-service correction **9b2394c** is already pushed and must be fetched/rebuilt.
+First-account/full-day/restart/packaged offline acceptance remain pending that rebuild.
+Cloud also added bounded startup phase/allowlisted code diagnostics and a direct,
+chain/IP/fingerprint-verified readiness agent. No TLS bypass or raw-error logging.
 
 Earlier hosted coordination sections are historical and superseded. Staging operator/
 backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),

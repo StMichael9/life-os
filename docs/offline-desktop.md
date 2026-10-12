@@ -62,7 +62,10 @@ data storage without reporting/validating those ACL and encryption-at-rest limit
 Preserve HTTPS, Secure/HttpOnly host-only cookies, CSRF and exact-Origin checks locally.
 The private backend binds loopback only, validates Host, and does not trust arbitrary
 forwarded headers. Browser-safe packages still cannot import Node/database/Electron.
-Generate a unique local TLS key/certificate and pin its exact identity in the main
+Generate a unique private per-installation CA and loopback serverAuth leaf chain
+(Electron utility/BoringSSL requires a CA anchor). Discard the signing CA private key
+after issuing the leaf; retain only protected leaf private key/public chain. Install
+nothing in OS trust. Pass leaf-first PEM chain to the backend and pin its exact LEAF identity in the main
 session verification procedure for the assigned loopback origin. All other certificate
 errors remain rejected. Never use ignore-certificate-errors, disable webSecurity, allow
 arbitrary navigation or expose generic renderer IPC/preload/filesystem/database access.
@@ -108,6 +111,12 @@ No secrets in arguments/logs. Send one message:
   port: <persisted unprivileged port, or 0 on first startup> }
 ```
 
+Startup diagnostics never include exception messages/stacks, paths, keys, credentials
+or data content. The readiness probe uses a dedicated direct HTTPS agent with ordinary
+chain/IP validation and an additional exact certificate fingerprint check; it never
+inherits the global proxy agent or reuses TLS sessions. These changes pass Cloud tests,
+not a claim that Windows utility TLS startup is fixed.
+
 Main must generate/validate that identity, check/renew expired certificates, protect
 runtime keys with safeStorage, and enforce Windows ACLs. Backend accepts only a matching
 127.0.0.1 TLS certificate/key and binds IPv4 loopback. It initializes services/migrations
@@ -115,7 +124,10 @@ through an internally verified HTTPS probe BEFORE replying:
 
 ```text
 { type: "ready", version: 1, origin, certificateFingerprint256 }
-{ type: "error", version: 1, stage: "startup" }
+{ type: "error", version: 1, stage: "startup",
+  phase: "configuration" | "tls" | "dependencies" | "prepare" | "listen" | "initialize",
+  code: <allowlisted errno/TLS/module code, or STARTUP_FAILED>,
+  category: "Error" | "TypeError", httpStatus?: <readiness HTTP status only> }
 { type: "error", version: 1, stage: "database" | "requests" | "framework", category: "Error" | "TypeError" }
 ```
 

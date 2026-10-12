@@ -68,6 +68,9 @@ There is no production fake verifier or client-supplied owner authority.
 
 ## Desktop decision
 
+The following describes the retained hosted shell. The superseding offline target
+is in offline-desktop.md; its Windows integration is underway and not yet accepted.
+
 Use the hosted HTTPS origin in a sandboxed Electron BrowserWindow. This meets the
 online-first constraint, shares the exact React tree/assets, and requires no local
 Node server or database at end-user startup. The executable embeds its origin at
