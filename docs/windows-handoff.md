@@ -1,5 +1,76 @@
 # Separate Local Windows verification handoff
 
+## Active hosted acceptance assignment — 2026-10-12
+
+The user resumed this work and explicitly authorized Cloud/local coordination.
+Cloud can read the local chat but cannot currently send/resume threads; the local
+lead can send updates to Cloud thread `01a1150e-f360-7487-99b8-5e06e8d4f039`.
+Read Cloud's current progress or these shared docs for replies. Do not print/send
+secrets in either chat. Keep the Windows checkout and branch isolated.
+
+### Target and credential procedure
+
+- Fetch `work`; docs checkpoint d4920db, deployed application commit
+  ba9de1709b41c3c0aa6ec8f72baf7b7c4b457349. Include both shared date-selection and
+  Focus-version fixes in local QA without overwriting windows/desktop-qa.
+- Exact staging origin: https://life-os-git-work-stmichael9s-projects.vercel.app.
+  READY deployment: dpl_7wPrhVgDWdGsb2mdrZyTnu2vRZ59. Protection remains enabled;
+  Cloud protected-fetch/log endpoints returned 403. Try the local Vercel connector/
+  authenticated CLI or origin-scoped development OIDC access as documented in the
+  Vercel protected-deployment skill. Do not disable protection or navigation checks.
+- Neon project lively-surf-21544686, branch staging-release
+  (br-fragrant-feather-b51tx7bt), database neondb, PostgreSQL18 in Ohio. Direct host:
+  ep-empty-cell-b5if4u55.c-7.us-east-2.aws.neon.tech; pooled host adds -pooler.
+  Production br-super-star-b5edgceo remains empty and is NOT a fixture target.
+- Staging life_os_operator and life_os_backup now have independent random LOGIN
+  credentials, no administrator/CREATE/migrator membership. Runtime remains restricted;
+  migrator remains NOLOGIN. Fetch staging-only role connection strings through your own
+  authenticated Neon get_connection_string tool, naming the explicit project/branch/
+  database/role. Secure retrieval was verified without printing values. Never use the
+  default owner URL in the app or a test fixture's destructive seed/TRUNCATE routine.
+- Normalize URL sslmode to exactly verify-full. Use direct operator/backup connections
+  and the pooled runtime. Keep credentials in a protected local process/store; never
+  in argv, Git, chat, browser storage or shared artifacts. Report standalone connection/
+  TLS/grant checks, not just administrator catalog inspection.
+
+### Local ownership and acceptance gates
+
+Own the **hosted browser workflow/security evidence**, real Electron acceptance, and
+the **PG18 encrypted backup/restore rehearsal** if a trusted POSIX/WSL environment is
+available. Cloud owns provider settings, SQL/migration review and production release.
+No production mutation until hosted staging evidence passes and the release is coordinated.
+
+1. Resolve protected staging access. Create two NEW controlled synthetic QA accounts
+   through the existing service/repository using the operator role. Generate strong
+   fixture passwords locally; keep them in memory or an appropriately protected local
+   store and never report them. Account creation hashes passwords independently of
+   the web session secret: an independent ephemeral secret may initialize createAuthService
+   for createAccount only; never replace the deployed AUTH_SECRET. Personal production
+   account creation remains a separate interactive task after acceptance.
+2. Run the runbook's actual full-day browser checklist and database persistence/owner
+   isolation checks, including late/lost responses, Focus pause/resume/finish, selected
+   dates, reload/second browser, CSRF, logout replay and bounded session rotation. Use
+   only synthetic staging accounts and account-specific rows. No TRUNCATE, schema reset,
+   backdating real users' sessions or disabling authentication to force success.
+3. Run hosted Electron checks with the SAME origin/accounts/backend. If Vercel SSO
+   redirects are blocked by the renderer's origin policy, document the access blocker;
+   do not add credential IPC, preload, external-navigation allowances or a second backend.
+4. Check POSIX/WSL and matching PG18 client availability for the existing backup tooling.
+   If available, create a private key outside repository/sync storage, then encrypt a
+   staging snapshot with the read-only backup login. Rehearse into an explicitly separate
+   EMPTY *_restore database/branch with reviewed bootstrap/grants. Ask Cloud to prepare
+   that target if needed. Never overwrite/reset staging/production to rehearse recovery.
+   Verify fresh QA login, original records, ownership and zero restored sessions/limits.
+5. Report evidence with URL, exact application commit, time, pass/fail and unresolved
+   blockers; omit token/password/private-content artifacts. Production account identity
+   and free offsite backup destination are being requested from the user in Cloud.
+   Signing/icon/upgrade/uninstall remain separate native release items.
+
+Cloud will disable temporary staging operator/backup LOGIN again after the coordinated
+acceptance/recovery work. Do not rotate shared role passwords without coordinating.
+
+---
+
 Cloud Phase 1 product checkpoint: `3a946798b288e9473a2e5f9124510012be9ec289`
 on `work`. The subsequent Cloud operational-readiness commit adds Vercel configuration,
 restricted database role/grant tooling, encrypted backups/restore and release tests.

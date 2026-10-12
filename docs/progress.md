@@ -294,6 +294,17 @@ service/repository boundaries. Do not jump into Wealth/Business or paid APIs.
 
 ## Exact next recommended task
 
+**Active coordination (2026-10-12):** the user resumed hosted acceptance and woke
+Life OS — Local Windows Development & Testing. Cloud prepared restricted staging
+operator and backup LOGIN credentials (verified secure provider retrieval and catalog
+permissions; standalone local verification pending). Migrator remains NOLOGIN.
+Production remains empty. Local owns hosted browser/Electron evidence and PG18
+encrypted recovery where WSL/POSIX is available; Cloud owns release/migrations.
+See the active assignment in windows-handoff.md. Local can send status to Cloud;
+Cloud's tools currently cannot send/resume local chats, so replies are published here
+and in the handoff. Account identity and existing free backup destination are pending
+user input. No credentials are sent between chats.
+
 **Unblock hosted acceptance by authorizing the Vercel team/project connection and using
 a trusted execution environment with hosted HTTPS and Neon TCP access. Verify the
 current staging build's full-day workflow, cookies/CSRF/rotation/logout and account
