@@ -6,14 +6,16 @@ The current user priority is personal offline-first desktop use. PGlite persists
 same PostgreSQL model on the filesystem inside a private local backend; no SQLite
 conversion, new application table or migration was introduced. Committed migration
 hashes/timestamps are checked on every open; a lease prevents duplicate writers and
-an unclean lease currently requires guarded recovery rather than an unsafe reset.
+valid dead-process leases recover under an exclusive guard, while live/ambiguous
+leases fail closed. Existing files are retained and ledger validation is mandatory.
 Ownership predicates/composite FKs remain required; embedded owner access is not RLS
 or a claim that local PostgreSQL roles provide process isolation. Directory privacy
 is checked on POSIX; Windows ACLs are assigned to native QA. First-account creation
 locks app_user and checks emptiness in the same transaction. Normal account creation
 remains an operator operation; the local-only HTTP setup additionally requires main's
-private capability. Actual Windows durability, backup/recovery and future sync remain
-unverified. See offline-desktop.md and completion-report.md.
+private capability. AES-256-GCM snapshots/candidate restore are component-tested; restore removes sessions
+and rate limits before fresh login. Actual Windows durability, native backup/key
+recovery/cutover and future sync remain unverified. See offline-desktop.md and completion-report.md.
 
 ## Implemented migrations
 

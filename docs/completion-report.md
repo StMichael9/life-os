@@ -3,7 +3,9 @@
 This is a living handoff, not a claim that the requested release is complete.
 Target: offline-first personal laptop Electron app, Phase 1 and Phase 2 fully functional
 and verified. Optional hosted web and synchronization follow later. Windows QA runs only
-on bounded requested builds; its current session fix is checkpointed separately.
+on bounded requested builds; its session fix is checkpointed separately. The user resumed
+one bounded integration
+request after that pause; hosted acceptance remains paused.
 
 ## Completed and verified before the offline change
 
@@ -26,22 +28,30 @@ on bounded requested builds; its current session fix is checkpointed separately.
 - Implemented asynchronous private-service composition, standalone asset packaging,
   private parent-channel loopback HTTPS entry, local first-account form/capability and
   transactional first-user guard. Hosted authentication and ownership rules remain.
-- Cloud verification: 106 default tests passed (eight guarded skips); the opt-in offline
-  backend test passed its full-day flow/restart over real HTTPS. All 48 existing desktop/
-  mobile browser tests passed. Typecheck/lint and production web/Electron builds passed;
+- Added guarded interrupted-process lease recovery and versioned AES-256-GCM embedded
+  snapshots/restoration into a separate empty candidate, with sessions/limits invalidated.
+  Trusted parent-channel commands drain HTTP writes; no renderer filesystem bridge exists.
+- Cloud verification: 108 default tests passed (eight guarded skips); the opt-in offline
+  backend test passed its full-day flow/restart, encrypted parent-channel backup/restore
+  and canceled startup over real HTTPS. Real PostgreSQL domain tests: 62 passed. The previous browser suite passed 48; the registry-change rerun passed 47 with one
+  intercepted desktop account-switch timeout under investigation. The mobile equivalent
+  passed. Browser verification remains partial until this is resolved. Typecheck/lint and production web/Electron builds passed;
   dependency audits found no known vulnerabilities. Native offline installation is pending.
 - The Windows lead reports a cookie notification/shutdown-drain fix on isolated commit
   86e25f1, with deterministic regression and two native nine-phase runs. It is not yet
-  merged or independently verified in Cloud. The Windows lead is paused as requested.
+  merged or independently verified in Cloud. The user resumed the Windows lead for bounded
+  integration; no idle QA is requested.
 
 ## Remaining Phase 1 release work
 
 - Electron integration of the implemented standalone backend, automatic start/readiness/
-  stop, guarded unclean-shutdown recovery and native first-account capability injection.
+  stop, native crash-recovery verification and first-account capability injection.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
   directory ACLs, encrypted session restoration and packaged dependency/assets tracing.
-- Local encrypted backup/recovery with a user-selected existing destination and recoverable
-  separate key. Existing hosted pg_dump tooling is not presented as an offline solution.
+- Native backup menu/picker, atomic ciphertext storage, separate recoverable key export/import
+  and guarded candidate cutover using the tested encrypted backend protocol. The snapshot
+  limit is 256 MiB and buffers data in memory; the existing source is retained. Hosted
+  pg_dump tooling is not presented as an offline solution.
 - Actual disconnected installer workflows, quit/relaunch/reboot durability, identity and
   CSRF isolation, certificate/navigation/renderer security and crash/write recovery.
 - Clear install/upgrade/uninstall data policy and remaining unsigned installer limitations.

@@ -39,7 +39,9 @@ QA. Cloud will request a specific local integration/test when the backend/build 
 Cloud backend checkpoint **605d779** (pushed on work) implements the private standalone backend described in
 [offline-desktop.md](offline-desktop.md). Fetch work before integration; preserve your
 86e25f1 native session fix. Build pnpm build and package the ENTIRE
-apps/web/.next/standalone tree. The tested entry inside that resource tree is
+apps/web/.next/standalone tree, built on Windows for the installer architecture
+(including platform-specific Argon2 bindings; Cloud Linux resources are not a Windows
+binary payload). The tested entry inside that resource tree is
 apps/web/desktop-server.mjs. Configure/readiness/stop messages, migration location,
 first-account header capability and trust requirements are specified in the contract.
 Cloud added the requested exact desktop devDependency **selfsigned 5.5.0**, bundled
@@ -50,13 +52,22 @@ your tests. Set explicit algorithm, expiry and IP SAN; do not use default SHA-1 
 disable certificate verification. Coordinate further dependency changes rather than
 editing the shared lockfile concurrently.
 
+**Important shared correction:** the next Cloud work tip includes a process-global
+service registry across Next SSR/API graphs. This fixes duplicate-engine initialization
+that could hide first-account setup or redirect authenticated SSR. Fetch that update
+and rebuild Windows standalone resources before final acceptance; do not work around
+it by resetting the database or altering desktop authentication. The same checkpoint
+adds guarded dead-PID recovery, encrypted backup/candidate restore and startup cancellation.
+
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,
 resource packaging, native ACLs and disconnected installer/full-day/relaunch tests.
-Report concrete failures and checkpoint, then pause. Cloud owns guarded crash recovery
-and encrypted embedded backup/restore components; do not invent an unsafe stale-lock
-reset or label backup support complete. Native snapshot selection/key recovery UI and
-packaging may need a subsequent bounded request after that protocol is committed.
+Report concrete failures and checkpoint, then pause. Cloud implemented guarded dead-PID
+lease recovery and encrypted embedded backup/candidate restore through the private
+parent channel; the tested protocol is in offline-desktop.md. Native snapshot selection,
+atomic archive writing, recovery-key export/import and candidate cutover remain pending
+and may need a subsequent bounded request. Do not invent a stale-lock reset, overwrite
+the active database or label backup readiness complete before those native checks.
 Hosted acceptance remains paused. Cloud will not alter apps/desktop or native fixtures.
 
 ---

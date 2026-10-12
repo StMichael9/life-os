@@ -8,8 +8,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { request as httpsRequest } from 'node:https';
 import type { IncomingHttpHeaders } from 'node:http';
 import { createEmbeddedDatabase } from '@life-os/database/embedded';
-import { createAuthRepository } from '@life-os/database';
+import { createAuthRepository, createInboxRepository } from '@life-os/database';
 import { createAuthService } from './auth';
+import { createInboxService } from './index';
 import { emptyReflection } from '@life-os/shared';
 
 // Actual packaged Next/PGlite backend + verified loopback TLS, not Electron/Windows proof.
@@ -69,9 +70,12 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
         let origin = '';
         // Keep TLS private keys only in the parent/child's fixture memory, never argv/logs.
         const privateKey = await readFile(join(folder, 'key.pem'), 'utf8');
-        async function launch() {
+        let setupCapability = '';
+        async function launch(stopBeforeReady = false, localDirectory = directory) {
+          setupCapability = randomBytes(32).toString('base64url');
           child = fork(join(root, 'apps/web/.next/standalone/apps/web/desktop-server.mjs'), [], {
             stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+            serialization: 'advanced',
           });
           const running = child;
           await new Promise<void>((accept, reject) => {
@@ -83,6 +87,10 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
               'message',
               (message: { type?: string; origin?: string; version?: number }) => {
                 if (message.type === 'ready' && message.version === 1 && message.origin) {
+                  if (stopBeforeReady) {
+                    reject(new Error('Canceled startup must not load a window.'));
+                    return;
+                  }
                   origin = message.origin;
                   clearTimeout(timer);
                   accept();
@@ -92,26 +100,37 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
                 }
               },
             );
-            running.once('exit', () => {
+            running.once('exit', (code) => {
               clearTimeout(timer);
+              if (stopBeforeReady && code === 0) {
+                child = undefined;
+                accept();
+                return;
+              }
               reject(new Error('Offline runtime exited before readiness.'));
             });
             running.send({
               type: 'configure',
               version: 1,
               webRoot: join(root, 'apps/web/.next/standalone/apps/web'),
-              dataDirectory: directory,
+              dataDirectory: localDirectory,
               migrationsDirectory: migrationsFolder,
               authSecret: secret,
-              setupSecret: randomBytes(32).toString('base64url'),
+              setupSecret: setupCapability,
               certificate,
               privateKey,
               port: 0,
             });
+            if (stopBeforeReady) running.send({ type: 'stop', version: 1 });
           });
         }
         async function stop() {
           const running = child!;
+          let failure = '';
+          running.on('message', (message: { type?: string; stage?: string; category?: string }) => {
+            if (message.type === 'error')
+              failure = (message.stage ?? '') + ':' + (message.category ?? '');
+          });
           await new Promise<void>((accept, reject) => {
             const timer = setTimeout(
               () => reject(new Error('Offline runtime shutdown timed out.')),
@@ -120,11 +139,33 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
             running.once('exit', (code) => {
               clearTimeout(timer);
               if (code === 0) accept();
-              else reject(new Error('Offline runtime stopped abnormally.'));
+              else reject(new Error('Offline runtime stopped abnormally: ' + failure));
             });
             running.send({ type: 'stop', version: 1 });
           });
           child = undefined;
+        }
+        async function maintenanceMessage(message: Record<string, unknown>) {
+          const requestId = randomUUID();
+          const running = child!;
+          return new Promise<{ type: string; archive?: Uint8Array }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+              running.off('message', reply);
+              reject(new Error('Backup fixture timed out.'));
+            }, 30000);
+            const reply = (response: {
+              type: string;
+              requestId?: string;
+              archive?: Uint8Array;
+            }) => {
+              if (response.requestId !== requestId) return;
+              clearTimeout(timer);
+              running.off('message', reply);
+              resolve(response);
+            };
+            running.on('message', reply);
+            running.send({ ...message, requestId, version: 1 });
+          });
         }
         class Browser {
           cookies = new Map<string, string>();
@@ -206,7 +247,11 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
           b = new Browser();
         await a.login('a');
         await b.login('b');
-        expect((await a.request('/')).status).toBe(200);
+        const authenticatedPage = await a.request('/');
+        expect(authenticatedPage.status).toBe(200);
+        expect(authenticatedPage.content).toContain('Opening your workspace');
+        expect(authenticatedPage.content).not.toContain('NEXT_REDIRECT');
+        expect(authenticatedPage.content).not.toContain('http-equiv="refresh"');
         const requestId = randomUUID();
         const command = { requestId, body: 'Offline capture persists through restart' };
         const captured = await a.request('/api/inbox', command);
@@ -325,6 +370,53 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
         expect((await b.request('/api/tasks/' + task)).status).toBe(404);
         expect((await b.request('/api/tasks/from-inbox/' + source)).status).toBe(404);
         expect((await a.request('/api/execution', plan(1, 'close'))).status).toBe(200);
+        const backupKey = randomBytes(32);
+        const backup = await maintenanceMessage({ type: 'backup', backupKey });
+        expect(backup.type).toBe('backup-ready');
+        expect(backup.archive).toBeInstanceOf(Uint8Array);
+        const candidateDirectory = join(folder, 'recovery-candidate');
+        expect(
+          (
+            await maintenanceMessage({
+              type: 'restore',
+              backupKey: randomBytes(32),
+              archive: backup.archive,
+              candidateDirectory,
+            })
+          ).type,
+        ).toBe('operation-error');
+        expect(
+          (
+            await maintenanceMessage({
+              type: 'restore',
+              backupKey,
+              archive: backup.archive,
+              candidateDirectory,
+            })
+          ).type,
+        ).toBe('restore-ready');
+        backupKey.fill(0);
+        const candidate = await createEmbeddedDatabase(candidateDirectory, { migrationsFolder });
+        try {
+          const recoveredAuth = createAuthService(createAuthRepository(candidate.db), secret);
+          expect(await recoveredAuth.verify(a.cookies.get('__Host-life_os_session')!)).toBeNull();
+          const recoveredLogin = await recoveredAuth.login({
+            email: 'a@offline-runtime.test',
+            password,
+          });
+          const recoveredInbox = createInboxService(
+            recoveredAuth,
+            createInboxRepository(candidate.db),
+          );
+          expect(
+            (await recoveredInbox.list(recoveredLogin.token)).items.some(
+              (item) => item.body === command.body,
+            ),
+          ).toBe(true);
+        } finally {
+          await candidate.close();
+        }
+        expect((await a.request('/api/auth/session')).status).toBe(200);
         await stop();
         await launch();
         expect((await a.request('/api/auth/session')).status).toBe(200);
@@ -343,6 +435,37 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
         expect((await a.request('/api/auth/logout', {})).status).toBe(200);
         a.cookies = replay;
         expect((await a.request('/api/auth/session')).status).toBe(401);
+        await stop();
+        await launch(true);
+        const afterCanceledStartup = await createEmbeddedDatabase(directory, { migrationsFolder });
+        await afterCanceledStartup.close();
+        await launch(false, join(folder, 'first-workspace'));
+        const first = new Browser();
+        const firstPage = await first.request('/login');
+        expect(firstPage.content).toContain('Make this workspace yours.');
+        expect((await first.request('/api/auth/setup')).data.setup).toBe(true);
+        first.csrf = (await first.request('/api/auth/csrf')).data.token as string;
+        const initialAccount = {
+          email: 'first@offline-runtime.test',
+          password,
+          displayName: 'First',
+          timeZone: 'UTC',
+        };
+        expect((await first.request('/api/auth/setup', initialAccount)).status).toBe(403);
+        expect(
+          (
+            await first.request('/api/auth/setup', initialAccount, {
+              'X-Life-OS-Setup': setupCapability,
+            })
+          ).status,
+        ).toBe(201);
+        expect((await first.request('/api/auth/setup')).data.setup).toBe(false);
+        expect((await first.request('/login')).content).toContain('Welcome back.');
+        await first.login('first');
+        const firstToday = await first.request('/');
+        expect(firstToday.content).toContain('Opening your workspace');
+        expect(firstToday.content).not.toContain('NEXT_REDIRECT');
+        expect((await first.request('/api/inbox')).data.items).toEqual([]);
         await stop();
       } finally {
         if (child && child.exitCode === null) {
