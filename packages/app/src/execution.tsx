@@ -1248,9 +1248,7 @@ export function Execution({
             <a href="/inbox">Process Inbox ({data.snapshot.inboxCount}) →</a>
           </div>
         </section>
-        <footer className="muted">
-          Online-first · Your drafts stay in memory. Save before leaving.
-        </footer>
+        <footer className="muted">Your drafts stay in memory. Save before leaving.</footer>
       </main>
       {editor && (
         <ExecutionForm

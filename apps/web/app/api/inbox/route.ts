@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 async function handle(request: Request) {
   try {
-    return await getHandlers().inbox(request);
+    return await (await getHandlers()).inbox(request);
   } catch {
     return unavailable();
   }

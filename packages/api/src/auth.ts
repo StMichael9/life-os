@@ -46,6 +46,21 @@ export function createAuthService(
   const successor = (token: string) =>
     createHmac('sha256', secret).update(`session-rotation-v1:${token}`).digest('base64url');
   return {
+    async needsInitialAccount() {
+      return !(await repo.hasAccounts());
+    },
+    async createInitialAccount(input: unknown) {
+      const data = accountCreationSchema.parse(input);
+      const limit = await repo.consumeLimit('setup:global', 5, 15 * 60_000, clock());
+      if (!limit.allowed) throw new RateLimited(limit.retryAfter);
+      const passwordHash = await hash(data.password, PASSWORD_OPTIONS);
+      const account = await repo.createAccount(
+        { email: data.email, displayName: data.displayName, timeZone: data.timeZone, passwordHash },
+        true,
+      );
+      if (!account) throw new AccountExists();
+      return account;
+    },
     /** Administrative use only: this method is not reachable through HTTP. */
     async createAccount(input: unknown) {
       const data = accountCreationSchema.parse(input);

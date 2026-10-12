@@ -1,5 +1,11 @@
 # Phase 1 hosted release runbook
 
+**Postponed:** the user now requires offline-first laptop Electron use. Do not provision
+production, create a hosted personal account or request Vercel reauthorization to finish
+that release. The active contract is offline-desktop.md and completion-report.md. This
+hosted runbook remains reference material for optional online support later. Temporary
+staging operator/backup logins were disabled again; production remains empty.
+
 ## Verified checkpoint and external prerequisites
 
 The release tooling is implemented and rehearsed with disposable PostgreSQL 17 and a

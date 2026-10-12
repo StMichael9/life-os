@@ -12,13 +12,23 @@ export function createAuthRepository<T extends PgQueryResultHKT>(db: PgDatabase<
   const active = (now: Date) =>
     and(isNull(sessions.revokedAt), gt(sessions.expiresAt, now), gt(sessions.idleExpiresAt, now));
   return {
-    async createAccount(input: {
-      email: string;
-      displayName: string;
-      timeZone: string;
-      passwordHash: string;
-    }) {
+    async hasAccounts() {
+      return (await db.select({ id: users.id }).from(users).limit(1)).length > 0;
+    },
+    async createAccount(
+      input: {
+        email: string;
+        displayName: string;
+        timeZone: string;
+        passwordHash: string;
+      },
+      firstAccountOnly = false,
+    ) {
       return db.transaction(async (tx) => {
+        if (firstAccountOnly) {
+          await tx.execute(sql`lock table app_user in share row exclusive mode`);
+          if ((await tx.select({ id: users.id }).from(users).limit(1)).length) return null;
+        }
         const [user] = await tx
           .insert(users)
           .values({ email: input.email, displayName: input.displayName, timeZone: input.timeZone })

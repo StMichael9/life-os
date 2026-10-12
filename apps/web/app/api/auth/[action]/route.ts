@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 async function handle(request: Request, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
   try {
-    return await getHandlers().auth(request, action);
+    return await (await getHandlers()).auth(request, action);
   } catch {
     return unavailable();
   }

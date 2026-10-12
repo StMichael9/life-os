@@ -6,7 +6,8 @@ import {
   CaptureConflict,
 } from '@life-os/database';
 import { AuthenticationRequired, createInboxService } from './index';
-import { createAuthService, LoginFailed, RateLimited } from './auth';
+import { createAuthService, LoginFailed, RateLimited, AccountExists } from './auth';
+import { timingSafeEqual } from 'node:crypto';
 import { createHttpSecurity, CsrfRejected, InvalidRequest } from './http-security';
 
 type Auth = ReturnType<typeof createAuthService>;
@@ -23,6 +24,8 @@ export function json(data: unknown, status = 200) {
   });
 }
 export function failure(error: unknown) {
+  if (error instanceof AccountExists)
+    return json({ error: 'This workspace is already initialized. Sign in instead.' }, 409);
   if (error instanceof DirectionNotFound) return json({ error: error.message }, 404);
   if (error instanceof DirectionConflict) return json({ error: error.message }, 409);
   if (error instanceof DirectionInvalid) return json({ error: error.message }, 400);
@@ -59,10 +62,26 @@ export function failure(error: unknown) {
   // Do not expose database errors, request bodies or credentials to logs/responses.
   return json({ error: 'Your request could not be completed. Please try again.' }, 503);
 }
-export function createHttpHandlers(auth: Auth, inbox: Inbox, security: Security) {
+export function createHttpHandlers(
+  auth: Auth,
+  inbox: Inbox,
+  security: Security,
+  options: { localSetupSecret?: string } = {},
+) {
   return {
     async auth(request: Request, action: string) {
       try {
+        if (action === 'setup' && options.localSetupSecret) {
+          if (request.method === 'GET') return json({ setup: await auth.needsInitialAccount() });
+          if (request.method !== 'POST') return json({ error: 'Not found.' }, 404);
+          security.assertUnsafe(request);
+          const provided = Buffer.from(request.headers.get('X-Life-OS-Setup') ?? '');
+          const expected = Buffer.from(options.localSetupSecret);
+          if (provided.length !== expected.length || !timingSafeEqual(provided, expected))
+            throw new CsrfRejected();
+          await auth.createInitialAccount(await security.readJson(request));
+          return json({ created: true }, 201);
+        }
         if (request.method === 'GET' && action === 'csrf') {
           const issued = security.issueCsrf(request);
           const response = json({ token: issued.token });

@@ -87,6 +87,10 @@ jobs:
         env:
           LIFE_OS_SMOKE_TEST_DATABASE_URL: postgresql://life_os_test:life_os_test_only@127.0.0.1:5432/life_os_smoke_tests
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify standalone offline backend and filesystem restart persistence
+        run: pnpm exec vitest run packages/api/src/desktop-runtime.test.ts
+        env:
+          LIFE_OS_DESKTOP_RUNTIME_TEST: 'true'
       - run: pnpm test:e2e
         env:
           LIFE_OS_E2E_DATABASE_URL: postgresql://life_os_test:life_os_test_only@127.0.0.1:5432/life_os_e2e

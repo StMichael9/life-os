@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button, Eyebrow } from '@life-os/ui';
 import { postJson } from './auth-client';
 
-export function Login() {
+export function Login({ setup = false }: { setup?: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
@@ -13,6 +13,16 @@ export function Login() {
     setBusy(true);
     setError('');
     try {
+      if (setup) {
+        if (data.get('password') !== data.get('confirmation'))
+          throw new Error('Passwords do not match.');
+        await postJson('/api/auth/setup', {
+          email: data.get('email'),
+          password: data.get('password'),
+          displayName: data.get('displayName'),
+          timeZone: data.get('timeZone'),
+        });
+      }
       await postJson('/api/auth/login', {
         email: data.get('email'),
         password: data.get('password'),
@@ -38,9 +48,37 @@ export function Login() {
       </a>
       <section className="panel auth-card" aria-labelledby="login-heading">
         <Eyebrow>YOUR PERSONAL WORKSPACE</Eyebrow>
-        <h1 id="login-heading">Welcome back.</h1>
-        <p className="auth-intro">Sign in to capture what’s on your mind.</p>
+        <h1 id="login-heading">{setup ? 'Make this workspace yours.' : 'Welcome back.'}</h1>
+        <p className="auth-intro">
+          {setup
+            ? 'Create your private account on this device.'
+            : 'Sign in to capture what’s on your mind.'}
+        </p>
         <form onSubmit={submit}>
+          {setup && (
+            <>
+              <label htmlFor="displayName">Your name</label>
+              <input
+                id="displayName"
+                name="displayName"
+                maxLength={100}
+                autoComplete="name"
+                required
+              />
+              <label htmlFor="timeZone">Time zone</label>
+              <input
+                id="timeZone"
+                name="timeZone"
+                defaultValue="UTC"
+                placeholder="America/Los_Angeles"
+                maxLength={100}
+                required
+              />
+              <p className="quiet-note">
+                Use an IANA time zone, such as America/Los_Angeles, for daily planning.
+              </p>
+            </>
+          )}
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -55,20 +93,42 @@ export function Login() {
             id="password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={setup ? 'new-password' : 'current-password'}
+            minLength={setup ? 12 : undefined}
             maxLength={128}
             required
           />
+          {setup && (
+            <>
+              <label htmlFor="confirmation">Confirm password</label>
+              <input
+                id="confirmation"
+                name="confirmation"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required
+              />
+            </>
+          )}
           <p className="form-message" role="alert">
             {error}
           </p>
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy
+              ? setup
+                ? 'Creating your workspace…'
+                : 'Signing in…'
+              : setup
+                ? 'Create account'
+                : 'Sign in'}
           </Button>
         </form>
         <p className="quiet-note">
-          Accounts are created by the workspace owner. Contact them if you need access or help
-          signing in.
+          {setup
+            ? 'Your records stay on this device. Keep your password safe; recovery is not available yet.'
+            : 'Accounts are created by the workspace owner. Contact them if you need access or help signing in.'}
         </p>
       </section>
     </main>
