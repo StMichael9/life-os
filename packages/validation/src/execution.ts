@@ -35,6 +35,19 @@ export const vaultKind = z.enum([
   'scripture',
   'thought',
 ]);
+const workFields = {
+  title: short,
+  kind: z.enum(['task', 'focus', 'routine', 'meeting', 'training', 'custom']),
+  taskId: link,
+  projectId: link.default(null),
+  categoryId: link.default(null),
+  objective: z.string().trim().max(500).default(''),
+};
+const weekdays = z
+  .array(z.number().int().min(0).max(6))
+  .min(1)
+  .max(7)
+  .refine((days) => new Set(days).size === days.length);
 export const executionCommandSchema = z.discriminatedUnion('action', [
   z
     .object({
@@ -72,19 +85,39 @@ export const executionCommandSchema = z.discriminatedUnion('action', [
       requestId: id,
       id,
       version,
-      title: short,
-      kind: z.enum(['task', 'focus', 'routine', 'meeting', 'training', 'custom']),
-      taskId: link,
+      ...workFields,
       startsAt: instant,
       endsAt: instant,
       remove: z.boolean(),
     })
     .strict()
+    .refine((c) => !(c.taskId && c.projectId), 'Choose a Task or Project.')
     .refine(
       (c) =>
         Date.parse(c.endsAt) > Date.parse(c.startsAt) &&
         Date.parse(c.endsAt) - Date.parse(c.startsAt) <= 86400000,
       'Blocks must last between a second and 24 hours.',
+    ),
+  z
+    .object({
+      action: z.literal('schedule-series'),
+      requestId: id,
+      id,
+      version,
+      ...workFields,
+      startsOn: calendarDate,
+      endsOn: calendarDate,
+      startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      days: weekdays,
+    })
+    .strict()
+    .refine((c) => !(c.taskId && c.projectId), 'Choose a Task or Project.')
+    .refine((c) => c.endTime > c.startTime, 'Repeated blocks must end later on the same day.')
+    .refine(
+      (c) =>
+        c.endsOn >= c.startsOn && Date.parse(c.endsOn) - Date.parse(c.startsOn) <= 365 * 86400000,
+      'Choose a repeat range of at most one year.',
     ),
   z
     .object({
@@ -106,10 +139,15 @@ export const executionCommandSchema = z.discriminatedUnion('action', [
       id,
       version,
       operation: z.enum(['pause', 'resume', 'finish']),
+      completeTask: z.boolean().default(false),
       outcome: note,
       notes: note,
     })
-    .strict(),
+    .strict()
+    .refine(
+      (c) => !c.completeTask || c.operation === 'finish',
+      'Complete linked work only when finishing.',
+    ),
   z
     .object({
       action: z.literal('routine'),
@@ -157,6 +195,10 @@ export type ExecutionCommand = z.infer<typeof executionCommandSchema>;
 export const executionQuerySchema = z
   .object({
     date: calendarDate.optional(),
+    calendarDays: z.coerce
+      .number()
+      .pipe(z.union([z.literal(1), z.literal(7)]))
+      .default(1),
     availableMinutes: z.coerce.number().int().min(1).max(720).default(90),
     energy: z.enum(['low', 'medium', 'high']).default('medium'),
   })

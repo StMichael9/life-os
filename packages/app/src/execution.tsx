@@ -1,8 +1,12 @@
 'use client';
+import { WorkspaceShell } from './workspace-shell';
+import { WorkCalendar } from './calendar';
+import { WorkBlockWorkspace } from './work-block-workspace';
+import { FocusTimer } from './focus-timer';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ExecutionCommand } from '@life-os/validation';
-import { emptyReflection, elapsedFocus, wallTime } from '@life-os/shared';
-import type { ExecutionSnapshot, VaultItem } from '@life-os/shared';
+import { emptyReflection, elapsedFocus } from '@life-os/shared';
+import type { ExecutionSnapshot, VaultItem, ScheduleBlock } from '@life-os/shared';
 import { requestJson, postJson, RequestFailed } from './auth-client';
 import type { Profile, InboxItem } from './auth-client';
 import { ExecutionForm } from './execution-editor';
@@ -25,7 +29,11 @@ export function Execution({
     [minutes, setMinutes] = useState(90),
     [energy, setEnergy] = useState('medium'),
     [editor, setEditor] = useState<ExecutionEditor | null>(null);
-  const dayReady = data !== null && loadedDate === date;
+  const [calendarDays, setCalendarDays] = useState<1 | 7>(1),
+    [loadedDays, setLoadedDays] = useState(1),
+    [block, setBlock] = useState<ScheduleBlock | null>(null);
+  const focusStartRetry = useRef<{ body: string; id: string; requestId: string } | null>(null);
+  const dayReady = data !== null && loadedDate === date && loadedDays === calendarDays;
   const [vault, setVault] = useState<VaultItem[]>([]),
     [next, setNext] = useState<string | null>(null),
     [kind, setKind] = useState(''),
@@ -53,6 +61,8 @@ export function Execution({
     setProfile(null);
     setVault([]);
     setEditor(null);
+    setBlock(null);
+    focusStartRetry.current = null;
     setCapture('');
     captureRetry.current = null;
     setError('Your session or account changed. Sign in or reload to continue.');
@@ -76,6 +86,7 @@ export function Execution({
       await postJson('/api/auth/refresh', {});
       if (editing.current) return;
       const query = new URLSearchParams({
+        calendarDays: String(calendarDays),
         availableMinutes: String(minutes),
         energy,
         ...(date ? { date } : {}),
@@ -92,6 +103,10 @@ export function Execution({
       }
       setData(snapshot);
       setLoadedDate(date);
+      setLoadedDays(calendarDays);
+      setBlock((current) =>
+        current ? (snapshot.schedule.find((b) => b.id === current.id) ?? null) : null,
+      );
       setClockOffset(Date.parse(snapshot.serverNow) - Date.now());
       if (section === 'vault') {
         const q = new URLSearchParams({ archived: String(archived), ...(kind ? { kind } : {}) });
@@ -130,7 +145,7 @@ export function Execution({
         void currentRefresh.current();
       }
     }
-  }, [date, minutes, energy, section, kind, archived]);
+  }, [date, calendarDays, minutes, energy, section, kind, archived]);
   useEffect(() => {
     currentRefresh.current = reload;
     const timer = setTimeout(() => void reload(), 0);
@@ -196,23 +211,34 @@ export function Execution({
     return p.id;
   }
   async function mutate(command: ExecutionCommand) {
-    if (['plan', 'schedule', 'routine-check'].includes(command.action) && !dayReady)
+    if (
+      ['plan', 'schedule', 'schedule-series', 'routine-check'].includes(command.action) &&
+      !dayReady
+    )
       throw new Error('Wait for the selected day to load before saving.');
     if (mutating.current) throw new Error('Wait for the previous save to finish.');
     if (command.action === 'focus-control' && pendingFocus.current)
       throw new Error('Wait for the saved Focus state to load before changing it again.');
     mutating.current = true;
     setBusy(true);
-    if (command.action === 'focus-control') {
-      pendingFocus.current = { id: command.id, version: command.version };
+    if (command.action === 'focus-control' || command.action === 'focus-start') {
+      pendingFocus.current = {
+        id: command.id,
+        version: command.action === 'focus-start' ? 0 : command.version,
+      };
       setFocusSettling(true);
     }
     try {
       const owner = await checkAccount();
       await postJson('/api/execution', command, 'POST', owner);
+      if (
+        command.action === 'focus-start' ||
+        (command.action === 'focus-control' && command.operation === 'finish')
+      )
+        focusStartRetry.current = null;
       setMessage('Saved.');
     } catch (e) {
-      if (command.action === 'focus-control') {
+      if (command.action === 'focus-control' || command.action === 'focus-start') {
         pendingFocus.current = null;
         setFocusSettling(false);
       }
@@ -230,6 +256,55 @@ export function Execution({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed.');
     }
+  }
+  async function startBlockFocus(b: ScheduleBlock) {
+    if (!dayReady || busy || focusSettling || data?.focus) return;
+    const fields = {
+      objective: b.objective || b.title,
+      taskId: b.taskId,
+      projectId: b.projectId,
+      categoryId: b.categoryId,
+      plannedMinutes: Math.min(
+        720,
+        Math.max(1, Math.ceil((Date.parse(b.endsAt) - Date.parse(b.startsAt)) / 60000)),
+      ),
+    };
+    const body = JSON.stringify(fields);
+    if (!focusStartRetry.current || focusStartRetry.current.body !== body)
+      focusStartRetry.current = { body, id: uuid(), requestId: uuid() };
+    await action({
+      action: 'focus-start',
+      ...fields,
+      id: focusStartRetry.current.id,
+      requestId: focusStartRetry.current.requestId,
+    });
+  }
+  function removeBlock(b: ScheduleBlock) {
+    if (
+      !dayReady ||
+      !confirm(
+        b.seriesId
+          ? 'Skip only this occurrence? The recurring series and linked work are kept.'
+          : 'Remove this work block? Linked work is kept.',
+      )
+    )
+      return;
+    setBlock(null);
+    void action({
+      action: 'schedule',
+      requestId: uuid(),
+      id: b.id,
+      version: b.version,
+      title: b.title,
+      kind: b.kind as 'task',
+      taskId: b.taskId,
+      projectId: b.projectId,
+      categoryId: b.categoryId,
+      objective: b.objective,
+      startsAt: b.startsAt,
+      endsAt: b.endsAt,
+      remove: true,
+    });
   }
   async function optimisticAction(c: ExecutionCommand, next: ExecutionSnapshot) {
     const previous = data,
@@ -421,19 +496,13 @@ export function Execution({
     );
   const session = data.focus,
     elapsed = session ? elapsedFocus(session, new Date(clock + clockOffset)) : 0;
-  const time = (iso: string) =>
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: data.timeZone,
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(iso));
   const selectedTitle =
     section === 'today'
       ? 'Today'
       : section === 'vault'
         ? 'Vault'
         : section === 'schedule'
-          ? 'Schedule'
+          ? 'Calendar'
           : section === 'focus'
             ? 'Focus'
             : 'Routines';
@@ -454,54 +523,37 @@ export function Execution({
   });
   const scheduledMinutes = data.snapshot.scheduledMinutes;
   return (
-    <div
-      className={
-        'app-shell execution-shell' + (section === 'focus' && session ? ' focused-workspace' : '')
+    <WorkspaceShell
+      className="execution-shell"
+      title={selectedTitle}
+      active={section === 'today' ? 'today' : section === 'schedule' ? 'calendar' : 'more'}
+      actions={
+        <>
+          <span className="muted">{profile?.displayName}</span>
+          <button className="button" disabled={busy} onClick={() => void logout()}>
+            Sign out
+          </button>
+        </>
       }
     >
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-      <aside className="sidebar" aria-label="Life OS">
-        <a className="brand" href="/">
-          LIFE <strong>OS</strong>
-        </a>
-        <p className="workspace-label">{profile?.displayName} · Private workspace</p>
-        <nav aria-label="Main navigation">
-          {[
-            ['Today', '/'],
-            ['Schedule', '/schedule'],
-            ['Focus', '/focus'],
-            ['Inbox', '/inbox'],
-            ['Direction', '/direction'],
-            ['Tasks', '/tasks'],
-            ['Routines', '/routines'],
-            ['Vault', '/vault'],
-          ].map(([name, path]) => (
-            <a
-              key={path}
-              className={'nav-link' + (selectedTitle === name ? ' active' : '')}
-              aria-current={selectedTitle === name ? 'page' : undefined}
-              href={path}
-            >
-              {name}
-            </a>
-          ))}
-        </nav>
-        <p className="muted">Ctrl / ⌘ K to find or capture</p>
-      </aside>
       <main id="main" className="execution-main">
         <header className="execution-top">
           <div>
             <p className="eyebrow">Make room for what matters</p>
-            <h1>{selectedTitle}</h1>
+            <h1>
+              {section === 'today'
+                ? new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'UTC',
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  }).format(new Date((date || data.date) + 'T12:00Z'))
+                : selectedTitle}
+            </h1>
           </div>
           <div className="execution-actions">
             <button className="button" onClick={() => void reload()} disabled={busy}>
               Refresh
-            </button>
-            <button className="button" disabled={busy} onClick={() => void logout()}>
-              Sign out
             </button>
           </div>
         </header>
@@ -567,7 +619,7 @@ export function Execution({
               <a
                 href={
                   data.activeSeason
-                    ? '/direction?resource=seasons&id=' + data.activeSeason.id
+                    ? '/direction?view=seasons&id=' + data.activeSeason.id
                     : '/direction'
                 }
               >
@@ -579,8 +631,7 @@ export function Execution({
                 <p className="eyebrow">If only one thing happens</p>
                 <h2>The One Thing</h2>
                 <p className="one-thing">
-                  {data.plan?.oneThing ??
-                    'Choose the outcome that would move your life forward most.'}
+                  {data.plan?.oneThing ?? 'Choose one meaningful outcome.'}
                 </p>
                 <div className="execution-actions">
                   <button
@@ -649,110 +700,47 @@ export function Execution({
                 )}
               </section>
             </div>
-            <section className="daily-snapshot" aria-label="Recorded daily snapshot">
-              <div>
-                <strong>{data.snapshot.completedTasks}</strong>
-                <span>Tasks completed</span>
-              </div>
-              <div>
-                <strong>{Math.round(data.snapshot.focusSeconds / 60)}</strong>
-                <span>Recorded Focus minutes</span>
-              </div>
-              <div>
-                <strong>
-                  {data.plan?.outcomes.filter((o) => o.completedAt).length ?? 0}/
-                  {data.plan?.outcomes.length ?? 0}
-                </strong>
-                <span>Chosen outcomes complete</span>
-              </div>
-              <div>
-                <strong>{Math.round(scheduledMinutes)}</strong>
-                <span>Scheduled minutes</span>
-              </div>
-            </section>
           </>
         )}
         {(section === 'today' || section === 'schedule') && (
-          <section className="execution-card" id="schedule">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Protect your attention</p>
-                <h2>Your timeline</h2>
-              </div>
-              <button
-                className="button"
-                disabled={busy || !dayReady}
-                onClick={() => setEditor({ kind: 'schedule' })}
-              >
-                Add block
-              </button>
+          <WorkCalendar
+            data={data}
+            selectedDate={date || data.date}
+            days={calendarDays}
+            now={clock + clockOffset}
+            disabled={busy || !dayReady}
+            onDate={setDate}
+            onDays={setCalendarDays}
+            onOpen={setBlock}
+            onCreate={(day, instant) => {
+              setEditor({ kind: 'schedule', date: day, ...(instant ? { startsAt: instant } : {}) });
+            }}
+          />
+        )}
+        {section === 'today' && (
+          <section className="daily-snapshot" aria-label="Recorded daily snapshot">
+            <div>
+              <strong>{data.snapshot.completedTasks}</strong>
+              <span>Tasks completed</span>
             </div>
-            {data.schedule.length ? (
-              <ol className="timeline">
-                {data.schedule.map((b) => (
-                  <li key={b.id}>
-                    <div className="timeline-time">
-                      <time dateTime={b.startsAt}>{time(b.startsAt)}</time>
-                      <span>— {time(b.endsAt)}</span>
-                    </div>
-                    <div>
-                      <strong>{b.title}</strong>
-                      <p className="muted">
-                        {b.kind}
-                        {wallTime(b.startsAt, data.timeZone).slice(0, 10) !== data.date
-                          ? ' · starts ' + wallTime(b.startsAt, data.timeZone).slice(0, 10)
-                          : ''}
-                        {wallTime(b.endsAt, data.timeZone).slice(0, 10) !== data.date
-                          ? ' · ends ' + wallTime(b.endsAt, data.timeZone).slice(0, 10)
-                          : ''}
-                      </p>
-                      {b.taskId && <a href={'/tasks?id=' + b.taskId}>Open Task</a>}
-                    </div>
-                    <div className="execution-actions">
-                      <button
-                        className="button"
-                        disabled={busy || !dayReady}
-                        onClick={() => setEditor({ kind: 'schedule', record: b })}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="button"
-                        disabled={busy || !dayReady}
-                        onClick={() => {
-                          if (
-                            dayReady &&
-                            confirm('Remove this time block? The linked Task is kept.')
-                          )
-                            void action({
-                              action: 'schedule',
-                              requestId: uuid(),
-                              id: b.id,
-                              version: b.version,
-                              title: b.title,
-                              taskId: b.taskId,
-                              startsAt: b.startsAt,
-                              endsAt: b.endsAt,
-                              kind: b.kind as 'task',
-                              remove: true,
-                            });
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="muted">
-                Leave space, then protect time for the work that matters. Add your first block.
-              </p>
-            )}
-            {data.limits.schedule && <p>Showing the first 100 blocks. Use a more focused day.</p>}
+            <div>
+              <strong>{Math.round(data.snapshot.focusSeconds / 60)}</strong>
+              <span>Recorded Focus minutes</span>
+            </div>
+            <div>
+              <strong>
+                {data.plan?.outcomes.filter((o) => o.completedAt).length ?? 0}/
+                {data.plan?.outcomes.length ?? 0}
+              </strong>
+              <span>Chosen outcomes complete</span>
+            </div>
+            <div>
+              <strong>{Math.round(scheduledMinutes)}</strong>
+              <span>Scheduled minutes</span>
+            </div>
           </section>
         )}
-        {(section === 'today' || section === 'focus') && (
+        {((section === 'today' && !!session) || section === 'focus') && (
           <section className="execution-card focus-card" id="focus">
             <div className="card-heading">
               <div>
@@ -772,25 +760,19 @@ export function Execution({
             {session ? (
               <>
                 <h3>{session.objective}</h3>
-                <div className="focus-clock" role="timer" aria-label="Elapsed Focus time">
-                  {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
-                  {String(elapsed % 60).padStart(2, '0')}
-                </div>
-                <p>
-                  {session.resumedAt ? 'Running' : 'Paused'} ·{' '}
-                  {Math.max(0, Math.ceil((session.plannedMinutes * 60 - elapsed) / 60))} minutes
-                  remaining of {session.plannedMinutes}-minute intention
-                  {elapsed >= session.plannedMinutes * 60
-                    ? ' · Intention reached. Finish when ready.'
-                    : ''}
-                </p>
+                <FocusTimer
+                  elapsed={elapsed}
+                  plannedMinutes={session.plannedMinutes}
+                  running={!!session.resumedAt}
+                />
+                {data.plan?.oneThing && (
+                  <p className="focus-objective">Today's objective · {data.plan.oneThing}</p>
+                )}
                 {session.taskId && (
                   <a href={'/tasks?id=' + session.taskId}>Why this work matters →</a>
                 )}
                 {session.projectId && (
-                  <a href={'/direction?resource=projects&id=' + session.projectId}>
-                    Linked Project →
-                  </a>
+                  <a href={'/direction?view=projects&id=' + session.projectId}>Linked Project →</a>
                 )}
                 <div className="execution-actions">
                   <button
@@ -803,6 +785,7 @@ export function Execution({
                         id: session.id,
                         version: session.version,
                         operation: session.resumedAt ? 'pause' : 'resume',
+                        completeTask: false,
                         outcome: '',
                         notes: '',
                       })
@@ -844,194 +827,208 @@ export function Execution({
           </section>
         )}
         {(section === 'today' || section === 'routines') && (
-          <section className="execution-card" id="routines">
-            <div className="card-heading">
-              <div>
-                <p className="eyebrow">Steady practices</p>
-                <h2>Routines</h2>
+          <details
+            className="execution-card compact-details"
+            id="routines"
+            open={section === 'routines'}
+          >
+            <summary>
+              Routines · {data.routines.filter((r) => r.completed).length} completed
+            </summary>
+            <section>
+              <div className="card-heading">
+                <div>
+                  <p className="eyebrow">Steady practices</p>
+                  <h2>Routines</h2>
+                </div>
+                <button
+                  className="button"
+                  disabled={busy}
+                  onClick={() => setEditor({ kind: 'routine' })}
+                >
+                  Add routine
+                </button>
               </div>
-              <button
-                className="button"
-                disabled={busy}
-                onClick={() => setEditor({ kind: 'routine' })}
-              >
-                Add routine
-              </button>
-            </div>
-            {data.routines.filter((r) => section === 'routines' || r.scheduled || r.completed)
-              .length ? (
-              <ul className="routine-list">
-                {data.routines
-                  .filter((r) => section === 'routines' || r.scheduled || r.completed)
-                  .map((r) => (
-                    <li key={r.id} id={'routine-' + r.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={r.completed}
-                          disabled={busy || !dayReady || !r.scheduled}
-                          onChange={(e) => routineCheck(r.id, e.target.checked)}
-                        />
-                        <span>
-                          {r.title}
-                          {r.archived && <small>Archived · completion preserved</small>}
-                          {r.completionNotes && <small>{r.completionNotes}</small>}
-                          {!r.scheduled && <small>Not scheduled on this day</small>}
-                          {r.spiritual && <small>Reflective · never scored</small>}
-                        </span>
-                      </label>
-                      <div className="execution-actions">
-                        {r.completed && !r.archived && (
+              {data.routines.filter((r) => section === 'routines' || r.scheduled || r.completed)
+                .length ? (
+                <ul className="routine-list">
+                  {data.routines
+                    .filter((r) => section === 'routines' || r.scheduled || r.completed)
+                    .map((r) => (
+                      <li key={r.id} id={'routine-' + r.id}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={r.completed}
+                            disabled={busy || !dayReady || !r.scheduled}
+                            onChange={(e) => routineCheck(r.id, e.target.checked)}
+                          />
+                          <span>
+                            {r.title}
+                            {r.archived && <small>Archived · completion preserved</small>}
+                            {r.completionNotes && <small>{r.completionNotes}</small>}
+                            {!r.scheduled && <small>Not scheduled on this day</small>}
+                            {r.spiritual && <small>Reflective · never scored</small>}
+                          </span>
+                        </label>
+                        <div className="execution-actions">
+                          {r.completed && !r.archived && (
+                            <button
+                              className="button"
+                              disabled={busy || !dayReady}
+                              onClick={() => setEditor({ kind: 'routine-note', record: r })}
+                            >
+                              Day note
+                            </button>
+                          )}
                           <button
                             className="button"
-                            disabled={busy || !dayReady}
-                            onClick={() => setEditor({ kind: 'routine-note', record: r })}
+                            disabled={busy || r.archived}
+                            onClick={() => setEditor({ kind: 'routine', record: r })}
                           >
-                            Day note
+                            Edit
                           </button>
-                        )}
-                        <button
-                          className="button"
-                          disabled={busy || r.archived}
-                          onClick={() => setEditor({ kind: 'routine', record: r })}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="button"
-                          disabled={busy}
-                          onClick={() => {
-                            if (
-                              confirm(
-                                r.archived
-                                  ? 'Restore this routine?'
-                                  : 'Archive this routine? Past completions are kept.',
-                              )
-                            )
-                              void action({
-                                action: 'routine',
-                                requestId: uuid(),
-                                id: r.id,
-                                version: r.version,
-                                title: r.title,
-                                days: r.days,
-                                spiritual: r.spiritual,
-                                notes: r.notes ?? '',
-                                archived: !r.archived,
-                              });
-                          }}
-                        >
-                          {r.archived ? 'Restore' : 'Archive'}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="muted">
-                No routines scheduled for this day. Add a simple practice you want to repeat.
-              </p>
-            )}
-          </section>
-        )}
-        {section === 'today' && (
-          <>
-            <section className="execution-card">
-              <p className="eyebrow">An explainable next step</p>
-              <h2>Recommended next action</h2>
-              <div className="recommendation-controls">
-                <label>
-                  Available minutes
-                  <input
-                    type="number"
-                    min={1}
-                    max={720}
-                    value={minutes}
-                    onChange={(e) => {
-                      const n = Number(e.target.value);
-                      if (n >= 1 && n <= 720) setMinutes(n);
-                    }}
-                  />
-                </label>
-                <label>
-                  Current energy
-                  <select value={energy} onChange={(e) => setEnergy(e.target.value)}>
-                    {['low', 'medium', 'high'].map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {data.recommendations.length ? (
-                <ul className="recommendation-list">
-                  {data.recommendations.map((r) => {
-                    const t = data.tasks.find((t) => t.id === r.id)!;
-                    return (
-                      <li key={r.id} id={'routine-' + r.id}>
-                        <h3>
-                          <a href={'/tasks?id=' + r.id}>{t.title}</a>
-                        </h3>
-                        <p>
-                          {t.estimateMinutes} minutes · Priority heuristic {r.score}
-                        </p>
-                        <ul>
-                          {r.reasons.map((reason) => (
-                            <li key={reason}>{reason}</li>
-                          ))}
-                        </ul>
-                        {!session && (
                           <button
-                            className="button button-primary"
+                            className="button"
                             disabled={busy}
-                            onClick={() =>
-                              setEditor({
-                                kind: 'focus',
-                                taskId: t.id,
-                                objective: t.title,
-                                minutes: Math.min(720, t.estimateMinutes ?? 50),
-                              })
-                            }
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  r.archived
+                                    ? 'Restore this routine?'
+                                    : 'Archive this routine? Past completions are kept.',
+                                )
+                              )
+                                void action({
+                                  action: 'routine',
+                                  requestId: uuid(),
+                                  id: r.id,
+                                  version: r.version,
+                                  title: r.title,
+                                  days: r.days,
+                                  spiritual: r.spiritual,
+                                  notes: r.notes ?? '',
+                                  archived: !r.archived,
+                                });
+                            }}
                           >
-                            Focus on Task
+                            {r.archived ? 'Restore' : 'Archive'}
                           </button>
-                        )}
-                        <button
-                          className="button"
-                          disabled={busy}
-                          onClick={() => void completeTask(t.id)}
-                        >
-                          Complete Task
-                        </button>
+                        </div>
                       </li>
-                    );
-                  })}
+                    ))}
                 </ul>
               ) : (
                 <p className="muted">
-                  No planned Task with a recorded estimate fits this window and energy. Plan a Task
-                  or adjust your context.
+                  No routines scheduled for this day. Add a simple practice you want to repeat.
                 </p>
               )}
-              <p className="muted">
-                This transparent ranking is guidance. Reflective work is excluded.{' '}
-                {data.limits.tasks
-                  ? 'Ranking considers the first 200 Tasks by manual priority and deadline.'
-                  : ''}
-              </p>
             </section>
-            {data.insights.length > 0 && (
-              <section className="execution-card">
-                <h2>Insights</h2>
-                {data.insights.map((i) => (
-                  <article key={i.title}>
-                    <h3>{i.title}</h3>
-                    <p>{i.explanation}</p>
-                    <p className="muted">{i.action}</p>
-                  </article>
-                ))}
+          </details>
+        )}
+        {section === 'today' && (
+          <>
+            <details className="execution-card compact-details">
+              <summary>Recommendations</summary>
+              <section>
+                <p className="eyebrow">An explainable next step</p>
+                <h2>Recommended next action</h2>
+                <div className="recommendation-controls">
+                  <label>
+                    Available minutes
+                    <input
+                      type="number"
+                      min={1}
+                      max={720}
+                      value={minutes}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (n >= 1 && n <= 720) setMinutes(n);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Current energy
+                    <select value={energy} onChange={(e) => setEnergy(e.target.value)}>
+                      {['low', 'medium', 'high'].map((x) => (
+                        <option key={x}>{x}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {data.recommendations.length ? (
+                  <ul className="recommendation-list">
+                    {data.recommendations.map((r) => {
+                      const t = data.tasks.find((t) => t.id === r.id)!;
+                      return (
+                        <li key={r.id} id={'routine-' + r.id}>
+                          <h3>
+                            <a href={'/tasks?id=' + r.id}>{t.title}</a>
+                          </h3>
+                          <p>
+                            {t.estimateMinutes} minutes · Priority heuristic {r.score}
+                          </p>
+                          <ul>
+                            {r.reasons.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                          {!session && (
+                            <button
+                              className="button button-primary"
+                              disabled={busy}
+                              onClick={() =>
+                                setEditor({
+                                  kind: 'focus',
+                                  taskId: t.id,
+                                  objective: t.title,
+                                  minutes: Math.min(720, t.estimateMinutes ?? 50),
+                                })
+                              }
+                            >
+                              Focus on Task
+                            </button>
+                          )}
+                          <button
+                            className="button"
+                            disabled={busy}
+                            onClick={() => void completeTask(t.id)}
+                          >
+                            Complete Task
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="muted">
+                    No planned Task with a recorded estimate fits this window and energy. Plan a
+                    Task or adjust your context.
+                  </p>
+                )}
+                <p className="muted">
+                  This transparent ranking is guidance. Reflective work is excluded.{' '}
+                  {data.limits.tasks
+                    ? 'Ranking considers the first 200 Tasks by manual priority and deadline.'
+                    : ''}
+                </p>
               </section>
+            </details>
+            {data.insights.length > 0 && (
+              <details className="execution-card compact-details">
+                <summary>Insights · {data.insights.length}</summary>
+                <section>
+                  {data.insights.map((i) => (
+                    <article key={i.title}>
+                      <h3>{i.title}</h3>
+                      <p>{i.explanation}</p>
+                      <p className="muted">{i.action}</p>
+                    </article>
+                  ))}
+                </section>
+              </details>
             )}
-            <div className="execution-grid">
+            <div className="execution-grid daily-content-compact">
               <section className="execution-card">
                 <p className="eyebrow">Daily Scripture · KJV</p>
                 <h2>
@@ -1135,11 +1132,11 @@ export function Execution({
                         Edit
                       </button>
                       {v.convertedGoalId ? (
-                        <a href={'/direction?resource=goals&id=' + v.convertedGoalId}>
+                        <a href={'/direction?view=goals&id=' + v.convertedGoalId}>
                           Converted Goal →
                         </a>
                       ) : v.convertedProjectId ? (
-                        <a href={'/direction?resource=projects&id=' + v.convertedProjectId}>
+                        <a href={'/direction?view=projects&id=' + v.convertedProjectId}>
                           Converted Project →
                         </a>
                       ) : v.convertedTaskId ? (
@@ -1221,35 +1218,70 @@ export function Execution({
             )}
           </section>
         )}
-        <section className="execution-card capture-card">
-          <div>
-            <p className="eyebrow">
-              {section === 'focus' ? 'Later capture' : 'Capture first. Organize later.'}
-            </p>
-            <h2>{section === 'focus' ? 'Park a distraction' : 'Inbox'}</h2>
-          </div>
-          <label className="direction-field">
-            What’s on your mind?
-            <textarea
-              rows={2}
-              value={capture}
-              maxLength={10000}
-              onChange={(e) => setCapture(e.target.value)}
-            />
-          </label>
-          <div className="execution-actions">
-            <button
-              className="button button-primary"
-              disabled={busy || !capture.trim()}
-              onClick={() => void saveCapture()}
-            >
-              Capture
-            </button>
-            <a href="/inbox">Process Inbox ({data.snapshot.inboxCount}) →</a>
-          </div>
-        </section>
+        <details className="execution-card compact-details capture-section">
+          <summary>{section === 'focus' ? 'Park a distraction' : 'Quick capture & Inbox'}</summary>
+          <section className="capture-card">
+            <div>
+              <p className="eyebrow">
+                {section === 'focus' ? 'Later capture' : 'Capture first. Organize later.'}
+              </p>
+              <h2>{section === 'focus' ? 'Park a distraction' : 'Inbox'}</h2>
+            </div>
+            <label className="direction-field">
+              What’s on your mind?
+              <textarea
+                rows={2}
+                value={capture}
+                maxLength={10000}
+                onChange={(e) => setCapture(e.target.value)}
+              />
+            </label>
+            <div className="execution-actions">
+              <button
+                className="button button-primary"
+                disabled={busy || !capture.trim()}
+                onClick={() => void saveCapture()}
+              >
+                Capture
+              </button>
+              <a href="/inbox">Process Inbox ({data.snapshot.inboxCount}) →</a>
+            </div>
+          </section>
+        </details>
         <footer className="muted">Your drafts stay in memory. Save before leaving.</footer>
       </main>
+      {block && !editor && (
+        <WorkBlockWorkspace
+          block={block}
+          data={data}
+          error={error}
+          now={clock + clockOffset}
+          busy={busy || focusSettling || !dayReady}
+          onClose={() => setBlock(null)}
+          onStart={() => void startBlockFocus(block)}
+          onControl={() => {
+            if (session)
+              void action({
+                action: 'focus-control',
+                requestId: uuid(),
+                id: session.id,
+                version: session.version,
+                operation: session.resumedAt ? 'pause' : 'resume',
+                completeTask: false,
+                outcome: '',
+                notes: '',
+              });
+          }}
+          onFinish={() => setEditor({ kind: 'focus-finish' })}
+          onEdit={() => setEditor({ kind: 'schedule', record: block })}
+          onSeries={() => {
+            const record = data.scheduleSeries.find((s) => s.id === block.seriesId);
+            if (record) setEditor({ kind: 'schedule-series', record });
+            else setError('Reload the calendar to edit this series.');
+          }}
+          onRemove={() => removeBlock(block)}
+        />
+      )}
       {editor && (
         <ExecutionForm
           key={editor.kind + ('record' in editor ? (editor.record?.id ?? 'new') : 'new')}
@@ -1259,6 +1291,6 @@ export function Execution({
           onClose={closeEditor}
         />
       )}
-    </div>
+    </WorkspaceShell>
   );
 }

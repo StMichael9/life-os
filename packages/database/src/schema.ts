@@ -343,6 +343,44 @@ export const dailyBigThree = pgTable(
     index('big_three_user_idx').on(t.userId),
   ],
 );
+export const scheduleSeries = pgTable(
+  'schedule_series',
+  {
+    ...owned(),
+    version: integer('version').notNull().default(1),
+    title: text('title').notNull(),
+    kind: text('kind').notNull(),
+    taskId: uuid('task_id'),
+    projectId: uuid('project_id'),
+    categoryId: uuid('category_id'),
+    objective: text('objective').notNull().default(''),
+    startsOn: date('starts_on').notNull(),
+    endsOn: date('ends_on').notNull(),
+    startTime: text('start_time').notNull(),
+    endTime: text('end_time').notNull(),
+    days: text('days').notNull(),
+    timeZone: text('time_zone').notNull(),
+  },
+  (t) => [
+    unique('schedule_series_owner_key').on(t.id, t.userId),
+    foreignKey({ columns: [t.taskId, t.userId], foreignColumns: [tasks.id, tasks.userId] }),
+    foreignKey({
+      columns: [t.projectId, t.userId],
+      foreignColumns: [projects.id, projects.userId],
+    }),
+    foreignKey({
+      columns: [t.categoryId, t.userId],
+      foreignColumns: [categories.id, categories.userId],
+    }),
+    check('series_single_parent', sql`${t.taskId} is null or ${t.projectId} is null`),
+    check('series_range', sql`${t.endsOn} >= ${t.startsOn} and ${t.endsOn} - ${t.startsOn} <= 365`),
+    check(
+      'series_kind',
+      sql`${t.kind} in ('task','focus','routine','meeting','training','custom')`,
+    ),
+    index('series_user_idx').on(t.userId),
+  ],
+);
 export const scheduleBlocks = pgTable(
   'schedule_block',
   {
@@ -353,8 +391,33 @@ export const scheduleBlocks = pgTable(
     taskId: uuid('task_id'),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    projectId: uuid('project_id'),
+    categoryId: uuid('category_id'),
+    objective: text('objective').notNull().default(''),
+    seriesId: uuid('series_id'),
+    occurrenceDate: date('occurrence_date'),
+    overridden: boolean('overridden').notNull().default(false),
+    skipped: boolean('skipped').notNull().default(false),
   },
   (t) => [
+    foreignKey({
+      columns: [t.seriesId, t.userId],
+      foreignColumns: [scheduleSeries.id, scheduleSeries.userId],
+    }),
+    foreignKey({
+      columns: [t.projectId, t.userId],
+      foreignColumns: [projects.id, projects.userId],
+    }),
+    foreignKey({
+      columns: [t.categoryId, t.userId],
+      foreignColumns: [categories.id, categories.userId],
+    }),
+    unique('schedule_series_date_key').on(t.seriesId, t.occurrenceDate),
+    check('schedule_single_parent', sql`${t.taskId} is null or ${t.projectId} is null`),
+    check(
+      'schedule_series_occurrence',
+      sql`(${t.seriesId} is null and ${t.occurrenceDate} is null) or (${t.seriesId} is not null and ${t.occurrenceDate} is not null)`,
+    ),
     foreignKey({ columns: [t.taskId, t.userId], foreignColumns: [tasks.id, tasks.userId] }),
     check('schedule_duration', sql`${t.endsAt} > ${t.startsAt}`),
     check(

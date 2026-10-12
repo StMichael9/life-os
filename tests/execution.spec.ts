@@ -143,7 +143,7 @@ test.describe('integrated Phase 1 execution', () => {
     await form.getByLabel('Ends', { exact: true }).fill(day() + 'T10:00');
     await form.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(form).not.toBeVisible();
-    await expect(page.locator('.timeline')).toContainText('Protected execution');
+    await expect(page.locator('.work-calendar')).toContainText('Protected execution');
     await page.getByRole('button', { name: 'Add block' }).click();
     await form.getByLabel('Block title').fill('Conflicting block');
     await form.getByLabel('Starts', { exact: true }).fill(day() + 'T09:30');
@@ -151,13 +151,15 @@ test.describe('integrated Phase 1 execution', () => {
     await form.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(form.getByRole('alert')).toContainText('overlaps');
     await form.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.locator('.timeline').getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.locator('.calendar-event').filter({ hasText: 'Protected execution' }).click();
+    await form.getByText('Block details', { exact: true }).click();
+    await form.getByRole('button', { name: 'Edit block', exact: true }).click();
     await form.getByLabel('Block title').fill('A deliberate block');
     await form.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(form).not.toBeVisible();
     await page.reload();
     await page.getByLabel('Selected day').fill(day());
-    await expect(page.locator('.timeline')).toContainText('A deliberate block');
+    await expect(page.locator('.work-calendar')).toContainText('A deliberate block');
     await page.goto('/routines');
     await page.getByRole('button', { name: 'Add routine' }).click();
     await form.getByLabel('Routine name').fill('A small promise ' + test.info().project.name);
@@ -190,11 +192,12 @@ test.describe('integrated Phase 1 execution', () => {
     await form.getByLabel('Duration preset').selectOption('25');
     await form.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(form).not.toBeVisible();
-    await expect(page.locator('.focus-clock')).toBeVisible();
+    await expect(page.locator('.radial-focus')).toBeVisible();
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
+    await page.getByText('Park a distraction', { exact: true }).first().click();
     await page
       .getByLabel('What’s on your mind?')
       .fill('A distraction parked ' + test.info().project.name);
@@ -389,6 +392,7 @@ test.describe('integrated Phase 1 execution', () => {
     await form.getByRole('button', { name: 'Save Task', exact: true }).click();
     await expect(form).not.toBeVisible();
     await page.goto('/');
+    await page.getByText('Recommendations', { exact: true }).click();
     const recommendation = page.locator('.recommendation-list>li').filter({ hasText: title });
     await recommendation.getByRole('button', { name: 'Focus on Task', exact: true }).click();
     await expect(form.getByLabel('Focus objective')).toHaveValue(title);

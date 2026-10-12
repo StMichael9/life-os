@@ -27,6 +27,7 @@ export const operationsTables = [
   'daily_plan',
   'daily_big_three',
   'schedule_block',
+  'schedule_series',
   'focus_session',
   'focus_interval',
   'routine',
@@ -51,7 +52,7 @@ export async function withOperationsClient<T>(
 }
 export async function verifyMigrationCheckpoint(client: Client) {
   const expected = readMigrationFiles({ migrationsFolder: migrationFolder });
-  if (expected.length !== 7)
+  if (expected.length !== 8)
     throw new OperationsError('Review operations tooling for the new migration checkpoint.');
   const rows = (
     await client.query<{ hash: string; created_at: string }>(
@@ -64,7 +65,7 @@ export async function verifyMigrationCheckpoint(client: Client) {
       (r, i) => r.hash !== expected[i]!.hash || Number(r.created_at) !== expected[i]!.folderMillis,
     )
   )
-    throw new OperationsError('Migration ledger differs from committed migrations 0000–0006.');
+    throw new OperationsError('Migration ledger differs from committed migrations 0000–0007.');
   const tables = (
     await client.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname='public' order by tablename",
@@ -106,6 +107,7 @@ const insertUpdate = new Set([
   'daily_plan',
   'daily_big_three',
   'schedule_block',
+  'schedule_series',
   'focus_session',
   'focus_interval',
   'routine',

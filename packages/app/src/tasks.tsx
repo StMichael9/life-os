@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceShell } from './workspace-shell';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Task,
@@ -342,301 +343,302 @@ export function Tasks({
       timeStyle: 'short',
     }).format(new Date(value));
   return (
-    <main className="direction-page tasks-page">
-      <a className="skip-link" href="#tasks-heading">
-        Skip to Tasks
-      </a>
-      <header className="private-topbar">
-        <a href="/" className="auth-brand">
-          LIFE OS
+    <WorkspaceShell
+      title="Tasks"
+      active="goals"
+      actions={
+        profile && (
+          <Button onClick={() => void logout()} disabled={busy}>
+            Sign out
+          </Button>
+        )
+      }
+    >
+      <main id="main" className="direction-page tasks-page">
+        <a className="skip-link" href="#tasks-heading">
+          Skip to Tasks
         </a>
-        <nav aria-label="Workspace navigation">
-          <a href="/">Today</a>
-          <a href="/inbox">Inbox</a>
-          <a href="/direction">Direction</a>
-          <a href="/tasks" aria-current="page">
-            Tasks
-          </a>
-        </nav>
-        <div className="private-account">
-          {profile && <span>{profile.displayName}</span>}
+
+        <section className="direction-intro task-intro">
+          <div>
+            <Eyebrow>CLARITY BECOMES ACTION</Eyebrow>
+            <h1 id="tasks-heading">A deliberate next step.</h1>
+            <p>Keep the work small enough to start, and connected to what matters.</p>
+          </div>
           {profile && (
-            <Button onClick={() => void logout()} disabled={busy}>
-              Sign out
+            <Button variant="primary" onClick={() => start(null)} disabled={busy}>
+              New Task
             </Button>
           )}
-        </div>
-      </header>
-      <section className="direction-intro task-intro">
-        <div>
-          <Eyebrow>CLARITY BECOMES ACTION</Eyebrow>
-          <h1 id="tasks-heading">A deliberate next step.</h1>
-          <p>Keep the work small enough to start, and connected to what matters.</p>
-        </div>
-        {profile && (
-          <Button variant="primary" onClick={() => start(null)} disabled={busy}>
-            New Task
-          </Button>
+        </section>
+        {message && (
+          <p role={ended ? 'alert' : 'status'} className="form-message">
+            {message}
+          </p>
         )}
-      </section>
-      {message && (
-        <p role={ended ? 'alert' : 'status'} className="form-message">
-          {message}
-        </p>
-      )}
-      {ended && (
-        <Panel>
-          <h2>Return to your work.</h2>
-          <p>Your private Tasks and drafts have been cleared from this view.</p>
-          <a href="/login?next=/tasks">Sign in again</a>
-        </Panel>
-      )}
-      {loading && <p role="status">{profile ? 'Refreshing your Tasks…' : 'Opening your Tasks…'}</p>}
-      {!loading && !profile && !ended && (
-        <Panel>
-          <p>Sign in to see your Tasks.</p>
-          <a href="/login?next=/tasks">Sign in</a>
-          <Button onClick={() => void refresh()}>Retry</Button>
-        </Panel>
-      )}
-      {profile && (
-        <>
-          <div className="task-filters">
-            <div className="task-filter">
-              <label htmlFor="task-status-filter">Status</label>
-              <select
-                id="task-status-filter"
-                disabled={busy}
-                value={status}
-                onChange={(e) => {
-                  generation.current++;
-                  setStatus(e.target.value);
-                  setPage(empty());
-                }}
-              >
-                <option value="">All statuses</option>
-                {Object.entries(taskStatusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="task-filter">
-              <label htmlFor="task-parent-filter">Connection</label>
-              <select
-                id="task-parent-filter"
-                disabled={busy}
-                value={parent}
-                onChange={(e) => {
-                  generation.current++;
-                  setParent(e.target.value);
-                  setPage(empty());
-                }}
-              >
-                <option value="">All connections</option>
-                {choices.goals.items.map((goal) => (
-                  <option key={goal.id} value={`goal:${goal.id}`}>
-                    Goal · {goal.title}
-                  </option>
-                ))}
-                {choices.projects.items.map((project) => (
-                  <option key={project.id} value={`project:${project.id}`}>
-                    Project · {project.title}
-                  </option>
-                ))}
-                {parent &&
-                  ![
-                    ...choices.goals.items.map((g) => `goal:${g.id}`),
-                    ...choices.projects.items.map((p) => `project:${p.id}`),
-                  ].includes(parent) && <option value={parent}>Selected connection</option>}
-              </select>
-            </div>
-            <Button onClick={() => void refresh()} disabled={busy}>
-              Refresh
-            </Button>
-          </div>
-          <div className="direction-workspace">
-            <Panel className="direction-list">
-              <div className="panel-heading">
-                <h2>Your Tasks</h2>
-                <span className="small-muted">
-                  {page.items.length}
-                  {page.nextCursor ? '+' : ''} loaded
-                </span>
+        {ended && (
+          <Panel>
+            <h2>Return to your work.</h2>
+            <p>Your private Tasks and drafts have been cleared from this view.</p>
+            <a href="/login?next=/tasks">Sign in again</a>
+          </Panel>
+        )}
+        {loading && (
+          <p role="status">{profile ? 'Refreshing your Tasks…' : 'Opening your Tasks…'}</p>
+        )}
+        {!loading && !profile && !ended && (
+          <Panel>
+            <p>Sign in to see your Tasks.</p>
+            <a href="/login?next=/tasks">Sign in</a>
+            <Button onClick={() => void refresh()}>Retry</Button>
+          </Panel>
+        )}
+        {profile && (
+          <>
+            <div className="task-filters">
+              <div className="task-filter">
+                <label htmlFor="task-status-filter">Status</label>
+                <select
+                  id="task-status-filter"
+                  disabled={busy}
+                  value={status}
+                  onChange={(e) => {
+                    generation.current++;
+                    setStatus(e.target.value);
+                    setPage(empty());
+                  }}
+                >
+                  <option value="">All statuses</option>
+                  {Object.entries(taskStatusLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              {!page.items.length && !loading && (
-                <div className="direction-empty">
-                  <h3>
-                    {status || parent ? 'No Tasks match yet.' : 'Make space for meaningful work.'}
-                  </h3>
-                  <p>
-                    {status || parent
-                      ? 'Choose another filter or add a new Task.'
-                      : 'Create a clear next action, or turn a thought from your Inbox into a Task.'}
-                  </p>
-                  <a href="/inbox">Open Inbox</a>
+              <div className="task-filter">
+                <label htmlFor="task-parent-filter">Connection</label>
+                <select
+                  id="task-parent-filter"
+                  disabled={busy}
+                  value={parent}
+                  onChange={(e) => {
+                    generation.current++;
+                    setParent(e.target.value);
+                    setPage(empty());
+                  }}
+                >
+                  <option value="">All connections</option>
+                  {choices.goals.items.map((goal) => (
+                    <option key={goal.id} value={`goal:${goal.id}`}>
+                      Goal · {goal.title}
+                    </option>
+                  ))}
+                  {choices.projects.items.map((project) => (
+                    <option key={project.id} value={`project:${project.id}`}>
+                      Project · {project.title}
+                    </option>
+                  ))}
+                  {parent &&
+                    ![
+                      ...choices.goals.items.map((g) => `goal:${g.id}`),
+                      ...choices.projects.items.map((p) => `project:${p.id}`),
+                    ].includes(parent) && <option value={parent}>Selected connection</option>}
+                </select>
+              </div>
+              <Button onClick={() => void refresh()} disabled={busy}>
+                Refresh
+              </Button>
+            </div>
+            <div className="direction-workspace">
+              <Panel className="direction-list">
+                <div className="panel-heading">
+                  <h2>Your Tasks</h2>
+                  <span className="small-muted">
+                    {page.items.length}
+                    {page.nextCursor ? '+' : ''} loaded
+                  </span>
                 </div>
-              )}
-              <ul className="direction-records">
-                {page.items.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      aria-pressed={task?.id === item.id}
-                      className={`direction-row task-row${task?.id === item.id ? ' selected' : ''}`}
-                      onClick={() => void open(item.id)}
-                    >
-                      <span className="record-title">{item.title}</span>
-                      <span className="record-summary">
-                        {taskStatusLabels[item.status]} · Priority {item.priority}
-                        {item.dueAt ? ` · Due ${date(item.dueAt)}` : ''}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {page.nextCursor && (
-                <Button disabled={busy} onClick={() => void more()}>
-                  Load earlier Tasks
-                </Button>
-              )}
-            </Panel>
-            <Panel className="direction-detail">
-              {detailLoading && <p role="status">Opening Task…</p>}
-              {!task && !detailLoading && (
-                <div className="direction-empty">
-                  <Eyebrow>ONE CLEAR ACTION</Eyebrow>
-                  <h2>Choose a Task to see its details.</h2>
-                  <p>
-                    A useful Task has a clear outcome. Add context and a connection when they help.
-                  </p>
-                </div>
-              )}
-              {task && (
-                <>
-                  <div className="detail-top">
-                    <div>
-                      <Eyebrow>{taskStatusLabels[task.status]}</Eyebrow>
-                      <h2 ref={heading} tabIndex={-1}>
-                        {task.title}
-                      </h2>
-                    </div>
-                    <Button disabled={busy || detailLoading} onClick={() => start(task)}>
-                      Edit Task
-                    </Button>
-                  </div>
-                  {detail!.ancestors.length > 0 && (
-                    <nav aria-label="Task hierarchy" className="hierarchy-chain">
-                      {detail!.ancestors.map((ancestor) =>
-                        ancestor.kind === 'vision' ? (
-                          <span key={ancestor.id}>{ancestor.title}</span>
-                        ) : (
-                          <a
-                            key={ancestor.id}
-                            href={`/direction?view=${ancestor.kind === 'goal' ? 'goals' : ancestor.kind === 'project' ? 'projects' : 'milestones'}&id=${ancestor.id}`}
-                          >
-                            {ancestor.title}
-                          </a>
-                        ),
-                      )}
-                      <span>{task.title}</span>
-                    </nav>
-                  )}
-                  {task.description && <p className="private-prose">{task.description}</p>}
-                  <dl className="direction-facts">
-                    <div>
-                      <dt>Priority</dt>
-                      <dd>
-                        {task.priority}{' '}
-                        {task.priority === 1 ? '· Highest' : task.priority === 5 ? '· Lowest' : ''}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Category</dt>
-                      <dd>
-                        {choices.categories.find((c) => c.id === task.categoryId)?.name ??
-                          'No category'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Due</dt>
-                      <dd>{task.dueAt ? date(task.dueAt) : 'No deadline'}</dd>
-                    </div>
-                    <div>
-                      <dt>Energy needed</dt>
-                      <dd>{task.energy}</dd>
-                    </div>
-                    <div>
-                      <dt>Estimate</dt>
-                      <dd>
-                        {task.estimateMinutes === null
-                          ? 'Not set'
-                          : `${task.estimateMinutes} minutes`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Actual duration</dt>
-                      <dd>
-                        {task.actualMinutes === null
-                          ? 'Not recorded'
-                          : `${task.actualMinutes} minutes`}
-                      </dd>
-                    </div>
-                    {task.status === 'completed' && (
-                      <div>
-                        <dt>Completed</dt>
-                        <dd>{task.completedAt ? date(task.completedAt) : 'Time not recorded'}</dd>
-                      </div>
-                    )}
-                  </dl>
-                  {task.notes && (
-                    <section className="detail-section">
-                      <h3>Notes</h3>
-                      <p className="private-prose">{task.notes}</p>
-                    </section>
-                  )}
-                  {task.sourceInboxId && (
-                    <p className="quiet-note">
-                      Created from your Inbox. The original capture is preserved.
+                {!page.items.length && !loading && (
+                  <div className="direction-empty">
+                    <h3>
+                      {status || parent ? 'No Tasks match yet.' : 'Make space for meaningful work.'}
+                    </h3>
+                    <p>
+                      {status || parent
+                        ? 'Choose another filter or add a new Task.'
+                        : 'Create a clear next action, or turn a thought from your Inbox into a Task.'}
                     </p>
-                  )}
-                  <div className="detail-actions">
-                    <Button
-                      disabled={busy || detailLoading}
-                      variant="primary"
-                      onClick={() =>
-                        void changeStatus(
-                          task,
-                          task.status === 'completed' ? 'planned' : 'completed',
-                        )
-                      }
-                    >
-                      {task.status === 'completed' ? 'Reopen Task' : 'Complete Task'}
-                    </Button>
+                    <a href="/inbox">Open Inbox</a>
                   </div>
-                </>
-              )}
-            </Panel>
-          </div>
-        </>
-      )}
-      {editor && profile && (
-        <TaskEditor
-          key={editor.record?.id ?? editor.capture?.id ?? 'new'}
-          record={editor.record}
-          capture={editor.capture}
-          goals={choices.goals.items}
-          projects={choices.projects.items}
-          categories={choices.categories}
-          ancestors={editor.record && detail?.item.id === editor.record.id ? detail.ancestors : []}
-          timeZone={profile.timeZone}
-          onSave={save}
-          onClose={close}
-          onMoreGoals={choices.goals.nextCursor ? () => moreParents('goals') : undefined}
-          onMoreProjects={choices.projects.nextCursor ? () => moreParents('projects') : undefined}
-        />
-      )}
-    </main>
+                )}
+                <ul className="direction-records">
+                  {page.items.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        aria-pressed={task?.id === item.id}
+                        className={`direction-row task-row${task?.id === item.id ? ' selected' : ''}`}
+                        onClick={() => void open(item.id)}
+                      >
+                        <span className="record-title">{item.title}</span>
+                        <span className="record-summary">
+                          {taskStatusLabels[item.status]} · Priority {item.priority}
+                          {item.dueAt ? ` · Due ${date(item.dueAt)}` : ''}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {page.nextCursor && (
+                  <Button disabled={busy} onClick={() => void more()}>
+                    Load earlier Tasks
+                  </Button>
+                )}
+              </Panel>
+              <Panel className="direction-detail">
+                {detailLoading && <p role="status">Opening Task…</p>}
+                {!task && !detailLoading && (
+                  <div className="direction-empty">
+                    <Eyebrow>ONE CLEAR ACTION</Eyebrow>
+                    <h2>Choose a Task to see its details.</h2>
+                    <p>
+                      A useful Task has a clear outcome. Add context and a connection when they
+                      help.
+                    </p>
+                  </div>
+                )}
+                {task && (
+                  <>
+                    <div className="detail-top">
+                      <div>
+                        <Eyebrow>{taskStatusLabels[task.status]}</Eyebrow>
+                        <h2 ref={heading} tabIndex={-1}>
+                          {task.title}
+                        </h2>
+                      </div>
+                      <Button disabled={busy || detailLoading} onClick={() => start(task)}>
+                        Edit Task
+                      </Button>
+                    </div>
+                    {detail!.ancestors.length > 0 && (
+                      <nav aria-label="Task hierarchy" className="hierarchy-chain">
+                        {detail!.ancestors.map((ancestor) =>
+                          ancestor.kind === 'vision' ? (
+                            <span key={ancestor.id}>{ancestor.title}</span>
+                          ) : (
+                            <a
+                              key={ancestor.id}
+                              href={`/direction?view=${ancestor.kind === 'goal' ? 'goals' : ancestor.kind === 'project' ? 'projects' : 'milestones'}&id=${ancestor.id}`}
+                            >
+                              {ancestor.title}
+                            </a>
+                          ),
+                        )}
+                        <span>{task.title}</span>
+                      </nav>
+                    )}
+                    {task.description && <p className="private-prose">{task.description}</p>}
+                    <dl className="direction-facts">
+                      <div>
+                        <dt>Priority</dt>
+                        <dd>
+                          {task.priority}{' '}
+                          {task.priority === 1
+                            ? '· Highest'
+                            : task.priority === 5
+                              ? '· Lowest'
+                              : ''}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Category</dt>
+                        <dd>
+                          {choices.categories.find((c) => c.id === task.categoryId)?.name ??
+                            'No category'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Due</dt>
+                        <dd>{task.dueAt ? date(task.dueAt) : 'No deadline'}</dd>
+                      </div>
+                      <div>
+                        <dt>Energy needed</dt>
+                        <dd>{task.energy}</dd>
+                      </div>
+                      <div>
+                        <dt>Estimate</dt>
+                        <dd>
+                          {task.estimateMinutes === null
+                            ? 'Not set'
+                            : `${task.estimateMinutes} minutes`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Actual duration</dt>
+                        <dd>
+                          {task.actualMinutes === null
+                            ? 'Not recorded'
+                            : `${task.actualMinutes} minutes`}
+                        </dd>
+                      </div>
+                      {task.status === 'completed' && (
+                        <div>
+                          <dt>Completed</dt>
+                          <dd>{task.completedAt ? date(task.completedAt) : 'Time not recorded'}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    {task.notes && (
+                      <section className="detail-section">
+                        <h3>Notes</h3>
+                        <p className="private-prose">{task.notes}</p>
+                      </section>
+                    )}
+                    {task.sourceInboxId && (
+                      <p className="quiet-note">
+                        Created from your Inbox. The original capture is preserved.
+                      </p>
+                    )}
+                    <div className="detail-actions">
+                      <Button
+                        disabled={busy || detailLoading}
+                        variant="primary"
+                        onClick={() =>
+                          void changeStatus(
+                            task,
+                            task.status === 'completed' ? 'planned' : 'completed',
+                          )
+                        }
+                      >
+                        {task.status === 'completed' ? 'Reopen Task' : 'Complete Task'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Panel>
+            </div>
+          </>
+        )}
+        {editor && profile && (
+          <TaskEditor
+            key={editor.record?.id ?? editor.capture?.id ?? 'new'}
+            record={editor.record}
+            capture={editor.capture}
+            goals={choices.goals.items}
+            projects={choices.projects.items}
+            categories={choices.categories}
+            ancestors={
+              editor.record && detail?.item.id === editor.record.id ? detail.ancestors : []
+            }
+            timeZone={profile.timeZone}
+            onSave={save}
+            onClose={close}
+            onMoreGoals={choices.goals.nextCursor ? () => moreParents('goals') : undefined}
+            onMoreProjects={choices.projects.nextCursor ? () => moreParents('projects') : undefined}
+          />
+        )}
+      </main>
+    </WorkspaceShell>
   );
 }

@@ -119,3 +119,22 @@ use arrow keys, Tab and Enter; dialog closure guards unsent text. Mobile navigat
 scrolls horizontally while cards and dialogs stack within the viewport. Automated
 desktop/mobile Chromium checks cover overflow and axe; manual screen-reader, zoom
 and actual mobile Safari verification remain release tasks.
+
+## Phase 1 calendar consolidation
+
+Authenticated views share Today / Calendar / Goals / More. Search and quick capture
+are visible actions that open the existing guarded command palette. Keep secondary
+features in More and contextual hierarchy links; retain their actual working routes.
+Today has a date/compact Season/One Thing/Big 3 hierarchy, then the real hourly calendar,
+compact recorded counts and collapsible secondary guidance. Calendar day/week cards
+use muted category colors, rounded borders and duration-proportional geometry; the
+account timezone and repeated/skipped DST hour labels are explicit. Hour slots and
+event cards are keyboard buttons, not decorative click targets. Narrow screens scroll
+the week inside its calendar rather than expanding the document.
+
+Clicking a work block opens a native dialog workspace, prefilled Start Focus and the
+large radial countdown. Warm teal/olive ring endpoints and tabular time anchor the
+view; motion respects reduced-motion. Pause/resume/finish use saved server versions.
+Zero means the intention ended, not that recording stopped. Notes collapse in the
+finish dialog, and Task completion is an explicit optional checkbox. Comprehensive
+screen-reader/zoom/native Windows acceptance is delegated in ux-consolidation-handoff.md.

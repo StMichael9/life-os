@@ -22,7 +22,7 @@ export function createExecutionService(sessions: SessionVerifier, repo: Executio
     async today(token: string | undefined, input: unknown) {
       const userId = await owner(token),
         q = executionQuerySchema.parse(input),
-        data = await repo.today(userId, q.date);
+        data = await repo.today(userId, q.date, q.calendarDays);
       const recommendations = rankActions(
         data.tasks
           .filter((t) => t.estimateMinutes !== null)

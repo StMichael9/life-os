@@ -7,7 +7,7 @@ Installed laptop use must work without internet or manual server startup. Hosted
 and synchronization remain optional future work. The secure local runtime contract is
 [offline-desktop.md](offline-desktop.md); component tests are not proof of a Windows release.
 
-The embedded adapter reuses Drizzle/PgDatabase, all seven migrations, repositories,
+The embedded adapter reuses Drizzle/PgDatabase, the committed migration chain (0000–0007), repositories,
 Argon2id/opaque authentication and ownership predicates. Private filesystem PGlite runs
 in the privileged backend, with no PostgreSQL socket and no renderer database access.
 A private process-global service promise spans Next's separate SSR/API module graphs,
@@ -18,6 +18,26 @@ a main-only capability, CSRF and a transactional first-account guard; hosted sig
 remains closed. Guarded dead-process recovery and encrypted embedded candidate restore
 are component-tested; native certificate/key/safeStorage/ACL/menu/cutover integration
 and crash verification remain pending. Keep Windows work bounded and separate from shared code.
+
+## Calendar-centered execution
+
+The shared React WorkspaceShell provides Today / Calendar / Goals / More without
+changing existing routes or authentication. Today and /schedule render the same
+hourly calendar from a bounded owner-scoped day/week execution snapshot. A block's
+workspace starts the existing Focus service with its objective, parent, category and
+duration; the radial countdown derives only from server-backed active time. Reaching
+zero does not finish a session or discard overtime. Optional linked-Task completion
+and recorded minutes share the existing Focus finish transaction/receipt.
+
+Recurring work extends schedule_block using schedule_series and materialized dated
+occurrences, not a second calendar domain. Owner-row locking, shared schemas,
+composite parent/series ownership FKs, optimistic versions and receipt fingerprints
+protect all writes. A complete repeat set is generated in its stored account timezone,
+validated for every overlap/DST ambiguity and committed atomically. Normal occurrences
+are replaced on a series edit; edited/skipped exceptions persist. Ranges are explicit
+and bounded to one year. A week retrieves at most 500 blocks; today's recorded counts
+still describe only the selected day. See ux-consolidation-handoff.md for verification
+and delegated acceptance; desktop IPC/trust/runtime architecture is unchanged.
 
 ## Status and governing decisions
 

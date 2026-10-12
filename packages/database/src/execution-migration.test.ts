@@ -65,7 +65,18 @@ it('upgrades pre-Phase-1 planning / schedule / Focus / Direction without inventi
     expect(sessions.rows[0]).toMatchObject({ version: 1, active_seconds: 1800, resumed_at: null });
     expect((await pg.query('select * from focus_interval')).rows).toEqual([]);
     expect((await pg.query('select * from daily_big_three')).rows).toHaveLength(1);
-    expect((await pg.query('select * from schedule_block')).rows).toHaveLength(1);
+    const blocks = (await pg.query('select * from schedule_block')).rows;
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({
+      title: 'Legacy block',
+      version: 1,
+      series_id: null,
+      project_id: null,
+      objective: '',
+      skipped: false,
+      overridden: false,
+    });
+    expect((await pg.query('select * from schedule_series')).rows).toEqual([]);
   } finally {
     await pg.close();
     await rm(folder, { recursive: true, force: true });

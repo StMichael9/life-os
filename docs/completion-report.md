@@ -7,6 +7,19 @@ on bounded requested builds; its session fix is checkpointed separately. The use
 one bounded integration
 request after that pause; hosted acceptance remains paused.
 
+## Latest assignment: Phase 1 UX consolidation
+
+Calendar-centered UX is implemented in Cloud: one Today / Calendar / Goals / More
+shell, visible search/capture, compact Today, persisted day/week hourly calendar,
+inline block → radial Focus, and transactional bounded recurrence with occurrence
+edits/skips. Migration 0007 adds owner-scoped series and additive occurrence fields;
+no personal database or installed executable was changed. Targeted embedded/PG tests,
+required default tests/builds and two desktop/mobile browser journeys pass. Broader
+regression/native deployment is delegated. See ux-consolidation-handoff.md for limits,
+exact checks and Local/QA instructions. This task explicitly excludes Phases 2–6;
+Phase 2 remains unimplemented. Prior native/hosting observations below are historical,
+not verification of this new shared UI or installation.
+
 ## Completed and verified before the offline change
 
 - Phase 0 foundation and all Phase 1 product domains, services, PostgreSQL schema,
