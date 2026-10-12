@@ -43,12 +43,9 @@ async function createWindow() {
   current.on('closed', () => {
     if (window === current) window = null;
   });
-  for (;;) {
-    try {
-      await current.loadURL(origin);
-      return;
-    } catch {
-      if (current.isDestroyed()) return;
+  let recovery: Promise<void> | undefined;
+  async function retry(url: string) {
+    while (!current.isDestroyed()) {
       current.show();
       const choice = await dialog.showMessageBox(current, {
         type: 'warning',
@@ -64,7 +61,28 @@ async function createWindow() {
         app.quit();
         return;
       }
+      try {
+        await current.loadURL(url);
+        return;
+      } catch {
+        // The failed load event shares this recovery; it must not open another dialog.
+      }
     }
+  }
+  function recover(url: string) {
+    recovery ??= retry(url).finally(() => {
+      recovery = undefined;
+    });
+    return recovery;
+  }
+  current.webContents.on('did-fail-load', (_event, code, _description, url, isMainFrame) => {
+    // Aborted requests and subresources do not replace the workspace. Only retry trusted pages.
+    if (isMainFrame && code !== -3 && allowedNavigation(url, origin)) void recover(url);
+  });
+  try {
+    await current.loadURL(origin);
+  } catch {
+    await recover(origin);
   }
 }
 

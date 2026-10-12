@@ -10,6 +10,8 @@
     "build": "node scripts/build.mjs",
     "dev": "pnpm build && electron .",
     "typecheck": "tsc --noEmit",
+    "test:native": "node scripts/verify-native.mjs",
+    "test:gui": "node scripts/build-gui.mjs && playwright test --config playwright.config.ts",
     "package:win": "node scripts/build.mjs --release && electron-builder --win nsis --publish never"
   },
   "devDependencies": {

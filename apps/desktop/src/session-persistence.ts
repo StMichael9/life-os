@@ -29,9 +29,7 @@ export async function persistSession(session: Session, origin: string, userData:
   } // nonpersistent login is always safer than plaintext fallback
   let queue: Promise<void> = Promise.resolve();
   let failed = false;
-  session.cookies.on('changed', (_event, cookie) => {
-    if (cookie.name !== '__Host-life_os_session' || cookie.domain !== new URL(origin).hostname)
-      return;
+  function saveCurrentCookie() {
     queue = queue
       .then(async () => {
         // Re-read the current cookie rather than persisting an obsolete rotation event.
@@ -48,6 +46,23 @@ export async function persistSession(session: Session, origin: string, userData:
         failed = true;
         await store.clear().catch(() => {});
       });
+    return queue;
+  }
+  session.cookies.on('changed', (_event, cookie) => {
+    if (cookie.name !== '__Host-life_os_session' || cookie.domain !== new URL(origin).hostname)
+      return;
+    void saveCurrentCookie();
   });
-  return { flush: () => queue };
+  return {
+    async flush() {
+      // Native changed notifications can arrive after cookies.set/remove resolves.
+      // Persist an authoritative snapshot even if the corresponding event is still pending.
+      await saveCurrentCookie();
+      for (;;) {
+        const pending = queue;
+        await pending;
+        if (pending === queue) return;
+      }
+    },
+  };
 }

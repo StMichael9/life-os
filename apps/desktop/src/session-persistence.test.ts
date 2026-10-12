@@ -73,13 +73,16 @@ it('persists current cookie events, restores on startup, and clears logout witho
   current = [{ ...cookie, value: 'b'.repeat(43) }];
   events.emit('changed', {}, cookie, 'overwrite', true);
   await persistence.flush();
+  // Shutdown cannot assume Chromium's next changed notification has reached main.
+  current = [{ ...cookie, value: 'c'.repeat(43) }];
+  await persistence.flush();
   current = [];
   await persistSession(session, origin, directory);
   expect(set).toHaveBeenCalledWith(
-    expect.objectContaining({ value: 'b'.repeat(43), secure: true, httpOnly: true }),
+    expect.objectContaining({ value: 'c'.repeat(43), secure: true, httpOnly: true }),
   );
   current = [];
-  events.emit('changed', {}, cookie, 'explicit', true);
+  // Removal must also reach disk before its notification is delivered.
   await persistence.flush();
   await expect(readFile(file)).rejects.toThrow();
 });

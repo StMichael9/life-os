@@ -68,3 +68,34 @@ additional reported Focus-resume race with its actual reproduction. Cloud now gu
 Resume/Finish until a newer authenticated snapshot arrives, and tests a delayed response;
 this is a concrete fix, not a claim that every reported native scenario was reproduced.
 The separate Windows chat remains stopped; Cloud resumed without altering its checkout.
+
+## Local Windows resume and pause — 2026-10-12
+
+Windows fetched `work` at `d4920db` and brought forward only the reviewed Electron
+changes from `2963ae0` onto isolated branch `windows/desktop-first-qa`. Newer Cloud
+documentation and shared selected-day/Focus guards remain intact.
+
+Windows HTTPS reachability to the configured staging origin succeeded, returning 302
+to Vercel SSO. The Vercel connector returned a team-scope 403, and no existing local
+Vercel CLI credential was found. No application login, account creation, protection
+change, production mutation or hosted acceptance pass is claimed. The temporary
+Electron staging probe was stopped without producing acceptance evidence.
+
+The user then explicitly paused hosted acceptance and chose coordination toward
+desktop-first/offline use. Cloud owns local backend/database adaptation; Windows owns
+Electron startup/lifecycle, bundled packaging and native offline verification. Await a
+concrete Cloud runtime handoff covering entry point/readiness/shutdown, database path
+and migrations, backup/restore and local origin/session security before changing the
+packaged trust boundary. Reauthorization and hosted tests are paused, not release gates
+for the immediate offline work. The user subsequently requested a safe pause of this chat.
+
+A native synthetic-cookie rerun exposed failed replacement-cookie restoration. The
+existing flush only awaited already-delivered change events. Windows now queues an
+authoritative cookie snapshot on flush and drains subsequently queued writes, including
+logout before its notification arrives. The deterministic regression, nine desktop unit
+tests, two complete native nine-phase runs with startup corruption/expiry checks,
+desktop typecheck and lint passed. Native fixtures additionally decrypt in memory to
+assert that the persisted value is current; no token/ciphertext key is logged.
+This is a desktop persistence fix, not proof of a finished offline backend or hosted
+session acceptance. Preserve the current renderer/security restrictions until the new
+local runtime contract is agreed and tested.

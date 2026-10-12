@@ -306,6 +306,25 @@ separate [Windows handoff](windows-handoff.md). Phase 2 is conditional on accept
 
 ## Checkpoint for the next session
 
+### Local Windows direction and safe pause — 2026-10-12
+
+The user paused hosted acceptance and confirmed coordination toward desktop-first
+offline use, then asked this Windows chat to pause safely. Local branch
+`windows/desktop-first-qa` is based on latest fetched `work` (`d4920db`) and carries
+forward the earlier Electron-only changes without overwriting newer Cloud notes.
+Staging HTTPS was reachable but redirected to protected Vercel SSO; connector access
+returned team-scope 403. No hosted acceptance or production change occurred; the
+temporary staging probe is stopped. Vercel reauthorization is no longer requested
+for the immediate offline direction.
+
+Fixed the session shutdown-flush gap revealed by a native rerun: flush now persists
+the authoritative native cookie without waiting for its change notification, then
+drains additional writes. Desktop unit regressions, repeated native nine-phase runs,
+typecheck and lint passed. See the dated Windows handoff for limits and file ownership.
+Cloud will prepare local backend/persistence interfaces; Windows will integrate
+packaged automatic startup and verify native offline operation after that handoff.
+No local backend redesign or offline-ready installer is claimed at this pause.
+
 Continue from the pushed operational-readiness commit on `work`; read this file,
 architecture/data-model/deployment and the release runbook. Phase 1 product implementation
 is complete in isolation; staging is deployed but hosted daily-use readiness is **partial**.

@@ -55,7 +55,9 @@ it('persists ciphertext only, restores valid cookies, rotates and deletes on log
   const { directory, store } = await create();
   await store.save(cookie);
   expect((await readFile(join(directory, 'session.bin'))).includes(cookie.value)).toBe(false);
-  expect((await stat(join(directory, 'session.bin'))).mode & 0o777).toBe(0o600);
+  // Windows access is governed by inherited ACLs, not POSIX mode bits.
+  if (process.platform !== 'win32')
+    expect((await stat(join(directory, 'session.bin'))).mode & 0o777).toBe(0o600);
   expect(await store.load()).toEqual(cookie);
   await store.save({ ...cookie, value: 'b'.repeat(43) });
   expect((await store.load())!.value).toBe('b'.repeat(43));
