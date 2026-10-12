@@ -3,8 +3,11 @@
 ## Superseding offline-first desktop target
 
 Hosted production deployment is postponed at the user's instruction. Vercel/Neon are
-not required to use the offline release. The current Electron shell has NOT yet been
-integrated with the new local backend, so an offline installer is not yet ready.
+not required to use the offline release. The Cloud work branch has not yet merged
+the separate Windows integration. Local reports native first-account setup, Start Day,
+Task creation, scheduling and Focus pause on merged 9b2394c, but second launch fails
+in private-directory ACL reapplication before backend start. An accepted offline
+installer is not yet ready; Local owns that fix and repeat-launch verification.
 Use offline-desktop.md for the exact utility-process protocol, resource layout, key/
 origin/session constraints and test evidence. Phase 1/2 completion is tracked in
 completion-report.md. The Windows lead is resumed for one bounded integration, with no idle QA.

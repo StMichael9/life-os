@@ -70,6 +70,18 @@ add rejectUnauthorized:false or global certificate/proxy trust bypasses. Verify 
 unique certificate/CA/key-usage chain under actual Electron Node TLS and report only
 non-secret metadata/status. Cloud Node TLS success is not Windows utility verification.
 
+**Latest Local report — 2026-10-12:** on merged work 9b2394c, native first-account
+setup, Start Day, Task creation, scheduling and Focus pause work through the bundled
+utility backend. Second launch currently fails in Windows private-directory ACL
+reapplication before backend start. Local owns the fix; Cloud will not edit those
+integration files or change the shared backend to work around native permissions.
+Keep ACLs private and preserve existing data/identity; verify repeated starts and
+files created by the backend. Then finish the disconnected full-day/restart/installer
+checks and checkpoint. No production or shared-source changes were reported.
+Cloud tip 84f3ebb includes the requested bounded startup diagnostics/direct pinned
+readiness agent; include its exact tested status in the native handoff. These are Local
+reported results, not independently verified Windows behavior in Cloud.
+
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,
 resource packaging, native ACLs and disconnected installer/full-day/relaunch tests.

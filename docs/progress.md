@@ -338,9 +338,10 @@ The real PostgreSQL 17 domain suites also pass: 62 tests. Typecheck, lint, produ
 web/Electron builds, frozen lockfile/peer checks and dependency audits passed. No new
 migration was added. CI checks are prepared; its remote run is not claimed.
 
-**Partial / unverified:** Electron does not yet start this backend; native utilityProcess,
-pinned certificate/key persistence, setup capability injection, Windows ACLs and offline
-NSIS installation must be integrated and tested locally. Guarded recovery and encrypted
+**Partial / unverified:** the Cloud work branch has not merged the separate Windows
+Electron integration. Local now reports native startup and first-account use, but
+second-launch ACL reapplication fails before backend start. Relaunch/session durability,
+full disconnected workflows and offline NSIS installation remain unverified. Guarded recovery and encrypted
 embedded backup/candidate restore components now pass
 Cloud tests, but native key export/import, archive picker/writing and restore cutover
 remain unimplemented. Live database files rely on private OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
@@ -359,9 +360,13 @@ Windows reports that its private per-installation CA + loopback serverAuth leaf
 chain fixes utility/BoringSSL readiness and opens the actual native window. CA private
 key is discarded; only protected leaf key/chain persist, exact leaf fingerprint is
 pinned, and nothing is installed in Windows trust. This is Local evidence, not Cloud
-native verification. Its old 605d779/191755f resources still hid first-account setup;
-shared-service correction **9b2394c** is already pushed and must be fetched/rebuilt.
-First-account/full-day/restart/packaged offline acceptance remain pending that rebuild.
+native verification. Local has now merged **9b2394c** and reports first-account setup,
+Start Day, Task creation, scheduling and Focus pause working through the bundled
+utility backend. Second launch is blocked by Windows private-directory ACL
+reapplication before backend start; Local owns that investigation. No shared backend
+source or production was changed. Full-day, restart and installed disconnected
+acceptance remain pending. **84f3ebb** additionally provides bounded diagnostics and
+the direct pinned readiness agent; verify the exact merged build in the final report.
 Cloud also added bounded startup phase/allowlisted code diagnostics and a direct,
 chain/IP/fingerprint-verified readiness agent. No TLS bypass or raw-error logging.
 
@@ -371,8 +376,9 @@ production remains empty, and no personal account or backup location was fabrica
 
 ## Exact next recommended task
 
-**Finish the offline Phase 1 release: integrate the private standalone backend into
-Electron using offline-desktop.md, connect its tested recovery/backup protocol to
+**Fix and verify repeat-launch private-directory ACL handling in the Windows
+integration, preserving data, protected identity and renderer security. Then finish
+the offline Phase 1 release using offline-desktop.md, connect its tested recovery/backup protocol to
 native key storage/archive selection/guarded cutover, then perform a bounded Windows
 disconnected install/full-day/restart/
 security/recovery acceptance run. After those gates pass, begin Phase 2 with Skills →

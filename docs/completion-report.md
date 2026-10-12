@@ -42,13 +42,16 @@ request after that pause; hosted acceptance remains paused.
   integration; no idle QA is requested. It reports automatic utility-process integration,
   Windows web/Electron builds and ACL/cookie checks. It reports private CA + leaf
   chain readiness and the native window opening with exact leaf pinning and no OS
-  trust installation. First-account/restart tests require rebuilding with the pushed
-  9b2394c shared-service correction; full installed offline acceptance remains pending.
+  trust installation. On merged 9b2394c, native first-account setup, Start Day, Task
+  creation, scheduling and Focus pause work. Second launch fails in private-directory
+  ACL reapplication before backend start; Local is investigating. Restart, full-day
+  and installed disconnected acceptance remain pending.
 
 ## Remaining Phase 1 release work
 
-- Electron integration of the implemented standalone backend, automatic start/readiness/
-  stop, native crash-recovery verification and first-account capability injection.
+- Review/merge the separate Electron integration after native acceptance; fix Windows
+  second-launch ACL reapplication and verify automatic start/stop, crash recovery,
+  session restoration and persisted workflows across repeat launches.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
   directory ACLs, encrypted session restoration and packaged dependency/assets tracing.
 - Native backup menu/picker, atomic ciphertext storage, separate recoverable key export/import
