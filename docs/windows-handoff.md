@@ -52,12 +52,100 @@ your tests. Set explicit algorithm, expiry and IP SAN; do not use default SHA-1 
 disable certificate verification. Coordinate further dependency changes rather than
 editing the shared lockfile concurrently.
 
-**Important shared correction:** the next Cloud work tip includes a process-global
+**Important shared correction: pushed commit 9b2394c** includes a process-global
 service registry across Next SSR/API graphs. This fixes duplicate-engine initialization
 that could hide first-account setup or redirect authenticated SSR. Fetch that update
 and rebuild Windows standalone resources before final acceptance; do not work around
 it by resetting the database or altering desktop authentication. The same checkpoint
 adds guarded dead-PID recovery, encrypted backup/candidate restore and startup cancellation.
+
+**Native startup finding:** your utilityProcess integration/build and ACL/cookie checks
+are reported separately; its first readiness probe failed TLS verification before a
+window loaded. You subsequently report a unique CA cA:true + serverAuth leaf cA:false
+chain opens the window under actual utility/BoringSSL; discard CA private material,
+protect only leaf key/chain, keep exact leaf pinning and install nothing in OS trust. Cloud added bounded startup phase/allowlisted code/optional HTTP status
+fields, plus a dedicated direct HTTPS agent that checks the ordinary chain/IP AND exact
+assigned fingerprint. Fetch that entry and rebuild the Windows resource tree. Do not
+add rejectUnauthorized:false or global certificate/proxy trust bypasses. Verify the
+unique certificate/CA/key-usage chain under actual Electron Node TLS and report only
+non-secret metadata/status. Cloud Node TLS success is not Windows utility verification.
+
+**Latest Local report — 2026-10-12:** on merged work 9b2394c, native first-account
+setup, Start Day, Task creation, scheduling and Focus pause work through the bundled
+utility backend. The subsequent DACL-only fix and full-day/restart/logout workflow
+now pass, as reported below. Local owns packaging/native tests; Cloud will not edit
+those integration files or change shared security to work around native permissions.
+Keep ACLs private and preserve existing data/identity; verify repeated starts and
+files created by the backend. Then finish the disconnected full-day/restart/installer
+checks and checkpoint. No production or shared-source changes were reported.
+Cloud tip 84f3ebb includes the requested bounded startup diagnostics/direct pinned
+readiness agent; include its exact tested status in the native handoff. These are Local
+reported results, not independently verified Windows behavior in Cloud.
+
+**Confirmed Start-menu target — 2026-10-12:** Local verified Life OS QA.lnk points
+to work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA installation.
+It is distinct from the new bundled offline app. Cloud has produced no newer Windows
+installer or changed install paths. Do not restart a test server or resume Vercel as
+the solution. Preserve existing data and verify the replacement offline NSIS shortcut/
+executable before claiming the user's installed application works.
+
+**Local native results (reported, not independently verified in Cloud):** the DACL-only
+DirectoryInfo fix avoids SeSecurityPrivilege/SACL mutation. All nine DPAPI/cookie
+process phases now protect the directory each process and pass. The native offline
+workflow passes in about 1.2 minutes: first-account setup → Start Day/Task/schedule →
+Focus pause → quit → signed-in data restart → Focus finish/capture/Close Day → logout →
+relaunch. An isolated unsigned offline QA NSIS build is next; installed acceptance,
+upgrade/uninstall, native backup controls/key recovery/cutover remain pending.
+
+Local's root test run overlapped typecheck/lint/native work and encountered PGlite
+setup-hook and backup/persistence/recovery timeouts; 104 other tests passed. Local
+will rerun without that concurrent workload before calling its shared-test gate clean.
+No shared assertions/timeouts are weakened, and no shared backend/production changes
+were reported. Cloud has not edited the Windows checkout or integration source.
+
+**Windows packaging blocker — 2026-10-12:** Local found an absolute junction from
+Next standalone/apps/web/node_modules/next into the original workspace, with other
+traced aliases potentially affected. electron-builder's resource filter also excluded
+root node_modules, so the first QA payload omitted dependencies and retained the
+workspace link. That payload was not accepted or installed. Native development-bundle
+workflow success does not prove a portable installer works without its build workspace.
+
+Local owns desktop preparation that materializes only the traced package files and
+required dependency graph into portable staging before builder. Final resources must
+have no junction/symlink reliance on the workspace, no environment files (including
+case variants on Windows), and all SQL/static/WASM/native dependencies. Validate a
+copied/installed payload outside the build workspace with inherited module paths
+removed and disconnected use. Preserve existing data; do not alter shared Next/server
+security to compensate for omitted files. Cloud has not changed Windows packaging.
+
+**Windows shared-test status:** the latest report lists 108 passed/eight skipped,
+but the encrypted backup still times out at 30 seconds and the recovery child exits
+before its write commits. These remain failures; concurrency alone is not a verified
+explanation. Investigate them in isolation without weakening assertions. Cloud found
+the recovery fixture passed a raw absolute path to Node --import: Windows drive paths
+are interpreted as an unsupported c: URL scheme. It now uses pathToFileURL for the
+resolved TSX loader; Cloud's real killed-process test passes, but Windows must rerun.
+Local independently confirmed the same loader failure with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+The file-URL change preserves every assertion; Cloud's full default suite (108 passed,
+eight guarded skips), typecheck/lint and web/Electron builds pass after it. Windows
+verification still requires fetching this change and rerunning the fixture.
+This change affects the test harness, not the installed backend or database data.
+
+Local now reports portable staging with 29 exact traced packages, nested peer/dependency
+aliases preserving multiple versions, 2,054 files/about 50 MB, five native bindings and
+zero junctions. These are staging observations, not installer acceptance. Its Windows-
+owned preparation/packaging source remains isolated in apps/desktop; the rebuilt QA
+installer and workspace-independent installed workflow still need verification.
+
+**Latest bounded native work — 2026-10-12:** Local reports its rebuilt QA payload
+matches portable staging (zero junctions, five native bindings). This does not yet prove
+installed/disconnected acceptance. Correct the expanded capture → Task test to check the
+preserved Task and empty active Inbox: processed captures are filtered by existing
+behavior. Investigate the quit/cleanup stall exposed by the failed assertion through
+beforeunload/shutdown handling, preserving pending writes and user data. No cause or fix
+is confirmed yet. Fetch Cloud **014657f** only after the current run stops safely; rerun
+the recovery fixture and diagnose the separate backup timeout. Cloud will not edit the
+desktop lifecycle/packaging files. Checkpoint evidence and stop after bounded acceptance.
 
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,

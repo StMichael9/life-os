@@ -33,19 +33,52 @@ request after that pause; hosted acceptance remains paused.
   Trusted parent-channel commands drain HTTP writes; no renderer filesystem bridge exists.
 - Cloud verification: 108 default tests passed (eight guarded skips); the opt-in offline
   backend test passed its full-day flow/restart, encrypted parent-channel backup/restore
-  and canceled startup over real HTTPS. Real PostgreSQL domain tests: 62 passed. The previous browser suite passed 48; the registry-change rerun passed 47 with one
-  intercepted desktop account-switch timeout under investigation. The mobile equivalent
-  passed. Browser verification remains partial until this is resolved. Typecheck/lint and production web/Electron builds passed;
+  and canceled startup over real HTTPS. Real PostgreSQL domain tests: 62 passed. Final browser E2E: 48 passed. The account-switch fixture now intercepts the actual
+  capture submission, retaining its owner/rejection checks; six focused runs also pass. Typecheck/lint and production web/Electron builds passed;
   dependency audits found no known vulnerabilities. Native offline installation is pending.
 - The Windows lead reports a cookie notification/shutdown-drain fix on isolated commit
   86e25f1, with deterministic regression and two native nine-phase runs. It is not yet
   merged or independently verified in Cloud. The user resumed the Windows lead for bounded
-  integration; no idle QA is requested.
+  integration; no idle QA is requested. It reports automatic utility-process integration,
+  Windows web/Electron builds and ACL/cookie checks. It reports private CA + leaf
+  chain readiness and the native window opening with exact leaf pinning and no OS
+  trust installation. On merged 9b2394c, native first-account setup, Start Day, Task
+  creation, scheduling and Focus pause work. Its DACL-only fix now passes all nine
+  DPAPI/cookie phases and the native offline full-day/restart/logout workflow. The
+  shared-suite serial rerun and replacement offline NSIS acceptance remain pending.
+
+Local confirmed the current Start shortcut is Life OS QA.lnk →
+work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA app. It is not the
+new offline bundle. Cloud has built no newer Windows installer or changed install
+paths. Local is building an isolated unsigned offline QA NSIS; no usable replacement
+installation is claimed yet. A concurrent Windows shared-suite run hit PGlite timeouts
+while 104 other tests passed; Local will rerun serially without weakening assertions.
+
+The first offline QA payload was rejected before installation: dependencies were
+omitted by builder filtering and a Next junction still targeted the build workspace.
+Local is materializing the traced dependency graph into portable staging. Native
+workflow success so far does not establish that installer independence. Windows shared
+tests still have an encrypted-backup timeout and a recovery child failure; do not
+attribute both to concurrency without diagnosis. The recovery test's raw Windows
+loader path is corrected to a file URL in Cloud and independently confirmed as the
+loader cause by Local; assertions are unchanged and native rerun remains necessary.
+Cloud default tests: 108 passed/eight skipped; typecheck/lint and web/Electron builds pass.
+Local reports a staged dependency payload with 29 exact packages, 2,054 files/about
+50 MB, five native bindings and zero junctions; rebuilt installed acceptance remains
+pending. The Windows backup timeout is still unresolved.
+
+Local now reports the rebuilt QA payload matches that portable staging. Expanded native
+capture → Task testing needs an assertion correction: the created Task persists while
+processed captures leave the active Inbox. A quit/cleanup stall exposed during that
+failed test is under native beforeunload/shutdown investigation; its cause and fix remain
+unverified. Cloud's loader correction is pushed as **014657f** for the next safe native
+rerun. No installed/disconnected release acceptance is claimed.
 
 ## Remaining Phase 1 release work
 
-- Electron integration of the implemented standalone backend, automatic start/readiness/
-  stop, native crash-recovery verification and first-account capability injection.
+- Resolve the native quit/cleanup stall and validate the materialized portable payload, then finish
+  replacement offline NSIS install/shortcut acceptance and the Windows shared-test rerun, then review/merge the separate native integration. Report install/reboot/crash
+  recovery separately from the now-passing native full-day/restart/logout workflow.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
   directory ACLs, encrypted session restoration and packaged dependency/assets tracing.
 - Native backup menu/picker, atomic ciphertext storage, separate recoverable key export/import

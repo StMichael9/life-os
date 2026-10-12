@@ -71,7 +71,12 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
         // Keep TLS private keys only in the parent/child's fixture memory, never argv/logs.
         const privateKey = await readFile(join(folder, 'key.pem'), 'utf8');
         let setupCapability = '';
-        async function launch(stopBeforeReady = false, localDirectory = directory) {
+        async function launch(
+          stopBeforeReady = false,
+          localDirectory = directory,
+          missingResources = false,
+        ) {
+          let observedSafeFailure = false;
           setupCapability = randomBytes(32).toString('base64url');
           child = fork(join(root, 'apps/web/.next/standalone/apps/web/desktop-server.mjs'), [], {
             stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
@@ -85,7 +90,14 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
             );
             running.on(
               'message',
-              (message: { type?: string; origin?: string; version?: number }) => {
+              (message: {
+                type?: string;
+                origin?: string;
+                version?: number;
+                phase?: string;
+                code?: string;
+                stage?: string;
+              }) => {
                 if (message.type === 'ready' && message.version === 1 && message.origin) {
                   if (stopBeforeReady) {
                     reject(new Error('Canceled startup must not load a window.'));
@@ -95,6 +107,36 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
                   clearTimeout(timer);
                   accept();
                 } else if (message.type === 'error') {
+                  if (missingResources) {
+                    const encoded = JSON.stringify(message);
+                    const diagnosticFields = new Set([
+                      'type',
+                      'version',
+                      'stage',
+                      'phase',
+                      'code',
+                      'category',
+                    ]);
+                    if (
+                      message.stage !== 'startup' ||
+                      message.phase !== 'dependencies' ||
+                      message.code !== 'ENOENT' ||
+                      !Object.keys(message).every((field) => diagnosticFields.has(field)) ||
+                      encoded.includes(secret) ||
+                      encoded.includes('PRIVATE KEY') ||
+                      encoded.includes(JSON.stringify(privateKey).slice(1, -1)) ||
+                      encoded.includes(JSON.stringify(directory).slice(1, -1))
+                    ) {
+                      reject(
+                        new Error(
+                          'Startup diagnostics must be bounded and contain no private configuration.',
+                        ),
+                      );
+                      return;
+                    }
+                    observedSafeFailure = true;
+                    return;
+                  }
                   clearTimeout(timer);
                   reject(new Error('Offline runtime startup failed.'));
                 }
@@ -102,7 +144,10 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
             );
             running.once('exit', (code) => {
               clearTimeout(timer);
-              if (stopBeforeReady && code === 0) {
+              if (
+                (stopBeforeReady && code === 0) ||
+                (missingResources && observedSafeFailure && code === 1)
+              ) {
                 child = undefined;
                 accept();
                 return;
@@ -112,7 +157,9 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
             running.send({
               type: 'configure',
               version: 1,
-              webRoot: join(root, 'apps/web/.next/standalone/apps/web'),
+              webRoot: missingResources
+                ? join(folder, 'missing-resources')
+                : join(root, 'apps/web/.next/standalone/apps/web'),
               dataDirectory: localDirectory,
               migrationsDirectory: migrationsFolder,
               authSecret: secret,
@@ -439,6 +486,7 @@ describe.skipIf(process.env.LIFE_OS_DESKTOP_RUNTIME_TEST !== 'true')(
         await launch(true);
         const afterCanceledStartup = await createEmbeddedDatabase(directory, { migrationsFolder });
         await afterCanceledStartup.close();
+        await launch(false, directory, true);
         await launch(false, join(folder, 'first-workspace'));
         const first = new Browser();
         const firstPage = await first.request('/login');

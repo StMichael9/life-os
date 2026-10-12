@@ -1,5 +1,6 @@
 import { setTimeout, clearTimeout } from 'node:timers';
-import { createServer, get } from 'node:https';
+import { createServer, get, Agent } from 'node:https';
+import { checkServerIdentity } from 'node:tls';
 import { X509Certificate, createPrivateKey } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
@@ -29,7 +30,9 @@ let configured = false,
   accepting = false,
   ready = false,
   activeRequests = 0,
-  shutdownStage = 'startup';
+  shutdownStage = 'startup',
+  startupPhase = 'configuration',
+  initializationStatus;
 const drainWaiters = new Set();
 
 async function stop(exitCode = 0) {
@@ -72,6 +75,7 @@ async function start(config) {
     (config.port !== 0 && (config.port < 1024 || config.port > 65535))
   )
     throw new Error('Invalid private desktop configuration.');
+  startupPhase = 'tls';
   const certificate = new X509Certificate(config.certificate);
   if (
     !certificate.checkIP('127.0.0.1') ||
@@ -94,6 +98,7 @@ async function start(config) {
   process.env.LIFE_OS_DESKTOP_MIGRATIONS_DIR = config.migrationsDirectory;
   process.env.AUTH_SECRET = config.authSecret;
   process.env.LIFE_OS_DESKTOP_SETUP_SECRET = config.setupSecret;
+  startupPhase = 'dependencies';
   const require = createRequire(join(config.webRoot, 'server.js'));
   const nextConfig = JSON.parse(
     await readFile(join(config.webRoot, '.next/required-server-files.json'), 'utf8'),
@@ -101,6 +106,7 @@ async function start(config) {
   process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);
   const next = require('next');
   app = next({ dev: false, dir: config.webRoot, conf: nextConfig });
+  startupPhase = 'prepare';
   await app.prepare();
   const handle = app.getRequestHandler();
   let origin = '';
@@ -139,6 +145,7 @@ async function start(config) {
   );
   server.headersTimeout = 10000;
   server.requestTimeout = 15000;
+  startupPhase = 'listen';
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(config.port, '127.0.0.1', resolve);
@@ -146,17 +153,40 @@ async function start(config) {
   origin = 'https://127.0.0.1:' + server.address().port;
   process.env.APP_ORIGIN = origin;
   accepting = true;
+  startupPhase = 'initialize';
   // Initialize migrations/services before main loads the renderer. Trust only this cert.
-  await new Promise((resolve, reject) => {
-    const request = get(origin + '/api/auth/csrf', { ca: config.certificate }, (response) => {
-      response.resume();
-      response.on('end', () =>
-        response.statusCode === 200 ? resolve() : reject(new Error('Local initialization failed.')),
-      );
-    });
-    request.setTimeout(30000, () => request.destroy(new Error('Local initialization timed out.')));
-    request.on('error', reject);
+  // A dedicated direct agent never inherits the global proxy agent. Keep normal chain
+  // and IP verification AND require this exact assigned certificate identity.
+  const readinessAgent = new Agent({
+    ca: config.certificate,
+    keepAlive: false,
+    maxCachedSessions: 0,
+    checkServerIdentity(hostname, peer) {
+      const error = checkServerIdentity(hostname, peer);
+      if (error) return error;
+      if (peer.fingerprint256 !== certificate.fingerprint256)
+        return new Error('The private backend TLS identity differs from the assigned certificate.');
+    },
   });
+  try {
+    await new Promise((resolve, reject) => {
+      const request = get(origin + '/api/auth/csrf', { agent: readinessAgent }, (response) => {
+        initializationStatus = response.statusCode;
+        response.resume();
+        response.on('end', () =>
+          response.statusCode === 200
+            ? resolve()
+            : reject(new Error('Local initialization failed.')),
+        );
+      });
+      request.setTimeout(30000, () =>
+        request.destroy(new Error('Local initialization timed out.')),
+      );
+      request.on('error', reject);
+    });
+  } finally {
+    readinessAgent.destroy();
+  }
   if (stopping) return;
   ready = true;
   send({
@@ -226,8 +256,45 @@ receive((message) => {
   if (!configured && !stopping && message?.type === 'configure') {
     configured = true;
     starting = start(message);
-    void starting.catch(async () => {
-      send({ type: 'error', version: 1, stage: 'startup' });
+    void starting.catch(async (error) => {
+      const knownCodes = new Set([
+        'EACCES',
+        'EPERM',
+        'ENOENT',
+        'EADDRINUSE',
+        'ECONNREFUSED',
+        'ECONNRESET',
+        'ETIMEDOUT',
+        'MODULE_NOT_FOUND',
+        'ERR_MODULE_NOT_FOUND',
+        'ERR_DLOPEN_FAILED',
+        'ERR_REQUIRE_ESM',
+        'ERR_REQUIRE_ASYNC_MODULE',
+        'ERR_UNKNOWN_FILE_EXTENSION',
+        'ERR_UNSUPPORTED_ESM_URL_SCHEME',
+        'ERR_PACKAGE_PATH_NOT_EXPORTED',
+        'ERR_INVALID_ARG_TYPE',
+        'ERR_INVALID_ARG_VALUE',
+        'ERR_INVALID_STATE',
+        'ERR_TLS_CERT_ALTNAME_INVALID',
+        'CERT_HAS_EXPIRED',
+        'DEPTH_ZERO_SELF_SIGNED_CERT',
+        'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+        'SELF_SIGNED_CERT_IN_CHAIN',
+        'CERT_NOT_YET_VALID',
+      ]);
+      send({
+        type: 'error',
+        version: 1,
+        stage: 'startup',
+        phase: startupPhase,
+        code: knownCodes.has(error?.code) ? error.code : 'STARTUP_FAILED',
+        category: error?.name === 'TypeError' ? 'TypeError' : 'Error',
+        ...(startupPhase === 'initialize' && Number.isInteger(initializationStatus)
+          ? { httpStatus: initializationStatus }
+          : {}),
+      });
       // Never print TLS keys, filesystem contents, credentials or raw framework errors.
       try {
         await stop(1);

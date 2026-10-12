@@ -329,17 +329,19 @@ packaged-backend test passed real loopback TLS, authenticated SSR, a complete da
 workflow, owner isolation, retry-safe capture, shutdown/restart durability and logout
 replay, encrypted IPC backup/candidate restore, fresh login and startup cancellation. The forced-process-stop
 recovery test preserves committed data; wrong keys/tampering/migration mismatch/live
-leases are rejected. Browser E2E passed 48 before the service-registry correction;
-its rerun passed 47, with one desktop intercepted account-switch case timing out.
-The mobile equivalent passed; a focused rerun is underway. Do not mark that gate
-clean until its result is recorded.
+leases are rejected. Final browser E2E: **48 passed**, desktop/mobile and axe. The
+account-switch fixture now changes the session at the actual capture submission,
+retaining Alice's owner stamp with Bob's valid session/CSRF pair. Its earlier broad
+CSRF interception timed out intermittently; six focused runs and the full suite
+pass after this fixture correction. The ownership/rejection assertions are retained.
 The real PostgreSQL 17 domain suites also pass: 62 tests. Typecheck, lint, production
 web/Electron builds, frozen lockfile/peer checks and dependency audits passed. No new
 migration was added. CI checks are prepared; its remote run is not claimed.
 
-**Partial / unverified:** Electron does not yet start this backend; native utilityProcess,
-pinned certificate/key persistence, setup capability injection, Windows ACLs and offline
-NSIS installation must be integrated and tested locally. Guarded recovery and encrypted
+**Partial / unverified:** the Cloud work branch has not merged the separate Windows
+Electron integration. Local reports its DACL fix, nine DPAPI/cookie phases and the
+native offline full-day/restart/logout workflow passing. The replacement offline NSIS
+installation and its shared-suite serial rerun are still pending. Guarded recovery and encrypted
 embedded backup/candidate restore components now pass
 Cloud tests, but native key export/import, archive picker/writing and restore cutover
 remain unimplemented. Live database files rely on private OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
@@ -354,14 +356,94 @@ checkpoint 605d779 and exact selfsigned 5.5.0 dependency checkpoint 191755f are 
 the private entry/protocol is in offline-desktop.md. Do not continuously poll it or
 resume further work without a concrete native need.
 
+Windows reports that its private per-installation CA + loopback serverAuth leaf
+chain fixes utility/BoringSSL readiness and opens the actual native window. CA private
+key is discarded; only protected leaf key/chain persist, exact leaf fingerprint is
+pinned, and nothing is installed in Windows trust. This is Local evidence, not Cloud
+native verification. Local has now merged **9b2394c** and reports first-account setup,
+Start Day, Task creation, scheduling and Focus pause working through the bundled
+utility backend. Its subsequent DACL-only fix and native full-day/restart/logout
+workflow now pass as reported below. No shared backend source or production was changed.
+Installed offline acceptance and review/merge remain pending. **84f3ebb** additionally provides bounded diagnostics and
+the direct pinned readiness agent; verify the exact merged build in the final report.
+Cloud also added bounded startup phase/allowlisted code diagnostics and a direct,
+chain/IP/fingerprint-verified readiness agent. No TLS bypass or raw-error logging.
+
+**Confirmed Start-menu target — 2026-10-12:** Local verified Life OS QA.lnk points
+to work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA installation.
+It is distinct from the new bundled offline app. Cloud has produced no newer Windows
+installer or changed install paths. Do not restart a test server or resume Vercel as
+the solution. Preserve existing data and verify the replacement offline NSIS shortcut/
+executable before claiming the user's installed application works.
+
+**Local native results (reported, not independently verified in Cloud):** the DACL-only
+DirectoryInfo fix avoids SeSecurityPrivilege/SACL mutation. All nine DPAPI/cookie
+process phases now protect the directory each process and pass. The native offline
+workflow passes in about 1.2 minutes: first-account setup → Start Day/Task/schedule →
+Focus pause → quit → signed-in data restart → Focus finish/capture/Close Day → logout →
+relaunch. An isolated unsigned offline QA NSIS build is next; installed acceptance,
+upgrade/uninstall, native backup controls/key recovery/cutover remain pending.
+
+Local's root test run overlapped typecheck/lint/native work and encountered PGlite
+setup-hook and backup/persistence/recovery timeouts; 104 other tests passed. Local
+will rerun without that concurrent workload before calling its shared-test gate clean.
+No shared assertions/timeouts are weakened, and no shared backend/production changes
+were reported. Cloud has not edited the Windows checkout or integration source.
+
+**Windows packaging blocker — 2026-10-12:** Local found an absolute junction from
+Next standalone/apps/web/node_modules/next into the original workspace, with other
+traced aliases potentially affected. electron-builder's resource filter also excluded
+root node_modules, so the first QA payload omitted dependencies and retained the
+workspace link. That payload was not accepted or installed. Native development-bundle
+workflow success does not prove a portable installer works without its build workspace.
+
+Local owns desktop preparation that materializes only the traced package files and
+required dependency graph into portable staging before builder. Final resources must
+have no junction/symlink reliance on the workspace, no environment files (including
+case variants on Windows), and all SQL/static/WASM/native dependencies. Validate a
+copied/installed payload outside the build workspace with inherited module paths
+removed and disconnected use. Preserve existing data; do not alter shared Next/server
+security to compensate for omitted files. Cloud has not changed Windows packaging.
+
+**Windows shared-test status:** the latest report lists 108 passed/eight skipped,
+but the encrypted backup still times out at 30 seconds and the recovery child exits
+before its write commits. These remain failures; concurrency alone is not a verified
+explanation. Investigate them in isolation without weakening assertions. Cloud found
+the recovery fixture passed a raw absolute path to Node --import: Windows drive paths
+are interpreted as an unsupported c: URL scheme. It now uses pathToFileURL for the
+resolved TSX loader; Cloud's real killed-process test passes, but Windows must rerun.
+Local independently confirmed the same loader failure with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+The file-URL change preserves every assertion; Cloud's full default suite (108 passed,
+eight guarded skips), typecheck/lint and web/Electron builds pass after it. Windows
+verification still requires fetching this change and rerunning the fixture.
+This change affects the test harness, not the installed backend or database data.
+
+Local now reports portable staging with 29 exact traced packages, nested peer/dependency
+aliases preserving multiple versions, 2,054 files/about 50 MB, five native bindings and
+zero junctions. These are staging observations, not installer acceptance. Its Windows-
+owned preparation/packaging source remains isolated in apps/desktop; the rebuilt QA
+installer and workspace-independent installed workflow still need verification.
+
+**Latest native acceptance report — 2026-10-12:** Local reports the rebuilt QA
+payload matches its portable staging, with zero junctions and five native bindings.
+Installed/disconnected acceptance is still pending. Its expanded capture → Task test
+incorrectly expected a processed item to remain in the active Inbox; existing behavior
+filters processed captures. The correct checks are the preserved Task and empty active
+Inbox, without changing product behavior. That failed assertion also exposed stalled
+quit/cleanup on this route; Local is investigating beforeunload/shutdown while preserving
+data. The cause and fix are unverified. Fetch pushed Cloud fixture correction **014657f**
+after the current native run stops safely, then rerun recovery and diagnose the remaining
+backup timeout. Desktop lifecycle/packaging files remain Local-owned.
+
 Earlier hosted coordination sections are historical and superseded. Staging operator/
 backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),
 production remains empty, and no personal account or backup location was fabricated.
 
 ## Exact next recommended task
 
-**Finish the offline Phase 1 release: integrate the private standalone backend into
-Electron using offline-desktop.md, connect its tested recovery/backup protocol to
+**Resolve the native quit/cleanup stall, complete the isolated unsigned offline NSIS install/shortcut/disconnected acceptance
+and serial Windows shared-test rerun, then review/merge the native checkpoint. Finish
+the offline Phase 1 release using offline-desktop.md, connect its tested recovery/backup protocol to
 native key storage/archive selection/guarded cutover, then perform a bounded Windows
 disconnected install/full-day/restart/
 security/recovery acceptance run. After those gates pass, begin Phase 2 with Skills →
