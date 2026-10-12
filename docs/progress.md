@@ -339,9 +339,9 @@ web/Electron builds, frozen lockfile/peer checks and dependency audits passed. N
 migration was added. CI checks are prepared; its remote run is not claimed.
 
 **Partial / unverified:** the Cloud work branch has not merged the separate Windows
-Electron integration. Local now reports native startup and first-account use, but
-second-launch ACL reapplication fails before backend start. Relaunch/session durability,
-full disconnected workflows and offline NSIS installation remain unverified. Guarded recovery and encrypted
+Electron integration. Local reports its DACL fix, nine DPAPI/cookie phases and the
+native offline full-day/restart/logout workflow passing. The replacement offline NSIS
+installation and its shared-suite serial rerun are still pending. Guarded recovery and encrypted
 embedded backup/candidate restore components now pass
 Cloud tests, but native key export/import, archive picker/writing and restore cutover
 remain unimplemented. Live database files rely on private OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
@@ -362,27 +362,33 @@ key is discarded; only protected leaf key/chain persist, exact leaf fingerprint 
 pinned, and nothing is installed in Windows trust. This is Local evidence, not Cloud
 native verification. Local has now merged **9b2394c** and reports first-account setup,
 Start Day, Task creation, scheduling and Focus pause working through the bundled
-utility backend. Second launch is blocked by Windows private-directory ACL
-reapplication before backend start; Local owns that investigation. No shared backend
-source or production was changed. Full-day, restart and installed disconnected
-acceptance remain pending. **84f3ebb** additionally provides bounded diagnostics and
+utility backend. Its subsequent DACL-only fix and native full-day/restart/logout
+workflow now pass as reported below. No shared backend source or production was changed.
+Installed offline acceptance and review/merge remain pending. **84f3ebb** additionally provides bounded diagnostics and
 the direct pinned readiness agent; verify the exact merged build in the final report.
 Cloud also added bounded startup phase/allowlisted code diagnostics and a direct,
 chain/IP/fingerprint-verified readiness agent. No TLS bypass or raw-error logging.
 
-**Start-menu launch report — 2026-10-12:** the user reports Electron opens and
-then says the workspace cannot be reached. Local suspects the existing shortcut
-belongs to the earlier hosted-shell Life OS QA installer and is verifying its exact
-target; this is not yet confirmed. That shell is distinct from the new bundled offline
-app. Cloud has produced no newer Windows installer or changed install paths. Do not
-restart a test server or resume Vercel as the solution for the offline requirement.
-Local must verify the shortcut/executable identity, preserve any existing user data,
-and complete replacement offline NSIS acceptance before claiming a usable installer.
+**Confirmed Start-menu target — 2026-10-12:** Local verified Life OS QA.lnk points
+to work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA installation.
+It is distinct from the new bundled offline app. Cloud has produced no newer Windows
+installer or changed install paths. Do not restart a test server or resume Vercel as
+the solution. Preserve existing data and verify the replacement offline NSIS shortcut/
+executable before claiming the user's installed application works.
 
-Local identified the repeat-launch ACL error: Set-Acl requested SeSecurityPrivilege
-when reapplying protection. It is testing a DirectoryInfo fix that modifies only DACL,
-preserving private access instead of requiring broader privileges. Native repeated
-launch results are pending; Cloud has not edited the Windows source or its checkout.
+**Local native results (reported, not independently verified in Cloud):** the DACL-only
+DirectoryInfo fix avoids SeSecurityPrivilege/SACL mutation. All nine DPAPI/cookie
+process phases now protect the directory each process and pass. The native offline
+workflow passes in about 1.2 minutes: first-account setup → Start Day/Task/schedule →
+Focus pause → quit → signed-in data restart → Focus finish/capture/Close Day → logout →
+relaunch. An isolated unsigned offline QA NSIS build is next; installed acceptance,
+upgrade/uninstall, native backup controls/key recovery/cutover remain pending.
+
+Local's root test run overlapped typecheck/lint/native work and encountered PGlite
+setup-hook and backup/persistence/recovery timeouts; 104 other tests passed. Local
+will rerun without that concurrent workload before calling its shared-test gate clean.
+No shared assertions/timeouts are weakened, and no shared backend/production changes
+were reported. Cloud has not edited the Windows checkout or integration source.
 
 Earlier hosted coordination sections are historical and superseded. Staging operator/
 backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),
@@ -390,8 +396,8 @@ production remains empty, and no personal account or backup location was fabrica
 
 ## Exact next recommended task
 
-**Fix and verify repeat-launch private-directory ACL handling in the Windows
-integration, preserving data, protected identity and renderer security. Then finish
+**Complete the isolated unsigned offline NSIS install/shortcut/disconnected acceptance
+and serial Windows shared-test rerun, then review/merge the native checkpoint. Finish
 the offline Phase 1 release using offline-desktop.md, connect its tested recovery/backup protocol to
 native key storage/archive selection/guarded cutover, then perform a bounded Windows
 disconnected install/full-day/restart/

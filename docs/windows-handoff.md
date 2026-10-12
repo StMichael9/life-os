@@ -72,9 +72,9 @@ non-secret metadata/status. Cloud Node TLS success is not Windows utility verifi
 
 **Latest Local report — 2026-10-12:** on merged work 9b2394c, native first-account
 setup, Start Day, Task creation, scheduling and Focus pause work through the bundled
-utility backend. Second launch currently fails in Windows private-directory ACL
-reapplication before backend start. Local owns the fix; Cloud will not edit those
-integration files or change the shared backend to work around native permissions.
+utility backend. The subsequent DACL-only fix and full-day/restart/logout workflow
+now pass, as reported below. Local owns packaging/native tests; Cloud will not edit
+those integration files or change shared security to work around native permissions.
 Keep ACLs private and preserve existing data/identity; verify repeated starts and
 files created by the backend. Then finish the disconnected full-day/restart/installer
 checks and checkpoint. No production or shared-source changes were reported.
@@ -82,19 +82,26 @@ Cloud tip 84f3ebb includes the requested bounded startup diagnostics/direct pinn
 readiness agent; include its exact tested status in the native handoff. These are Local
 reported results, not independently verified Windows behavior in Cloud.
 
-**Start-menu launch report — 2026-10-12:** the user reports Electron opens and
-then says the workspace cannot be reached. Local suspects the existing shortcut
-belongs to the earlier hosted-shell Life OS QA installer and is verifying its exact
-target; this is not yet confirmed. That shell is distinct from the new bundled offline
-app. Cloud has produced no newer Windows installer or changed install paths. Do not
-restart a test server or resume Vercel as the solution for the offline requirement.
-Local must verify the shortcut/executable identity, preserve any existing user data,
-and complete replacement offline NSIS acceptance before claiming a usable installer.
+**Confirmed Start-menu target — 2026-10-12:** Local verified Life OS QA.lnk points
+to work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA installation.
+It is distinct from the new bundled offline app. Cloud has produced no newer Windows
+installer or changed install paths. Do not restart a test server or resume Vercel as
+the solution. Preserve existing data and verify the replacement offline NSIS shortcut/
+executable before claiming the user's installed application works.
 
-Local identified the repeat-launch ACL error: Set-Acl requested SeSecurityPrivilege
-when reapplying protection. It is testing a DirectoryInfo fix that modifies only DACL,
-preserving private access instead of requiring broader privileges. Native repeated
-launch results are pending; Cloud has not edited the Windows source or its checkout.
+**Local native results (reported, not independently verified in Cloud):** the DACL-only
+DirectoryInfo fix avoids SeSecurityPrivilege/SACL mutation. All nine DPAPI/cookie
+process phases now protect the directory each process and pass. The native offline
+workflow passes in about 1.2 minutes: first-account setup → Start Day/Task/schedule →
+Focus pause → quit → signed-in data restart → Focus finish/capture/Close Day → logout →
+relaunch. An isolated unsigned offline QA NSIS build is next; installed acceptance,
+upgrade/uninstall, native backup controls/key recovery/cutover remain pending.
+
+Local's root test run overlapped typecheck/lint/native work and encountered PGlite
+setup-hook and backup/persistence/recovery timeouts; 104 other tests passed. Local
+will rerun without that concurrent workload before calling its shared-test gate clean.
+No shared assertions/timeouts are weakened, and no shared backend/production changes
+were reported. Cloud has not edited the Windows checkout or integration source.
 
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,

@@ -5,9 +5,10 @@
 Hosted production deployment is postponed at the user's instruction. Vercel/Neon are
 not required to use the offline release. The Cloud work branch has not yet merged
 the separate Windows integration. Local reports native first-account setup, Start Day,
-Task creation, scheduling and Focus pause on merged 9b2394c, but second launch fails
-in private-directory ACL reapplication before backend start. An accepted offline
-installer is not yet ready; Local owns that fix and repeat-launch verification.
+Task creation, scheduling and Focus pause on merged 9b2394c; its DACL-only fix now
+passes the native offline full-day/restart/logout workflow and nine DPAPI/cookie phases.
+An accepted offline installer is not yet ready; Local is building the isolated unsigned
+QA NSIS and rerunning its shared tests without concurrent workload.
 Use offline-desktop.md for the exact utility-process protocol, resource layout, key/
 origin/session constraints and test evidence. Phase 1/2 completion is tracked in
 completion-report.md. The Windows lead is resumed for one bounded integration, with no idle QA.
@@ -23,19 +24,26 @@ backup implementation. Hosted resource instructions remain reference material fo
 
 ## Existing shortcut versus offline installer
 
-**Start-menu launch report — 2026-10-12:** the user reports Electron opens and
-then says the workspace cannot be reached. Local suspects the existing shortcut
-belongs to the earlier hosted-shell Life OS QA installer and is verifying its exact
-target; this is not yet confirmed. That shell is distinct from the new bundled offline
-app. Cloud has produced no newer Windows installer or changed install paths. Do not
-restart a test server or resume Vercel as the solution for the offline requirement.
-Local must verify the shortcut/executable identity, preserve any existing user data,
-and complete replacement offline NSIS acceptance before claiming a usable installer.
+**Confirmed Start-menu target — 2026-10-12:** Local verified Life OS QA.lnk points
+to work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA installation.
+It is distinct from the new bundled offline app. Cloud has produced no newer Windows
+installer or changed install paths. Do not restart a test server or resume Vercel as
+the solution. Preserve existing data and verify the replacement offline NSIS shortcut/
+executable before claiming the user's installed application works.
 
-Local identified the repeat-launch ACL error: Set-Acl requested SeSecurityPrivilege
-when reapplying protection. It is testing a DirectoryInfo fix that modifies only DACL,
-preserving private access instead of requiring broader privileges. Native repeated
-launch results are pending; Cloud has not edited the Windows source or its checkout.
+**Local native results (reported, not independently verified in Cloud):** the DACL-only
+DirectoryInfo fix avoids SeSecurityPrivilege/SACL mutation. All nine DPAPI/cookie
+process phases now protect the directory each process and pass. The native offline
+workflow passes in about 1.2 minutes: first-account setup → Start Day/Task/schedule →
+Focus pause → quit → signed-in data restart → Focus finish/capture/Close Day → logout →
+relaunch. An isolated unsigned offline QA NSIS build is next; installed acceptance,
+upgrade/uninstall, native backup controls/key recovery/cutover remain pending.
+
+Local's root test run overlapped typecheck/lint/native work and encountered PGlite
+setup-hook and backup/persistence/recovery timeouts; 104 other tests passed. Local
+will rerun without that concurrent workload before calling its shared-test gate clean.
+No shared assertions/timeouts are weakened, and no shared backend/production changes
+were reported. Cloud has not edited the Windows checkout or integration source.
 
 ## Current state
 

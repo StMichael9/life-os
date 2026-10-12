@@ -43,21 +43,22 @@ request after that pause; hosted acceptance remains paused.
   Windows web/Electron builds and ACL/cookie checks. It reports private CA + leaf
   chain readiness and the native window opening with exact leaf pinning and no OS
   trust installation. On merged 9b2394c, native first-account setup, Start Day, Task
-  creation, scheduling and Focus pause work. Second launch fails in private-directory
-  ACL reapplication before backend start; Local is investigating. Restart, full-day
-  and installed disconnected acceptance remain pending.
+  creation, scheduling and Focus pause work. Its DACL-only fix now passes all nine
+  DPAPI/cookie phases and the native offline full-day/restart/logout workflow. The
+  shared-suite serial rerun and replacement offline NSIS acceptance remain pending.
 
-The user's current Start-menu launch reports an unreachable workspace. Local is
-verifying whether that shortcut is the older hosted-shell QA installer; do not confuse
-it with the new offline bundle or claim the cause is confirmed. Cloud has not built a
-newer Windows installer or changed install paths. Local's DACL-only repeat-launch fix
-is under native test. Replacement offline NSIS acceptance remains pending.
+Local confirmed the current Start shortcut is Life OS QA.lnk →
+work/windows-qa/install/Life OS QA.exe, the older hosted-shell QA app. It is not the
+new offline bundle. Cloud has built no newer Windows installer or changed install
+paths. Local is building an isolated unsigned offline QA NSIS; no usable replacement
+installation is claimed yet. A concurrent Windows shared-suite run hit PGlite timeouts
+while 104 other tests passed; Local will rerun serially without weakening assertions.
 
 ## Remaining Phase 1 release work
 
-- Review/merge the separate Electron integration after native acceptance; fix Windows
-  second-launch ACL reapplication and verify automatic start/stop, crash recovery,
-  session restoration and persisted workflows across repeat launches.
+- Finish replacement offline NSIS install/shortcut acceptance and the Windows shared-test
+  rerun, then review/merge the separate native integration. Report install/reboot/crash
+  recovery separately from the now-passing native full-day/restart/logout workflow.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
   directory ACLs, encrypted session restoration and packaged dependency/assets tracing.
 - Native backup menu/picker, atomic ciphertext storage, separate recoverable key export/import
