@@ -54,10 +54,23 @@ paths. Local is building an isolated unsigned offline QA NSIS; no usable replace
 installation is claimed yet. A concurrent Windows shared-suite run hit PGlite timeouts
 while 104 other tests passed; Local will rerun serially without weakening assertions.
 
+The first offline QA payload was rejected before installation: dependencies were
+omitted by builder filtering and a Next junction still targeted the build workspace.
+Local is materializing the traced dependency graph into portable staging. Native
+workflow success so far does not establish that installer independence. Windows shared
+tests still have an encrypted-backup timeout and a recovery child failure; do not
+attribute both to concurrency without diagnosis. The recovery test's raw Windows
+loader path is corrected to a file URL in Cloud and independently confirmed as the
+loader cause by Local; assertions are unchanged and native rerun remains necessary.
+Cloud default tests: 108 passed/eight skipped; typecheck/lint and web/Electron builds pass.
+Local reports a staged dependency payload with 29 exact packages, 2,054 files/about
+50 MB, five native bindings and zero junctions; rebuilt installed acceptance remains
+pending. The Windows backup timeout is still unresolved.
+
 ## Remaining Phase 1 release work
 
-- Finish replacement offline NSIS install/shortcut acceptance and the Windows shared-test
-  rerun, then review/merge the separate native integration. Report install/reboot/crash
+- Fix portable dependency materialization and validate the isolated payload, then finish
+  replacement offline NSIS install/shortcut acceptance and the Windows shared-test rerun, then review/merge the separate native integration. Report install/reboot/crash
   recovery separately from the now-passing native full-day/restart/logout workflow.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
   directory ACLs, encrypted session restoration and packaged dependency/assets tracing.

@@ -103,6 +103,40 @@ will rerun without that concurrent workload before calling its shared-test gate 
 No shared assertions/timeouts are weakened, and no shared backend/production changes
 were reported. Cloud has not edited the Windows checkout or integration source.
 
+**Windows packaging blocker — 2026-10-12:** Local found an absolute junction from
+Next standalone/apps/web/node_modules/next into the original workspace, with other
+traced aliases potentially affected. electron-builder's resource filter also excluded
+root node_modules, so the first QA payload omitted dependencies and retained the
+workspace link. That payload was not accepted or installed. Native development-bundle
+workflow success does not prove a portable installer works without its build workspace.
+
+Local owns desktop preparation that materializes only the traced package files and
+required dependency graph into portable staging before builder. Final resources must
+have no junction/symlink reliance on the workspace, no environment files (including
+case variants on Windows), and all SQL/static/WASM/native dependencies. Validate a
+copied/installed payload outside the build workspace with inherited module paths
+removed and disconnected use. Preserve existing data; do not alter shared Next/server
+security to compensate for omitted files. Cloud has not changed Windows packaging.
+
+**Windows shared-test status:** the latest report lists 108 passed/eight skipped,
+but the encrypted backup still times out at 30 seconds and the recovery child exits
+before its write commits. These remain failures; concurrency alone is not a verified
+explanation. Investigate them in isolation without weakening assertions. Cloud found
+the recovery fixture passed a raw absolute path to Node --import: Windows drive paths
+are interpreted as an unsupported c: URL scheme. It now uses pathToFileURL for the
+resolved TSX loader; Cloud's real killed-process test passes, but Windows must rerun.
+Local independently confirmed the same loader failure with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+The file-URL change preserves every assertion; Cloud's full default suite (108 passed,
+eight guarded skips), typecheck/lint and web/Electron builds pass after it. Windows
+verification still requires fetching this change and rerunning the fixture.
+This change affects the test harness, not the installed backend or database data.
+
+Local now reports portable staging with 29 exact traced packages, nested peer/dependency
+aliases preserving multiple versions, 2,054 files/about 50 MB, five native bindings and
+zero junctions. These are staging observations, not installer acceptance. Its Windows-
+owned preparation/packaging source remains isolated in apps/desktop; the rebuilt QA
+installer and workspace-independent installed workflow still need verification.
+
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,
 resource packaging, native ACLs and disconnected installer/full-day/relaunch tests.

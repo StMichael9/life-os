@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createEmbeddedDatabase } from '@life-os/database/embedded';
 import { createAuthRepository } from '@life-os/database';
 import { createAuthService } from './auth';
@@ -34,7 +34,9 @@ it('refuses live/invalid leases and preserves committed data after a real killed
     child = fork(join(root, 'packages/database/src/embedded-child.fixture.ts'), [], {
       execArgv: [
         '--import',
-        createRequire(join(root, 'packages/database/package.json')).resolve('tsx'),
+        // --import uses ESM URLs; a bare Windows drive path is an unsupported c: scheme.
+        pathToFileURL(createRequire(join(root, 'packages/database/package.json')).resolve('tsx'))
+          .href,
       ],
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     });

@@ -90,7 +90,14 @@ No invented user email/password, hardcoded default account or automatic public s
 Build with pnpm build. apps/web/scripts/prepare-standalone.mjs copies static/public
 assets and desktop-server.mjs into apps/web/.next/standalone/apps/web. Package the
 ENTIRE apps/web/.next/standalone tree as a read-only backend resource directory;
-copying only apps/web omits traced dependencies, WASM and SQL migrations. Build this
+copying only apps/web omits traced dependencies, WASM and SQL migrations. Windows Next
+may produce absolute junctions into its build workspace, and builder filters may omit
+root node_modules even for extraResources. Desktop preparation must materialize traced
+files/dependency aliases into portable staging, verify no junction/symlink dependency
+on the workspace, reject environment files case-insensitively, and explicitly package
+root dependencies. Acceptance must use the actual installed/copied payload outside the
+build workspace with module-path inheritance removed. A native development launch is
+not proof of a portable installer. Build this
 standalone tree on the Windows target architecture so traced Argon2 native bindings
 match Electron's bundled Node; do not package Cloud's Linux native binaries for Windows.
 
