@@ -1,5 +1,21 @@
 # Architecture
 
+## Current user priority: offline desktop first
+
+The user superseded the original online-first deployment requirement on 2026-10-12.
+Installed laptop use must work without internet or manual server startup. Hosted web
+and synchronization remain optional future work. The secure local runtime contract is
+[offline-desktop.md](offline-desktop.md); component tests are not proof of a Windows release.
+
+The embedded adapter reuses Drizzle/PgDatabase, all seven migrations, repositories,
+Argon2id/opaque authentication and ownership predicates. Private filesystem PGlite runs
+in the privileged backend, with no PostgreSQL socket and no renderer database access.
+Next standalone traces SQL/WASM/dependencies; a private utility-process-compatible entry
+binds only loopback HTTPS and drains the engine on stop. First local account setup needs
+a main-only capability, CSRF and a transactional first-account guard; hosted signup
+remains closed. Main's certificate/key/safeStorage/ACL integration and guarded crash
+recovery are still pending. Keep Windows work bounded and separate from shared code.
+
 ## Status and governing decisions
 
 Phase 0 foundation and Phase 1 daily execution are implemented.

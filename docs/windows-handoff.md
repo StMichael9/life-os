@@ -30,6 +30,29 @@ The concrete runtime/data/origin/account/backup contract is now in
 [offline-desktop.md](offline-desktop.md). Review it before integration and report any
 Windows lifecycle constraints. Cloud will not edit your session-persistence.ts or native
 fixtures while you investigate the newly reported replacement-cookie/drain race.
+**On-demand policy:** finish and push the current bounded native session fix and
+evidence, report its commit to Cloud, then stop safely. No idle polling/continuous
+QA. Cloud will request a specific local integration/test when the backend/build is ready.
+
+## Bounded integration now ready — 2026-10-12
+
+The Cloud work tip now implements the private standalone backend described in
+[offline-desktop.md](offline-desktop.md). Fetch work before integration; preserve your
+86e25f1 native session fix. Build pnpm build and package the ENTIRE
+apps/web/.next/standalone tree. The tested entry inside that resource tree is
+apps/web/desktop-server.mjs. Configure/readiness/stop messages, migration location,
+first-account header capability and trust requirements are specified in the contract.
+No new desktop dependency has been requested by Cloud; coordinate dependency changes
+rather than editing the shared lockfile concurrently.
+
+Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
+runtime/TLS identity and stable origin, narrow main-session setup capability injection,
+resource packaging, native ACLs and disconnected installer/full-day/relaunch tests.
+Report concrete failures and checkpoint, then pause. Cloud owns guarded crash recovery
+and encrypted embedded backup/restore components; do not invent an unsafe stale-lock
+reset or label backup support complete. Native snapshot selection/key recovery UI and
+packaging may need a subsequent bounded request after that protocol is committed.
+Hosted acceptance remains paused. Cloud will not alter apps/desktop or native fixtures.
 
 ---
 

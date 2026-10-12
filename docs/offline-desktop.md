@@ -10,6 +10,9 @@ superseded; the current hosted shell is not yet an offline application.
 Cloud owns packages/database, packages/api, packages/app and apps/web changes, the
 shared lockfile, and this contract. Local Windows owns apps/desktop, its packaging,
 private runtime lifecycle, native trust/session persistence and disconnected tests.
+The Windows lead works only on bounded requests: finish/checkpoint the current
+cookie shutdown-drain fix, then pause. Do not continuously poll Cloud or run idle QA.
+Cloud requests local integration/testing when a concrete backend/build is ready.
 Do not edit Local's session-persistence.ts investigation or its native fixtures from
 Cloud. Send required desktop dependency versions to Cloud before changing the shared
 lockfile. Existing Phase 1 repositories, schemas, migrations and owner/session checks
@@ -36,11 +39,16 @@ backend only after its previous process has exited; retain saved data on failure
 
 Main supplies trusted local configuration before readiness:
 
-- LIFE_OS_DESKTOP_DATA_DIR: absolute private directory under Electron userData/offline.
-  Database files use its database subdirectory; no renderer chooses this path.
+- LIFE_OS_DESKTOP_DATA_DIR: the absolute private database directory, normally
+  Electron userData/offline/database; no renderer chooses this path.
+- LIFE_OS_DESKTOP_MIGRATIONS_DIR: absolute read-only bundled migration directory;
+  copy packages/database/migrations into the packaged backend resources.
 - APP_ORIGIN: exact HTTPS loopback origin selected by main, using 127.0.0.1 only.
 - AUTH_SECRET: independent random material, persisted encrypted with safeStorage in
   main's private runtime record. Never use a compiled/shared secret or plaintext fallback.
+- LIFE_OS_DESKTOP_SETUP_SECRET: ephemeral main-only first-account capability. Inject
+  X-Life-OS-Setup only for this window's same-origin POST /api/auth/setup requests using
+  a main-session request hook. Never expose this capability through renderer props/IPC.
 - Database mode and secret are passed through private main/utility configuration;
   they are not CLI arguments or exposed to renderer code. DATABASE_URL is absent.
 
@@ -74,6 +82,58 @@ CSRF/Origin/body limits and transactional first-account guard. It is not a publi
 registration API. Once initialized, use the existing login/session/logout model.
 No invented user email/password, hardcoded default account or automatic public signup.
 
+### Implemented backend protocol (version 1)
+
+Build with pnpm build. apps/web/scripts/prepare-standalone.mjs copies static/public
+assets and desktop-server.mjs into apps/web/.next/standalone/apps/web. Package the
+ENTIRE apps/web/.next/standalone tree as a read-only backend resource directory;
+copying only apps/web omits traced dependencies, WASM and SQL migrations.
+
+Fork `<backend>/apps/web/desktop-server.mjs` with Electron utilityProcess, passing
+sensitive configuration through its private parent message channel after construction.
+The same entry supports Node fork solely for Cloud/CI tests, not an end-user dependency.
+No secrets in arguments/logs. Send one message:
+
+```text
+{ type: "configure", version: 1,
+  webRoot: <backend>/apps/web,
+  dataDirectory: <userData>/offline/database,
+  migrationsDirectory: <backend>/packages/database/migrations,
+  authSecret: <persisted protected random secret>,
+  setupSecret: <ephemeral protected main-only capability>,
+  certificate: <unique loopback certificate PEM>,
+  privateKey: <matching protected private-key PEM>,
+  port: <persisted unprivileged port, or 0 on first startup> }
+```
+
+Main must generate/validate that identity, check/renew expired certificates, protect
+runtime keys with safeStorage, and enforce Windows ACLs. Backend accepts only a matching
+127.0.0.1 TLS certificate/key and binds IPv4 loopback. It initializes services/migrations
+through an internally verified HTTPS probe BEFORE replying:
+
+```text
+{ type: "ready", version: 1, origin, certificateFingerprint256 }
+{ type: "error", version: 1, stage: "startup" }
+```
+
+Compare ready origin/fingerprint to main's assigned instance, then install narrow local
+certificate trust, header capability injection and cookie restoration before loading
+the window. Hostname/port conflicts must fail closed. First setup appears at /login only
+when the local database has no accounts; its POST requires the private main capability,
+CSRF, exact Origin, shared schema, bounded persistent attempts and a transaction lock.
+Hosted handlers do not expose setup. Concurrent attempts cannot create two first users.
+
+On quit send `{ type: "stop", version: 1 }`; await `{ type: "stopped", version: 1 }`
+AND process exit. The server drains requests and closes the embedded database before
+acknowledging. Then drain main's encrypted cookie writes. No generic eval/file/database
+messages exist. The filesystem lease refuses a second writer and currently fails closed
+after unclean process loss. Guarded crash-lease recovery is NOT implemented; coordinate
+that explicit next step rather than unlinking/resetting an arbitrary live database.
+
+Cloud tests prove the packaged standalone entry, real loopback TLS, physical engine
+restart, full-day API writes, owner isolation, first-account guard and logout replay.
+They do not verify Electron utilityProcess, native trust, safeStorage, ACLs or installation.
+
 Offline backups must not require pg_dump, WSL, Neon, POSIX tools or paid storage.
 Plan a consistent embedded snapshot exported through PGlite, encrypted with AES-256-GCM
 under a separate random key protected by main safeStorage. User-selected backup folder
@@ -95,6 +155,7 @@ renderer/navigation/certificate denials, concurrent startup, backend crash/recov
 quit during writes, backup/restore, and uninstall/upgrade data policy. Record the exact
 build/OS and distinguish Cloud component tests from real Windows evidence.
 
-Phase 1 daily-use release remains incomplete until these offline gates pass. Phase 2
-begins afterward. Hosted resources may remain paused; neither Vercel nor Neon is an
+Phase 1 daily-use release remains incomplete until these offline gates pass. The user
+requested completion of both Phase 1 and Phase 2 plus a final done/remaining report.
+Phase 2 begins afterward. Hosted resources may remain paused; neither Vercel nor Neon is an
 offline dependency. Any future synchronization requires a separate explicit design.

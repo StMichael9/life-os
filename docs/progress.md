@@ -5,7 +5,9 @@
 **Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and
 hosted production. The immediate product must be an installed laptop Electron app
 that launches its own local backend/database automatically and works without internet.
-The existing hosted shell does NOT satisfy offline use; no local backend is bundled yet.
+The existing Electron shell does NOT yet launch the implemented local backend. The
+standalone backend and embedded persistence are component-tested; native packaging
+and installed offline acceptance remain incomplete.
 Preserve the implemented Phase 1 domains/security while adding local persistence and
 packaging. This explicit user direction supersedes earlier online-first assumptions and
 the hosted acceptance assignment below. Offline daily-use acceptance is now the Phase 1
@@ -21,8 +23,8 @@ The user will create their own account and selected another existing backup loca
 no account identity/password has been provided and no backup path is invented.
 
 **Phase 0 foundation and Phase 1 — Daily Execution Core are implemented and verified
-in isolation. Protected Vercel staging is deployed; hosted daily-use acceptance and
-production release remain incomplete. Phase 2 is authorized after that gate, not started.**
+in isolation. Protected Vercel staging is retained but postponed. Installed offline daily-use
+acceptance remains incomplete. Phase 2 is authorized after that gate, not started.**
 
 Daily execution now uses real authenticated PostgreSQL records throughout. Today is
 the central hub for planning, scheduling, Focus, routines, recommendations and
@@ -310,37 +312,57 @@ After that acceptance, begin the Skills → Practice Problems → Attempts → S
 vertical slice using the planned normalized models, shared schemas and owner-scoped
 service/repository boundaries. Do not jump into Wealth/Business or paid APIs.
 
+## Offline backend checkpoint — 2026-10-12
+
+**Completed components:** filesystem-backed PGlite with private directories, exclusive
+engine lease, exact migration fingerprints and awaited close; shared repositories and
+seven migrations retained without schema drift. Next standalone includes SQL/WASM/static
+resources and a private parent-channel HTTPS entry binding only 127.0.0.1. Readiness
+initializes the database before the window may load; stop drains requests and closes it.
+Local first-account setup uses Argon2id, persistent limits, CSRF/Origin, a main-only
+capability and transactional first-user guard. Hosted registration remains closed.
+
+**Verification:** 106 default tests passed, eight explicitly guarded skips. The opt-in
+packaged-backend test passed real loopback TLS, authenticated SSR, a complete daily API
+workflow, owner isolation, retry-safe capture, shutdown/restart durability and logout
+replay. Existing browser E2E: 48 passed on disposable PostgreSQL, desktop/mobile and axe.
+Typecheck, lint, production web/Electron builds and dependency audits passed. No new
+migration was added. CI checks are prepared; its remote run is not claimed.
+
+**Partial / unverified:** Electron does not yet start this backend; native utilityProcess,
+pinned certificate/key persistence, setup capability injection, Windows ACLs and offline
+NSIS installation must be integrated and tested locally. Guarded unclean lease recovery
+and local encrypted backups are not yet implemented. Live database files rely on private
+OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
+release or Phase 2 completion is claimed. See completion-report.md and offline-desktop.md.
+
+The Windows lead is paused at pushed **86e25f1** on windows/desktop-first-qa, based on
+d4920db, with a clean tree. It reports a cookie notification/shutdown-drain fix,
+deterministic regression and two native nine-phase runs passing. This commit is not
+merged; Cloud has not edited its checkout, session-persistence.ts or native fixtures.
+Do not automatically resume or continuously poll it. Request a bounded native integration/
+verification only when the corresponding shared backend/build is ready.
+
+Earlier hosted coordination sections are historical and superseded. Staging operator/
+backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),
+production remains empty, and no personal account or backup location was fabricated.
+
 ## Exact next recommended task
 
-**Active coordination (2026-10-12):** the user resumed hosted acceptance and woke
-Life OS — Local Windows Development & Testing. Cloud prepared restricted staging
-operator and backup LOGIN credentials (verified secure provider retrieval and catalog
-permissions; standalone local verification pending). Migrator remains NOLOGIN.
-Production remains empty. Local owns hosted browser/Electron evidence and PG18
-encrypted recovery where WSL/POSIX is available; Cloud owns release/migrations.
-See the active assignment in windows-handoff.md. Local can send status to Cloud;
-Cloud's tools currently cannot send/resume local chats, so replies are published here
-and in the handoff. Account identity and existing free backup destination are pending
-user input. No credentials are sent between chats.
-
-**Unblock hosted acceptance by authorizing the Vercel team/project connection and using
-a trusted execution environment with hosted HTTPS and Neon TCP access. Verify the
-current staging build's full-day workflow, cookies/CSRF/rotation/logout and account
-isolation, and rehearse encrypted PG18 backup/restore. Then release the still-empty
-production branch with separate roles, controlled personal account creation and a
-working backup schedule. Once Phase 1 passes, begin the Phase 2 Skills/practice slice.**
-
-Follow [release-runbook.md](release-runbook.md). Native Windows testing remains the
-separate [Windows handoff](windows-handoff.md). Phase 2 is conditional on acceptance.
+**Finish the offline Phase 1 release: integrate the private standalone backend into
+Electron using offline-desktop.md, add guarded crash recovery and encrypted local
+backup/restore, then perform a bounded Windows disconnected install/full-day/restart/
+security/recovery acceptance run. After those gates pass, begin Phase 2 with Skills →
+Practice Problems → Attempts → Spaced Reviews, then the remaining Career/Performance
+requirements. Do not resume hosted deployment as a prerequisite for offline use.**
 
 ## Checkpoint for the next session
 
-Continue from the pushed operational-readiness commit on `work`; read this file,
-architecture/data-model/deployment and the release runbook. Phase 1 product implementation
-is complete in isolation; staging is deployed but hosted daily-use readiness is **partial**.
-Use privileged URLs only in trusted operator processes and the runtime role only in
-Vercel. A new release:runtime command checks the actual runtime login with no privileged
-credential, and vercel.json gates builds on it. The tooling/build-command checks were
-rerun in the 2026-10-12 session. Never run destructive fixtures against hosted/personal data. Complete hosted
-acceptance and production backup setup, integrate actual Local Windows evidence when
-available, then report the real URL/status. A Git push is not deployment.
+Read AGENTS, this file, architecture/data-model/deployment, offline-desktop.md and
+completion-report.md. Preserve shared auth/ownership and the renderer sandbox. Cloud
+owns backend/database/shared UI; Local owns apps/desktop/native QA, on demand. The
+standalone backend protocol and resources are implemented and tested in Cloud, while
+installed offline readiness remains partial. Do not equate Node-fork component tests
+with Electron utilityProcess, DPAPI, Windows ACL or NSIS verification. Hosted resources
+are postponed and are not offline dependencies. Keep the final done/remaining report
+current and distinguish verified, partial and unverified work.

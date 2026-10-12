@@ -1,5 +1,22 @@
 # Deployment and operations
 
+## Superseding offline-first desktop target
+
+Hosted production deployment is postponed at the user's instruction. Vercel/Neon are
+not required to use the offline release. The current Electron shell has NOT yet been
+integrated with the new local backend, so an offline installer is not yet ready.
+Use offline-desktop.md for the exact utility-process protocol, resource layout, key/
+origin/session constraints and test evidence. Phase 1/2 completion is tracked in
+completion-report.md. The Windows lead is paused and works only on bounded requests.
+
+Cloud's backend/components pass filesystem restart, owner/auth/CSRF and actual loopback
+HTTPS tests. Windows integration still must package the entire Next standalone tree,
+automatically launch it without external Node/PostgreSQL, protect local runtime secrets
+and directory ACLs, preserve pinned origin/navigation/certificate restrictions and
+encrypted cookies, and verify disconnected workflows/crash recovery. Local encrypted
+backup/key recovery is planned; the hosted pg_dump commands below are not an offline
+backup implementation. Hosted resource instructions remain reference material for later.
+
 ## Current state
 
 Authenticated Phase 1 daily execution works in the production build against isolated PostgreSQL.

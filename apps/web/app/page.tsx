@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Today, Execution } from '@life-os/app';
 import type { Season } from '@life-os/shared';
 import { getHandlers } from '../lib/services';
@@ -12,7 +13,9 @@ async function seasonProps(
   try {
     const origin = process.env.APP_ORIGIN;
     if (!origin) return { seasonUnavailable: true };
-    const response = await getHandlers().direction(
+    const response = await (
+      await getHandlers()
+    ).direction(
       new Request(`${origin}/api/direction/active-season`, { headers: { Cookie: cookie } }),
       ['active-season'],
     );
@@ -26,5 +29,6 @@ async function seasonProps(
 export default async function HomePage() {
   // Anonymous previews never contact private repositories. Verification stays server-side.
   const props = await seasonProps((await headers()).get('cookie') ?? '');
+  if (process.env.LIFE_OS_DESKTOP_DATA_DIR && !props.accountId) redirect('/login?next=/');
   return props.accountId ? <Execution /> : <Today {...props} />;
 }

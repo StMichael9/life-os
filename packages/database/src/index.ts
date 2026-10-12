@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 
 /** Server-only factory: deliberately no connection on import or during builds. */
 export function createDatabase(connectionString: string) {
@@ -14,6 +15,7 @@ export function createDatabase(connectionString: string) {
   return { db: drizzle(pool, { schema }), close: () => pool.end() };
 }
 export type Database = ReturnType<typeof createDatabase>['db'];
+export type RepositoryDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 export * as schema from './schema';
 export { createInboxRepository } from './inbox';
 export { createAuthRepository, type AuthRepository } from './auth';

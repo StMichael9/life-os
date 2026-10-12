@@ -35,6 +35,9 @@ export function validateHostedConfiguration(env: Record<string, string | undefin
     env.BACKUP_DATABASE_URL ||
     env.RESTORE_DATABASE_URL ||
     env.LIFE_OS_BACKUP_KEY_FILE ||
+    env.LIFE_OS_DESKTOP_DATA_DIR ||
+    env.LIFE_OS_DESKTOP_MIGRATIONS_DIR ||
+    env.LIFE_OS_DESKTOP_SETUP_SECRET ||
     env.NEON_API_KEY ||
     env.VERCEL_TOKEN
   )

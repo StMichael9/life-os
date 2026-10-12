@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./embedded": "./src/embedded.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {
@@ -18,14 +19,15 @@
     "restore": "tsx src/operations-cli.ts restore"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.1",
-    "pg": "^8.18.0",
+    "@electric-sql/pglite": "^0.3.16",
+    "@life-os/shared": "workspace:*",
     "@life-os/validation": "workspace:*",
-    "@life-os/shared": "workspace:*"
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.9",
     "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0"
   }
 }

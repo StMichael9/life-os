@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 async function handle(request: Request, context: { params: Promise<{ parts?: string[] }> }) {
   const { parts } = await context.params;
   try {
-    return await getHandlers().direction(request, parts);
+    return await (await getHandlers()).direction(request, parts);
   } catch {
     return unavailable();
   }
