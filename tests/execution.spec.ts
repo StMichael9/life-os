@@ -200,8 +200,36 @@ test.describe('integrated Phase 1 execution', () => {
       .fill('A distraction parked ' + test.info().project.name);
     await page.getByRole('button', { name: 'Capture', exact: true }).click();
     await expect(page.getByLabel('What’s on your mind?')).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeEnabled();
+    let release!: () => void;
+    let requested!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    await page.route('**/api/execution/today?*', async (route) => {
+      requested();
+      await held;
+      await route.continue();
+    });
     await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    try {
+      await started;
+      await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Finish Focus', exact: true })).toBeDisabled();
+      await page
+        .getByRole('button', { name: 'Finish Focus', exact: true })
+        .evaluate((element: HTMLButtonElement) => element.click());
+      await expect(form).not.toBeVisible();
+      await expect(page.getByText('Loading saved Focus state…', { exact: true })).toBeVisible();
+    } finally {
+      release();
+    }
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
+    await page.unroute('**/api/execution/today?*');
     await page.getByRole('button', { name: 'Finish Focus', exact: true }).click();
     await form.getByLabel('What did you accomplish?').fill('Built meaningful evidence');
     await form.getByRole('button', { name: 'Finish Focus', exact: true }).click();

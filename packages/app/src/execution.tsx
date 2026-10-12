@@ -18,6 +18,7 @@ export function Execution({
     [profile, setProfile] = useState<Profile | null>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
+    [focusSettling, setFocusSettling] = useState(false),
     [loading, setLoading] = useState(true);
   const [date, setDate] = useState(''),
     [loadedDate, setLoadedDate] = useState<string | null>(null),
@@ -41,11 +42,14 @@ export function Execution({
     needsReload = useRef(false);
   const currentRefresh = useRef<() => Promise<void>>(async () => {}),
     mutating = useRef(false);
+  const pendingFocus = useRef<{ id: string; version: number } | null>(null);
   function forget() {
     generation.current++;
     account.current = null;
     setData(null);
     setLoadedDate(null);
+    pendingFocus.current = null;
+    setFocusSettling(false);
     setProfile(null);
     setVault([]);
     setEditor(null);
@@ -78,6 +82,14 @@ export function Execution({
       });
       const snapshot = await requestJson<ExecutionSnapshot>('/api/execution/today?' + query);
       if (epoch !== generation.current || snapshot.ownerId !== account.current) return;
+      if (
+        pendingFocus.current &&
+        (snapshot.focus?.id !== pendingFocus.current.id ||
+          snapshot.focus.version > pendingFocus.current.version)
+      ) {
+        pendingFocus.current = null;
+        setFocusSettling(false);
+      }
       setData(snapshot);
       setLoadedDate(date);
       setClockOffset(Date.parse(snapshot.serverNow) - Date.now());
@@ -187,13 +199,23 @@ export function Execution({
     if (['plan', 'schedule', 'routine-check'].includes(command.action) && !dayReady)
       throw new Error('Wait for the selected day to load before saving.');
     if (mutating.current) throw new Error('Wait for the previous save to finish.');
+    if (command.action === 'focus-control' && pendingFocus.current)
+      throw new Error('Wait for the saved Focus state to load before changing it again.');
     mutating.current = true;
     setBusy(true);
+    if (command.action === 'focus-control') {
+      pendingFocus.current = { id: command.id, version: command.version };
+      setFocusSettling(true);
+    }
     try {
       const owner = await checkAccount();
       await postJson('/api/execution', command, 'POST', owner);
       setMessage('Saved.');
     } catch (e) {
+      if (command.action === 'focus-control') {
+        pendingFocus.current = null;
+        setFocusSettling(false);
+      }
       if (e instanceof RequestFailed && e.status === 401) forget();
       throw e;
     } finally {
@@ -773,7 +795,7 @@ export function Execution({
                 <div className="execution-actions">
                   <button
                     className="button"
-                    disabled={busy}
+                    disabled={busy || focusSettling}
                     onClick={() =>
                       void action({
                         action: 'focus-control',
@@ -790,7 +812,7 @@ export function Execution({
                   </button>
                   <button
                     className="button button-primary"
-                    disabled={busy}
+                    disabled={busy || focusSettling}
                     onClick={() => setEditor({ kind: 'focus-finish' })}
                   >
                     Finish Focus
@@ -799,6 +821,7 @@ export function Execution({
                     Focus mode
                   </a>
                 </div>
+                {focusSettling && <p role="status">Loading saved Focus state…</p>}
               </>
             ) : (
               <p className="muted">

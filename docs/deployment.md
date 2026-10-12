@@ -4,12 +4,13 @@
 
 Authenticated Phase 1 daily execution works in the production build against isolated PostgreSQL.
 Vercel Hobby project life-os and the user-selected Neon Free/PG18 project now exist.
-Neon staging received migrations/grants; its production branch remains empty. No web
-deployment, personal account, signed installer or Vercel application secret exists.
-Work is paused at the user's request. See progress for exact IDs and pending credentials. Vercel monorepo configuration, redacted
+Neon staging received migrations/grants; its production branch remains empty. Protected
+Vercel staging is READY with preview-only runtime/session secrets; no personal account,
+production release or signed installer exists. See progress for exact IDs and blockers.
+Vercel monorepo configuration, redacted
 configuration validation, separate-role SQL, migration/grant verification and encrypted
 backup/restore commands now exist. Real PG17 operations and a verified local HTTPS
-production-Next workflow are rehearsed; hosted provider behavior is still unverified.
+production-Next workflow are rehearsed; hosted workflows and PG18 restore are unverified.
 Follow [release-runbook.md](release-runbook.md) for exact setup and acceptance steps. The public Today preview remains
 separate from the authenticated daily workspace. The separate Windows chat reports native synthetic DPAPI/cookie and GUI security checks
 passing; installer and real hosted-backend verification remain incomplete.
@@ -42,8 +43,9 @@ Suggested Vercel configuration:
 1. Import the repository; use `apps/web` as project root and enable access to files
    outside that directory for the monorepo.
 2. Use Node 24 and the pinned pnpm version. Install from the workspace root with the
-   frozen lockfile; build command `pnpm --filter @life-os/web build` from the root,
-   or `pnpm build` when Vercel's current directory is `apps/web`.
+   frozen lockfile; when Vercel's current directory is `apps/web`, use the committed
+   build command `pnpm --dir ../.. release:runtime && pnpm build`. Do not bypass the
+   standalone runtime permission/TLS gate to make a deployment succeed.
 3. Set the server-only pooled `DATABASE_URL`,
    with `sslmode=verify-full` and system CA certificate/hostname validation. Set `APP_ORIGIN` to the
    exact HTTPS deployment origin (no path or trailing slash) for CSRF checks.

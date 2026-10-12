@@ -7,17 +7,29 @@ production Next build behind verified local HTTPS. This is **not a deployed URL*
 verification of Vercel, Neon, their billing eligibility, pooling or production TLS.
 Provider tools are now connected. Vercel Hobby project life-os exists; Neon Free
 project lively-surf-21544686 is PostgreSQL18 in Ohio. Staging migrations/grants are
-applied and their ledger/ownership checked; production is still empty. The release is
-paused at the user's request, with no deployment/secrets/personal account. Vercel
-automatic builds are skipped using project Ignored Build Step exit 0; remove that gate
-only when ready to resume the reviewed release. See progress
-for exact IDs, credential provisioning and pending standalone-runtime verification.
+applied and their ledger/ownership checked; production is still empty. Protected staging
+is READY with a restricted runtime password and preview-only DATABASE_URL/AUTH_SECRET/
+APP_ORIGIN. There is no personal account or accepted production release. Vercel automatic
+Git builds remain skipped using project Ignored Build Step exit 0 after an explicitly
+requested staging build. Temporarily enable builds only for a reviewed release, then
+restore the guard while production configuration/acceptance remains incomplete. See
+progress for exact deployment IDs and pending hosted workflow/recovery verification.
 
 Local CLI/API networking is blocked by this Cloud environment's enforced host policy.
 CLI 8.0.12 and local skills/OAuth MCP config exist; the verified project/branch is
 pinned in gitignored .neon. The empty neon.ts enables no optional services. neon deploy
 failed to reach the API; this is not a deployed configuration claim. Resume with the
 connected provider tools or an approved CLI/network environment without sharing secrets.
+On 2026-10-12 the user chose to document Cloud networking as blocked. Provider deployment
+creation works, but protected-fetch/build-log endpoints return 403 for the Vercel team.
+Reauthorize that connection for stmichael9s-projects/life-os, or perform acceptance from
+an already authorized trusted machine. Required destinations: hosted *.vercel.app HTTPS,
+api.neon.tech HTTPS for CLI, and the exact Neon direct/pooled hosts over PostgreSQL TCP 5432. Use the environment's supported configuration workflow; never bypass its policy.
+
+Configured staging origin: **https://life-os-git-work-stmichael9s-projects.vercel.app**.
+It is protected and currently has zero Life OS accounts; do not present it as ready for
+personal daily use. The immutable deployment alias is not the configured CSRF origin.
+Use independent controlled staging accounts for acceptance before production provisioning.
 
 Confirm personal-use eligibility and the actual free plans in both consoles before
 creating resources. Do not supply billing consent, upgrade plans, enable paid add-ons
@@ -47,8 +59,11 @@ the only backup.
    The runtime/operator/backup roles must not inherit or be members of administrator,
    database-owner or migration roles. Bootstrap gives only the trusted administrator
    explicit SET permission to the migrator for ownership/default-privilege setup. Provider-created role memberships must be reviewed; do not bypass the
-   permission verifier if it rejects them. Actual Neon administrator capabilities
-   and these grants still need verification.
+   permission verifier if it rejects them. On this Neon project, passing a precomputed
+   SCRAM verifier is rejected by the provider control plane; use its authenticated role
+   password flow from a trusted operator process, without printing passwords or storing
+   them in source/history. Staging password provisioning and the build gate now passed;
+   production role provisioning remains separate.
 4. Export the direct migrator URL as `MIGRATION_DATABASE_URL` in this operator process
    and run `pnpm release:migrate`. The command applies and verifies the hashes and
    timestamps of exactly migrations **0000–0006**, with 22 application tables.

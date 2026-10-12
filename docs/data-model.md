@@ -247,4 +247,7 @@ schemas are restored. Recovery therefore requires fresh login; old cookies canno
 valid simply by restoring a dump. Restore verifies migration hashes/table inventory and
 zero live auth rows, then the operator reapplies role/schema/table grants. Real PG17
 fixtures verify private capture restoration and fresh Argon2id account login. Actual
-Neon role behavior, production pooling/TLS and hosted recovery timing remain unverified.
+Neon staging's standalone restricted runtime passed the Vercel build permission/TLS
+gate; catalog checks confirm seven migrations and 22 migrator-owned tables. Production
+pooling/TLS, actual hosted workflows and PG18 recovery timing remain unverified. No
+Phase 2 schema/migration was introduced during this release checkpoint.

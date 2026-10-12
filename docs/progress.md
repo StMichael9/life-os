@@ -3,12 +3,13 @@
 ## Current phase
 
 **Phase 0 foundation and Phase 1 — Daily Execution Core are implemented and verified
-in the isolated environment. Hosting and native Windows release verification remain pending.**
+in isolation. Protected Vercel staging is deployed; hosted daily-use acceptance and
+production release remain incomplete. Phase 2 is authorized after that gate, not started.**
 
 Daily execution now uses real authenticated PostgreSQL records throughout. Today is
 the central hub for planning, scheduling, Focus, routines, recommendations and
-capture. Phases 2–6 have not been started. Public deployment and native Windows
-release verification remain separate tasks; a Git push does not put the app online.
+capture. Phases 2–6 have not been started. The 2026-10-12 checkpoint below supersedes
+earlier paused provider notes. A staged build is not proof of usable hosted workflows.
 
 ## Completed features
 
@@ -127,9 +128,9 @@ require reopening; schedule conflicts and stale versions never silently overwrit
   Operator-assisted provisioning is required for daily use; recovery is not fabricated.
 - Mutation receipts retain retry history indefinitely; login limits have a shared global
   budget and no scheduled expired-session cleanup. Monitor storage/free-tier limits.
-- No Vercel/Neon resources, public URL or production secrets were provisioned in Cloud.
-  Hosted TLS/pooling/provider grants/load remain unverified. Local real-PG17 role and
-  encrypted backup/restore rehearsals now pass; see the operational checkpoint below.
+- Vercel/Neon staging now exists; production remains empty and has no secrets/accounts.
+  The restricted staging runtime passed the deployment build gate; hosted browser
+  workflows/load and PG18 backup/restore remain unverified. See the dated checkpoint below.
 - Windows DPAPI, real Electron cookie restoration/rotation/logout, GUI, NSIS install/
   upgrade, signing and user-data ACLs require local Windows testing. Existing mocked
   adapter/security tests and the Electron build passed; they do not verify those runtimes.
@@ -223,26 +224,89 @@ reviewed. Both chats are paused at the user's request; Cloud did not alter its c
 - Peer checks and production/full dependency audits passed with no known vulnerabilities.
 - CI was extended; its remote run has not been observed for this checkpoint.
 
+## Resumed release checkpoint — 2026-10-12
+
+**Completed:** resumed from 67811df; reviewed the required architecture/data-model/
+deployment documents; retained custom opaque authentication and all ownership rules.
+Neon staging still has seven migrations and 22 migrator-owned tables. A private random
+runtime password was provisioned through authenticated provider tooling; this provider
+rejects supplied SCRAM verifiers, so no unsupported verifier workaround was used.
+The staging runtime is now LOGIN without administrator flags or migration membership;
+operator/migrator/backup remain NOLOGIN. Staging pooling is enabled at 0.25 CU min/max.
+Only preview-scoped DATABASE_URL, independent AUTH_SECRET and exact APP_ORIGIN were
+installed in Vercel; no operator/provider credentials were installed in the web runtime.
+
+Vercel deployment dpl_5bmAMphUbxUNt4TLJ1mYUPfXQnMW is **READY**, explicitly target
+staging, built from 67811df856b4d842b29e713993b5d1f7a4e37f6a in cle1. Its committed
+build command requires the standalone runtime permission/TLS gate before Next build.
+The stable configured origin is https://life-os-git-work-stmichael9s-projects.vercel.app;
+the immutable build URL is https://life-jp5v8i1vn-stmichael9s-projects.vercel.app.
+Both are protected staging, not an accepted production release. The configured origin
+must be used for login/CSRF, not an arbitrary alias. There are zero staging accounts,
+and production still has zero public tables. No personal data or paid plan was created.
+Automatic Git builds were returned to Ignored Build Step exit 0 after the explicit build.
+
+**Concrete product fix:** Focus controls now wait for a verified snapshot newer than
+the just-saved session version. Previously Resume could save successfully while Finish
+opened a dialog with the previous version. A delayed-response desktop/mobile test checks
+that Resume/Finish remain disabled until the authoritative state arrives. Refresh failure
+keeps controls guarded until refresh/reload, with no fabricated timer state. This fix does
+not claim every detail of the separate Windows report has been independently reproduced.
+
+**Blocked / unverified:** the user chose to continue setup and document verification as
+blocked instead of changing Cloud networking. The enforced policy allows package hosts,
+not direct Neon TCP or *.vercel.app browser traffic. No network bypass was attempted.
+Vercel protected-fetch and build-log tools additionally return 403 for the connected
+stmichael9s-projects scope; the Cloud CLI has no authenticated fallback. Reauthorize the
+Vercel connection for this team/project, or use an already authorized trusted machine.
+Do not disable deployment protection or install administrator URLs to bypass these gates.
+Hosted full-day workflow, real cookies/rotation/CSRF/isolation/persistence, HTTP security
+headers, Neon PG18 encrypted restore, offsite backup scheduling and controlled personal
+account creation remain incomplete. A READY status and local tests cannot establish them.
+
+The separate Windows branch 2963ae0 remains unmerged and its checkout untouched.
+Its reported native/GUI/QA NSIS results remain distinct from Cloud evidence; hosted
+Electron acceptance and signing/icon/upgrade/uninstall are still pending.
+
+**Verification this run:** formatting/lint/typecheck and production Next/Electron builds
+passed; all server fixture URLs enabled: 105 passed with four release tests separately
+opted out. The three actual PG17 encrypted backup/restore tests and one local verified
+HTTPS full-day rehearsal passed separately. Migration generation reports no drift/new
+migration; dependency audits report no known vulnerabilities and frozen lockfile/strict
+peer/supply-chain verification passed (590 entries). Browser verification results follow
+in the final checkpoint: **48 passed**, desktop/mobile against disposable PostgreSQL,
+including the delayed Focus response, ownership, responsive layout and axe checks.
+An initial runner attempt lacked the bundled Chromium binary; the installed system
+Chromium was selected through the existing supported environment option. The first
+delayed-response fixture intercepted the preceding capture refresh; it was corrected
+to wait for capture completion before delaying Resume, then all browser cases passed.
+
+**Phase 2 condition:** the user authorized beginning Career + Performance after Phase 1
+is finished. Hosted acceptance is still blocked, so no Phase 2 tables/pages were created.
+After that acceptance, begin the Skills → Practice Problems → Attempts → Spaced Reviews
+vertical slice using the planned normalized models, shared schemas and owner-scoped
+service/repository boundaries. Do not jump into Wealth/Business or paid APIs.
+
 ## Exact next recommended task
 
-**Resume the paused free-tier release: securely provision and verify the standalone
-restricted runtime credential on Neon staging, finish the Vercel build-time runtime
-permission/TLS gate and deploy the reviewed staging build. Verify the complete hosted
-workflow and owner isolation; then migrate the still-empty production branch with
-separate roles, configure controlled personal account creation, activate/rehearse daily
-encrypted backup/restore using PG18 clients, and complete hosted Windows acceptance.**
+**Unblock hosted acceptance by authorizing the Vercel team/project connection and using
+a trusted execution environment with hosted HTTPS and Neon TCP access. Verify the
+current staging build's full-day workflow, cookies/CSRF/rotation/logout and account
+isolation, and rehearse encrypted PG18 backup/restore. Then release the still-empty
+production branch with separate roles, controlled personal account creation and a
+working backup schedule. Once Phase 1 passes, begin the Phase 2 Skills/practice slice.**
 
 Follow [release-runbook.md](release-runbook.md). Native Windows testing remains the
-separate [Windows handoff](windows-handoff.md). Do not begin Phase 2 during this task.
+separate [Windows handoff](windows-handoff.md). Phase 2 is conditional on acceptance.
 
 ## Checkpoint for the next session
 
 Continue from the pushed operational-readiness commit on `work`; read this file,
 architecture/data-model/deployment and the release runbook. Phase 1 product implementation
-is complete in isolation; hosted daily-use readiness is **partial**, not deployed.
+is complete in isolation; staging is deployed but hosted daily-use readiness is **partial**.
 Use privileged URLs only in trusted operator processes and the runtime role only in
 Vercel. A new release:runtime command checks the actual runtime login with no privileged
-credential, and vercel.json gates builds on it. Final gates for the last tooling/build-
-command edits remain to be run when work resumes after the requested pause. Never run destructive fixtures against hosted/personal data. Complete hosted
+credential, and vercel.json gates builds on it. The tooling/build-command checks were
+rerun in the 2026-10-12 session. Never run destructive fixtures against hosted/personal data. Complete hosted
 acceptance and production backup setup, integrate actual Local Windows evidence when
 available, then report the real URL/status. A Git push is not deployment.

@@ -6,11 +6,14 @@ restricted database role/grant tooling, encrypted backups/restore and release te
 Use its pushed `work` tip after checking the Cloud report; keep a separate Windows
 branch/check-out. Cloud has not changed Electron code or the Windows checkout.
 
-**No hosted backend URL is verified or available at this handoff.** A GitHub repository
-URL is not a running app. Vercel/Neon are now connected; Vercel has no deployment, and Neon has only staged
-migrations/grants while production is empty. Cloud stopped at the user's request. Native tests can begin against an approved local HTTPS backend, then must be
-repeated against the exact approved hosted staging origin. Do not access production
-personal data. No Windows DPAPI or NSIS runtime result is claimed by Cloud.
+**2026-10-12: protected staging is deployed, but hosted acceptance is unverified.**
+Use https://life-os-git-work-stmichael9s-projects.vercel.app, the exact configured
+CSRF origin. Production remains empty. Staging currently has zero controlled Life OS
+accounts and Vercel deployment protection is enabled; those access prerequisites must
+be resolved before Electron daily-use QA. Cloud protected-fetch/log tools return 403.
+Do not disable origin/navigation protections to follow a Vercel sign-in redirect, and
+do not access production personal data. Native results remain the separate Local chat's
+reported evidence, not independently verified Windows runtime behavior in Cloud.
 
 ## Local Windows task
 
@@ -61,5 +64,7 @@ a verified staging URL; no personal production data was used.
 
 On resume, review that isolated Windows commit and reconcile its additive docs before
 merging. Include the Cloud date-selection fix in the next Windows run. Review the
-additional reported Focus-resume race with its actual reproduction; it is not marked
-fixed. Both chats have stopped at the user's request.
+additional reported Focus-resume race with its actual reproduction. Cloud now guards
+Resume/Finish until a newer authenticated snapshot arrives, and tests a delayed response;
+this is a concrete fix, not a claim that every reported native scenario was reproduced.
+The separate Windows chat remains stopped; Cloud resumed without altering its checkout.

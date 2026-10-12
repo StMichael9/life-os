@@ -399,7 +399,8 @@ storage, preload, IPC, OS timer, external API or Electron permission was added.
 initialization validates the exact hosted HTTPS origin, independent secret, verified
 PostgreSQL TLS URL and absence of privileged/public credential configuration. Runtime
 still uses the same services/repositories and owner predicates; no RLS or provider SDK
-was substituted. Hosted deployment itself remains unverified.
+was substituted. Protected staging is READY with the build-time runtime permission/TLS
+gate; actual hosted browser workflows remain unverified because of network/access blocks.
 
 `ops/postgres/bootstrap.sql` and `grants.sql` separate standalone migration, runtime,
 controlled-account operator and read-only backup logins. Runtime lacks DDL, account
@@ -415,3 +416,8 @@ one transaction into a separate `_restore` database and requires grants/fresh lo
 No backup key, provider token or administrator connection enters web/Electron. A real
 production backup scheduler/offsite store has not been provisioned; see the release
 runbook for that acceptance gate. Native Windows remains a separate checkout/task.
+
+Focus control writes hold a UI version barrier until an owner-stamped aggregation
+contains the newer session version (or finished session disappears). A successful
+POST alone does not unlock Pause/Resume/Finish against the previous snapshot. Failed
+refresh retains the barrier until retry/reload; account change clears it with private data.
