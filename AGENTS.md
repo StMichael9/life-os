@@ -2,7 +2,12 @@
 
 Read `docs/progress.md`, `docs/architecture.md`, `docs/data-model.md`, and the relevant sections of `docs/product-spec.md` before changing architecture. Work in coherent vertical slices. Keep progress and deployment instructions accurate.
 
-- The product is online-first and has one hosted backend for web and Electron.
+- Current user priority (2026-10-12): an installed offline Electron application on
+  the laptop. Electron must start its bundled local backend automatically; no terminal,
+  separately launched server, installed Node runtime or external database daemon is
+  required for daily use. Vercel/hosted production work is postponed. Preserve existing
+  services, schemas, owner checks and renderer protections when adding local persistence.
+  Hosted web/synchronization is deferred; do not fabricate cloud sync or weaken security.
 - No LLM, paid data API, bank integration, or spiritual productivity scoring.
 - Browser-safe packages must never import database, server service, Node, or Electron code.
 - Every private operation derives ownership from a verified server session, never a request user ID. Preserve composite ownership constraints.

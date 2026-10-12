@@ -1,5 +1,33 @@
 # Separate Local Windows verification handoff
 
+## Superseding assignment: offline desktop — 2026-10-12
+
+The user explicitly postponed Vercel and needs offline laptop use. STOP the hosted
+acceptance/reauthorization task below; it is now historical. Do not provision production
+or require Vercel access to continue. Cloud returned the temporary staging operator and
+backup roles to NOLOGIN. Existing staging/runtime is retained; production remains empty.
+
+The required desktop behavior is: install → click Start-menu icon → Electron launches
+its bundled private local backend/database → account sign-in/creation → all Phase 1
+workflows persist while disconnected → quit/relaunch restores saved data. No separately
+started server, external Node install or PostgreSQL daemon may be required for end users.
+
+Coordinate the concrete local transport/bootstrap contract with Cloud before editing
+shared boundaries. Cloud owns embedded PostgreSQL-compatible persistence and web/service
+composition; Local owns apps/desktop packaging/lifecycle/TLS trust/session persistence
+and native Windows tests. Preserve sandbox/context isolation, unprivileged renderer,
+no generic IPC/preload, pinned origin/navigation and certificate/permission protections.
+Do not fix loopback certificate handling with a global TLS bypass, and never place an
+administrator database or filesystem API in the renderer. Encrypted session storage
+retains safeStorage with no plaintext fallback. Test real disconnected mutations, quit/
+relaunch persistence, automatic backend stop/recovery and packaged install behavior.
+
+The user will create their own account. They selected another existing backup location;
+its exact path is not yet specified. Do not invent an account or offsite backup destination.
+Hosted/sync release can be revisited later; do not claim it is implemented.
+
+---
+
 ## Active hosted acceptance assignment — 2026-10-12
 
 The user resumed this work and explicitly authorized Cloud/local coordination.
