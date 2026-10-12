@@ -2,6 +2,24 @@
 
 ## Current phase
 
+**Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and
+hosted production. The immediate product must be an installed laptop Electron app
+that launches its own local backend/database automatically and works without internet.
+The existing hosted shell does NOT satisfy offline use; no local backend is bundled yet.
+Preserve the implemented Phase 1 domains/security while adding local persistence and
+packaging. This explicit user direction supersedes earlier online-first assumptions and
+the hosted acceptance assignment below. Offline daily-use acceptance is now the Phase 1
+release gate; Phase 2 remains pending that gate. No cloud synchronization is claimed.
+
+Cloud/Windows handoff: pause Vercel reauthorization and hosted tests. Cloud prepares
+the PostgreSQL-compatible embedded persistence/service boundary; Windows owns secure
+local-backend lifecycle, installer, automatic startup and actual disconnected/restart QA.
+Keep checkout/branch changes separate. Newly enabled staging operator/backup logins were
+returned to NOLOGIN after the scope change; hosted runtime/staging build are retained,
+production is still empty, and no personal account/backup scheduler was created.
+The user will create their own account and selected another existing backup location;
+no account identity/password has been provided and no backup path is invented.
+
 **Phase 0 foundation and Phase 1 — Daily Execution Core are implemented and verified
 in isolation. Protected Vercel staging is deployed; hosted daily-use acceptance and
 production release remain incomplete. Phase 2 is authorized after that gate, not started.**
@@ -293,6 +311,17 @@ vertical slice using the planned normalized models, shared schemas and owner-sco
 service/repository boundaries. Do not jump into Wealth/Business or paid APIs.
 
 ## Exact next recommended task
+
+**Active coordination (2026-10-12):** the user resumed hosted acceptance and woke
+Life OS — Local Windows Development & Testing. Cloud prepared restricted staging
+operator and backup LOGIN credentials (verified secure provider retrieval and catalog
+permissions; standalone local verification pending). Migrator remains NOLOGIN.
+Production remains empty. Local owns hosted browser/Electron evidence and PG18
+encrypted recovery where WSL/POSIX is available; Cloud owns release/migrations.
+See the active assignment in windows-handoff.md. Local can send status to Cloud;
+Cloud's tools currently cannot send/resume local chats, so replies are published here
+and in the handoff. Account identity and existing free backup destination are pending
+user input. No credentials are sent between chats.
 
 **Unblock hosted acceptance by authorizing the Vercel team/project connection and using
 a trusted execution environment with hosted HTTPS and Neon TCP access. Verify the
