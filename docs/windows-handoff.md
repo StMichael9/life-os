@@ -137,6 +137,16 @@ zero junctions. These are staging observations, not installer acceptance. Its Wi
 owned preparation/packaging source remains isolated in apps/desktop; the rebuilt QA
 installer and workspace-independent installed workflow still need verification.
 
+**Latest bounded native work — 2026-10-12:** Local reports its rebuilt QA payload
+matches portable staging (zero junctions, five native bindings). This does not yet prove
+installed/disconnected acceptance. Correct the expanded capture → Task test to check the
+preserved Task and empty active Inbox: processed captures are filtered by existing
+behavior. Investigate the quit/cleanup stall exposed by the failed assertion through
+beforeunload/shutdown handling, preserving pending writes and user data. No cause or fix
+is confirmed yet. Fetch Cloud **014657f** only after the current run stops safely; rerun
+the recovery fixture and diagnose the separate backup timeout. Cloud will not edit the
+desktop lifecycle/packaging files. Checkpoint evidence and stop after bounded acceptance.
+
 Own one bounded integration: utilityProcess automatic start/stop/readiness, protected
 runtime/TLS identity and stable origin, narrow main-session setup capability injection,
 resource packaging, native ACLs and disconnected installer/full-day/relaunch tests.

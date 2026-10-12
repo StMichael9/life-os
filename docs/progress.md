@@ -424,13 +424,24 @@ zero junctions. These are staging observations, not installer acceptance. Its Wi
 owned preparation/packaging source remains isolated in apps/desktop; the rebuilt QA
 installer and workspace-independent installed workflow still need verification.
 
+**Latest native acceptance report — 2026-10-12:** Local reports the rebuilt QA
+payload matches its portable staging, with zero junctions and five native bindings.
+Installed/disconnected acceptance is still pending. Its expanded capture → Task test
+incorrectly expected a processed item to remain in the active Inbox; existing behavior
+filters processed captures. The correct checks are the preserved Task and empty active
+Inbox, without changing product behavior. That failed assertion also exposed stalled
+quit/cleanup on this route; Local is investigating beforeunload/shutdown while preserving
+data. The cause and fix are unverified. Fetch pushed Cloud fixture correction **014657f**
+after the current native run stops safely, then rerun recovery and diagnose the remaining
+backup timeout. Desktop lifecycle/packaging files remain Local-owned.
+
 Earlier hosted coordination sections are historical and superseded. Staging operator/
 backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),
 production remains empty, and no personal account or backup location was fabricated.
 
 ## Exact next recommended task
 
-**Complete the isolated unsigned offline NSIS install/shortcut/disconnected acceptance
+**Resolve the native quit/cleanup stall, complete the isolated unsigned offline NSIS install/shortcut/disconnected acceptance
 and serial Windows shared-test rerun, then review/merge the native checkpoint. Finish
 the offline Phase 1 release using offline-desktop.md, connect its tested recovery/backup protocol to
 native key storage/archive selection/guarded cutover, then perform a bounded Windows

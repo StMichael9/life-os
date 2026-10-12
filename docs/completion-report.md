@@ -67,9 +67,16 @@ Local reports a staged dependency payload with 29 exact packages, 2,054 files/ab
 50 MB, five native bindings and zero junctions; rebuilt installed acceptance remains
 pending. The Windows backup timeout is still unresolved.
 
+Local now reports the rebuilt QA payload matches that portable staging. Expanded native
+capture → Task testing needs an assertion correction: the created Task persists while
+processed captures leave the active Inbox. A quit/cleanup stall exposed during that
+failed test is under native beforeunload/shutdown investigation; its cause and fix remain
+unverified. Cloud's loader correction is pushed as **014657f** for the next safe native
+rerun. No installed/disconnected release acceptance is claimed.
+
 ## Remaining Phase 1 release work
 
-- Fix portable dependency materialization and validate the isolated payload, then finish
+- Resolve the native quit/cleanup stall and validate the materialized portable payload, then finish
   replacement offline NSIS install/shortcut acceptance and the Windows shared-test rerun, then review/merge the separate native integration. Report install/reboot/crash
   recovery separately from the now-passing native full-day/restart/logout workflow.
 - Unique pinned loopback HTTPS identity, protected local runtime secret, native private
