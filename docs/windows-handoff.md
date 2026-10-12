@@ -36,6 +36,20 @@ QA. Cloud will request a specific local integration/test when the backend/build 
 
 ## Bounded integration now ready — 2026-10-12
 
+**Installer/shutdown clarification — 2026-10-12:** Local reports the user explicitly
+requested installation and removal of the old QA version. Preserve profiles and use
+the old QA uninstaller; verify packaged startup/reopen before replacing it with real
+Life OS. The CPU-active silent QA installer is still running, not verified installed.
+Cloud **b5fbd96** contains documentation only; **014657f** is a test-loader fix, not
+a backend shutdown fix. The latest backend source change is **84f3ebb**: startup
+diagnostics and a direct chain/IP/leaf-pinned readiness agent. Rebuild resources from
+latest work to include it, but do not treat it as a fix for the native quit stall.
+The existing stop protocol awaits startup/maintenance, stops HTTP acceptance and drains
+requests, closes PGlite and Next, then sends stopped and exits. Main must await both
+stopped and process exit, and flush protected cookie state. No new beforeunload fix or
+Windows quit-stall resolution is claimed. Local owns that investigation; distinguish
+renderer-close cancellation from a backend stop that was sent but did not complete.
+
 Cloud backend checkpoint **605d779** (pushed on work) implements the private standalone backend described in
 [offline-desktop.md](offline-desktop.md). Fetch work before integration; preserve your
 86e25f1 native session fix. Build pnpm build and package the ENTIRE
