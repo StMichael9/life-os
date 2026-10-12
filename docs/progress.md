@@ -137,7 +137,7 @@ require reopening; schedule conflicts and stale versions never silently overwrit
 - Automated Chromium/axe and mobile viewport tests do not establish manual screen-reader,
   200% zoom, actual iOS Safari or native Windows accessibility/runtime behavior.
 
-## Hosted operational-readiness checkpoint
+## Hosted operational-readiness checkpoint — 2026-10-08 (historical)
 
 **Completed locally:** Vercel monorepo configuration; server-only redacted HTTPS/TLS
 configuration validation; separate trusted migration/runtime/operator/read-only backup
@@ -235,12 +235,17 @@ The staging runtime is now LOGIN without administrator flags or migration member
 operator/migrator/backup remain NOLOGIN. Staging pooling is enabled at 0.25 CU min/max.
 Only preview-scoped DATABASE_URL, independent AUTH_SECRET and exact APP_ORIGIN were
 installed in Vercel; no operator/provider credentials were installed in the web runtime.
+The installed-variable inventory confirms all three target preview only, with the
+database URL and session secret marked sensitive. Redacted hosted configuration
+validation passed. The temporary local provisioning file was removed after deployment.
 
-Vercel deployment dpl_5bmAMphUbxUNt4TLJ1mYUPfXQnMW is **READY**, explicitly target
-staging, built from 67811df856b4d842b29e713993b5d1f7a4e37f6a in cle1. Its committed
+Vercel deployment dpl_7wPrhVgDWdGsb2mdrZyTnu2vRZ59 is **READY**, explicitly target
+staging, built from ba9de1709b41c3c0aa6ec8f72baf7b7c4b457349 in cle1, including
+the Focus transition fix. It supersedes the first successful 67811df staging build.
+Its committed
 build command requires the standalone runtime permission/TLS gate before Next build.
 The stable configured origin is https://life-os-git-work-stmichael9s-projects.vercel.app;
-the immutable build URL is https://life-jp5v8i1vn-stmichael9s-projects.vercel.app.
+the immutable build URL is https://life-lm8l0mn7w-stmichael9s-projects.vercel.app.
 Both are protected staging, not an accepted production release. The configured origin
 must be used for login/CSRF, not an arbitrary alias. There are zero staging accounts,
 and production still has zero public tables. No personal data or paid plan was created.
@@ -273,8 +278,8 @@ passed; all server fixture URLs enabled: 105 passed with four release tests sepa
 opted out. The three actual PG17 encrypted backup/restore tests and one local verified
 HTTPS full-day rehearsal passed separately. Migration generation reports no drift/new
 migration; dependency audits report no known vulnerabilities and frozen lockfile/strict
-peer/supply-chain verification passed (590 entries). Browser verification results follow
-in the final checkpoint: **48 passed**, desktop/mobile against disposable PostgreSQL,
+peer/supply-chain verification passed (590 entries). Browser E2E: **48 passed**,
+desktop/mobile against disposable PostgreSQL,
 including the delayed Focus response, ownership, responsive layout and axe checks.
 An initial runner attempt lacked the bundled Chromium binary; the installed system
 Chromium was selected through the existing supported environment option. The first

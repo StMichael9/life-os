@@ -270,7 +270,8 @@ foreign keys, uniqueness constraints and indexed owner queries form the foundati
 Composite `(entity_id, user_id)` foreign keys reject cross-owner relationships even
 when a service makes a mistake. They do **not** authorize SELECT: owner predicates
 remain mandatory. Deployment requires a restricted app role and a separate migration
-DDL role; provider-specific roles have not yet been provisioned or verified. RLS may be added as defense in depth after role and pooling semantics are
+DDL role; Neon staging roles are provisioned and the restricted login passed its build
+gate, while production role setup remains pending. RLS may be added as defense in depth after role and pooling semantics are
 tested. Never assume RLS protects an owner/superuser connection.
 
 Transactions atomically save/activate Seasons with complete allocations. Inbox-to-Task conversion is transactional. Transactions also replace the full Big 3 set and finish Focus sessions atomically. Allocation totals must be validated

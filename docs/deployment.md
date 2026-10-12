@@ -15,6 +15,14 @@ Follow [release-runbook.md](release-runbook.md) for exact setup and acceptance s
 separate from the authenticated daily workspace. The separate Windows chat reports native synthetic DPAPI/cookie and GUI security checks
 passing; installer and real hosted-backend verification remain incomplete.
 
+Current protected staging origin: **https://life-os-git-work-stmichael9s-projects.vercel.app**.
+Deployment dpl_7wPrhVgDWdGsb2mdrZyTnu2vRZ59 is READY from ba9de17, including the
+Focus transition fix. Only sensitive preview runtime/session secrets and the exact
+preview origin are installed; production has no secrets or account. Cloud browser/TCP
+policy and Vercel protected-fetch/log permissions block hosted acceptance. Resolve these
+through authorized environment/connection settings or use a trusted authorized machine;
+do not weaken app or Electron security. Automatic Git builds remain skipped with exit 0.
+
 ## Environment separation
 
 | Environment     | App                                | Database                                                         | Credentials                                         |
