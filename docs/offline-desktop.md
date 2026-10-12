@@ -87,7 +87,9 @@ No invented user email/password, hardcoded default account or automatic public s
 Build with pnpm build. apps/web/scripts/prepare-standalone.mjs copies static/public
 assets and desktop-server.mjs into apps/web/.next/standalone/apps/web. Package the
 ENTIRE apps/web/.next/standalone tree as a read-only backend resource directory;
-copying only apps/web omits traced dependencies, WASM and SQL migrations.
+copying only apps/web omits traced dependencies, WASM and SQL migrations. Build this
+standalone tree on the Windows target architecture so traced Argon2 native bindings
+match Electron's bundled Node; do not package Cloud's Linux native binaries for Windows.
 
 Fork `<backend>/apps/web/desktop-server.mjs` with Electron utilityProcess, passing
 sensitive configuration through its private parent message channel after construction.
@@ -114,6 +116,7 @@ through an internally verified HTTPS probe BEFORE replying:
 ```text
 { type: "ready", version: 1, origin, certificateFingerprint256 }
 { type: "error", version: 1, stage: "startup" }
+{ type: "error", version: 1, stage: "database" | "requests" | "framework", category: "Error" | "TypeError" }
 ```
 
 Compare ready origin/fingerprint to main's assigned instance, then install narrow local
@@ -125,25 +128,72 @@ Hosted handlers do not expose setup. Concurrent attempts cannot create two first
 
 On quit send `{ type: "stop", version: 1 }`; await `{ type: "stopped", version: 1 }`
 AND process exit. The server drains requests and closes the embedded database before
-acknowledging. Then drain main's encrypted cookie writes. No generic eval/file/database
-messages exist. The filesystem lease refuses a second writer and currently fails closed
-after unclean process loss. Guarded crash-lease recovery is NOT implemented; coordinate
-that explicit next step rather than unlinking/resetting an arbitrary live database.
+acknowledging. Stop also awaits startup/migration initialization; a canceled startup
+never emits ready or loads a window. Then drain main's encrypted cookie writes. No generic eval/file/database
+messages exist. The filesystem lease refuses a second writer. Trusted offline startup
+can recover a valid lease only when the recorded PID is definitively absent (ESRCH),
+under an exclusive recovery guard. Live/reused PIDs, unknown identity, permissions,
+symlinks and an interrupted recovery guard fail closed; no data is reset. PGlite then
+opens the existing files and checks the exact migration ledger. Cloud tests kill a real
+backend process and verify committed records and competing restart attempts. Windows
+must still verify native process exit, filesystem/ACL behavior and crash recovery.
+
+SSR pages and API routes share a private process-global service promise, rather than
+opening an engine per Next module graph. Cloud tests check the actual first-account
+form and authenticated page body; a 200 response containing a streamed redirect is
+not treated as authenticated page success.
 
 Cloud tests prove the packaged standalone entry, real loopback TLS, physical engine
 restart, full-day API writes, owner isolation, first-account guard and logout replay.
 They do not verify Electron utilityProcess, native trust, safeStorage, ACLs or installation.
 
-Offline backups must not require pg_dump, WSL, Neon, POSIX tools or paid storage.
-Plan a consistent embedded snapshot exported through PGlite, encrypted with AES-256-GCM
-under a separate random key protected by main safeStorage. User-selected backup folder
-is handled by a narrow native main operation, not a renderer filesystem bridge. Omit
-live authentication state or explicitly invalidate it on guarded recovery before serving
-requests. Verify authentication tag and migration ledger before cutover; restore into
-a separate empty directory and retain the old database until fresh login/data checks.
-The user selected another existing backup location; the path must be chosen locally,
-not invented. Recovery-key export/recovery must be designed so loss of Windows profile
-does not silently make all backups unrecoverable. These backups are planned, not built.
+### Implemented encrypted backup protocol (private parent channel only)
+
+Offline backup requires no pg_dump, WSL, Neon, external daemon or paid storage. The
+backend exports a consistent PGlite snapshot after active HTTP writes drain, then
+AES-256-GCM encrypts it with a separate 32-byte recovery key. Snapshot creation uses
+an exclusive query barrier and rejects an in-progress transaction. An authenticated
+versioned manifest carries the exact migration hashes/timestamps. The uncompressed
+snapshot limit is 256 MiB; this implementation buffers snapshot/ciphertext in memory,
+so larger data requires a future streaming/versioned format. This is personal-data
+backup, not a database-at-rest encryption claim.
+
+Main generates/protects the independent recovery key with safeStorage and never passes
+it to the renderer, HTTP, argv or logs. Use structured-clone typed byte arrays, not
+base64/JSON strings (Node fork fixtures use serialization: advanced). Send:
+
+```text
+{ type: "backup", version: 1, requestId: <UUID>, backupKey: <Uint8Array(32)> }
+{ type: "backup-ready", version: 1, requestId, archive: <encrypted Uint8Array> }
+
+{ type: "restore", version: 1, requestId: <UUID>, backupKey: <Uint8Array(32)>,
+  archive: <encrypted Uint8Array>, candidateDirectory: <absolute EMPTY private directory> }
+{ type: "restore-ready", version: 1, requestId }
+{ type: "operation-error", version: 1, requestId, operation: "backup" | "restore" }
+```
+
+Only one maintenance operation runs at a time. New HTTP requests temporarily receive
+503/no-store/Retry-After while existing writes drain; request timeout/errors fail the
+operation rather than inventing success. Stop awaits maintenance and engine closure.
+No backup/restore HTTP route, preload or generic renderer IPC exists.
+
+Main must provide narrow native menu/dialog actions, explicit restore confirmation,
+user-selected encrypted-archive location, protected recovery-key storage and a separate
+recoverable key export/import procedure. The user picked another existing backup
+location; choose it locally rather than inventing it. Write ciphertext atomically with
+no overwrite and report cancellation/free-space/errors. Recovery-key storage cannot
+silently depend on the original Windows profile: encrypted key loss otherwise makes
+archives unrecoverable. These native actions and recovery-key usability are pending.
+
+Restore authenticates the entire archive and checks the bundled migration identity
+BEFORE touching a target directory. It only opens a separate empty candidate, validates
+its actual ledger, removes all restored sessions/rate limits, and closes it. The current
+source is preserved and remains usable. Snapshot archives may contain hashed historical
+auth state, but no restored session is allowed to authenticate. Native cutover is NOT
+implemented by the backend: main must stop/await the old process, retain the old database,
+select the verified candidate through protected runtime metadata and start it requiring
+fresh login. Do not overwrite the active directory or delete rollback data. Report native
+cutover/key-recovery/relaunch evidence separately from component restore tests.
 
 ## Acceptance gate
 

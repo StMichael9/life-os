@@ -1,3 +1,4 @@
+import { setTimeout, clearTimeout } from 'node:timers';
 import { createServer, get } from 'node:https';
 import { X509Certificate, createPrivateKey } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -9,21 +10,43 @@ import { Buffer } from 'node:buffer';
 // Node fork IPC is supported solely to test this same entry in Cloud/CI.
 const parent = process.parentPort;
 if (!parent && !process.send) throw new Error('The desktop backend requires its private parent.');
-const send = (message) => (parent ? parent.postMessage(message) : process.send?.(message));
+const send = (message) => {
+  try {
+    if (parent) parent.postMessage(message);
+    else if (process.connected) process.send?.(message, () => {});
+  } catch {
+    /* Parent closure must not interrupt engine shutdown. */
+  }
+};
 const receive = (listener) =>
   parent ? parent.on('message', ({ data }) => listener(data)) : process.on('message', listener);
 let configured = false,
   server,
   app,
-  stopping;
+  stopping,
+  starting,
+  maintenance,
+  accepting = false,
+  ready = false,
+  activeRequests = 0,
+  shutdownStage = 'startup';
+const drainWaiters = new Set();
 
 async function stop(exitCode = 0) {
   stopping ??= (async () => {
+    accepting = false;
+    shutdownStage = 'startup';
+    await starting?.catch(() => {});
+    accepting = false;
+    await maintenance;
+    shutdownStage = 'requests';
     if (server?.listening) {
       await new Promise((resolve) => server.close(resolve));
     }
+    shutdownStage = 'database';
     const close = globalThis[Symbol.for('life-os.desktop.shutdown')];
     if (typeof close === 'function') await close();
+    shutdownStage = 'framework';
     await app?.close();
     send({ type: 'stopped', version: 1 });
     process.exit(exitCode);
@@ -80,16 +103,25 @@ async function start(config) {
   app = next({ dev: false, dir: config.webRoot, conf: nextConfig });
   await app.prepare();
   const handle = app.getRequestHandler();
-  let origin = '',
-    accepting = false;
+  let origin = '';
   server = createServer(
     { key: config.privateKey, cert: config.certificate },
     (request, response) => {
-      if (!accepting || request.headers.host !== new URL(origin).host) {
+      if (request.headers.host !== new URL(origin).host) {
         response.writeHead(403, { 'Cache-Control': 'no-store' });
         response.end();
         return;
       }
+      if (!accepting) {
+        response.writeHead(503, { 'Cache-Control': 'no-store', 'Retry-After': '1' });
+        response.end();
+        return;
+      }
+      activeRequests++;
+      response.once('close', () => {
+        activeRequests--;
+        if (activeRequests === 0) for (const resolve of drainWaiters) resolve();
+      });
       for (const header of [
         'x-forwarded-host',
         'x-forwarded-proto',
@@ -125,6 +157,8 @@ async function start(config) {
     request.setTimeout(30000, () => request.destroy(new Error('Local initialization timed out.')));
     request.on('error', reject);
   });
+  if (stopping) return;
+  ready = true;
   send({
     type: 'ready',
     version: 1,
@@ -133,10 +167,66 @@ async function start(config) {
   });
 }
 
+async function maintain(message) {
+  const requestId = message.requestId;
+  if (typeof requestId !== 'string' || !/^[a-f0-9-]{36}$/i.test(requestId)) return;
+  if (!ready || stopping || maintenance) {
+    send({ type: 'operation-error', version: 1, requestId, operation: message.type });
+    return;
+  }
+  accepting = false;
+  maintenance = (async () => {
+    let key;
+    try {
+      if (!(message.backupKey instanceof Uint8Array) || message.backupKey.byteLength !== 32)
+        throw new Error('Invalid backup key.');
+      key = Buffer.from(message.backupKey);
+      if (activeRequests > 0)
+        await new Promise((resolve, reject) => {
+          const done = () => {
+            clearTimeout(timer);
+            drainWaiters.delete(done);
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            drainWaiters.delete(done);
+            reject(new Error('Writes are still active.'));
+          }, 15000);
+          drainWaiters.add(done);
+        });
+      if (message.type === 'backup') {
+        const backup = globalThis[Symbol.for('life-os.desktop.backup')];
+        if (typeof backup !== 'function') throw new Error('Local backup unavailable.');
+        const archive = await backup(key);
+        send({ type: 'backup-ready', version: 1, requestId, archive });
+      } else {
+        const restore = globalThis[Symbol.for('life-os.desktop.restore')];
+        if (
+          typeof restore !== 'function' ||
+          !(message.archive instanceof Uint8Array) ||
+          typeof message.candidateDirectory !== 'string' ||
+          !isAbsolute(message.candidateDirectory)
+        )
+          throw new Error('Invalid candidate restore.');
+        await restore(message.archive, key, message.candidateDirectory);
+        send({ type: 'restore-ready', version: 1, requestId });
+      }
+    } catch {
+      send({ type: 'operation-error', version: 1, requestId, operation: message.type });
+    } finally {
+      key?.fill(0);
+      if (!stopping) accepting = true;
+    }
+  })();
+  await maintenance;
+  maintenance = undefined;
+}
+
 receive((message) => {
-  if (!configured && message?.type === 'configure') {
+  if (!configured && !stopping && message?.type === 'configure') {
     configured = true;
-    void start(message).catch(async () => {
+    starting = start(message);
+    void starting.catch(async () => {
       send({ type: 'error', version: 1, stage: 'startup' });
       // Never print TLS keys, filesystem contents, credentials or raw framework errors.
       try {
@@ -145,8 +235,18 @@ receive((message) => {
         process.exit(1);
       }
     });
-  } else if (configured && message?.type === 'stop' && message.version === 1) {
-    void stop().catch(() => process.exit(1));
+  } else if (configured && message?.version === 1 && ['backup', 'restore'].includes(message.type)) {
+    void maintain(message);
+  } else if (message?.type === 'stop' && message.version === 1) {
+    void stop().catch((error) => {
+      send({
+        type: 'error',
+        version: 1,
+        stage: shutdownStage,
+        category: error?.name === 'TypeError' ? 'TypeError' : 'Error',
+      });
+      process.exit(1);
+    });
   }
 });
 process.on('SIGTERM', () => void stop().catch(() => process.exit(1)));

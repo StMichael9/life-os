@@ -319,29 +319,40 @@ engine lease, exact migration fingerprints and awaited close; shared repositorie
 seven migrations retained without schema drift. Next standalone includes SQL/WASM/static
 resources and a private parent-channel HTTPS entry binding only 127.0.0.1. Readiness
 initializes the database before the window may load; stop drains requests and closes it.
+SSR/API module graphs share one private process-global service promise, fixing duplicate
+engine initialization that hid first-run setup and caused streamed login redirects.
 Local first-account setup uses Argon2id, persistent limits, CSRF/Origin, a main-only
 capability and transactional first-user guard. Hosted registration remains closed.
 
-**Verification:** 106 default tests passed, eight explicitly guarded skips. The opt-in
+**Verification:** 108 default tests passed, eight explicitly guarded skips. The opt-in
 packaged-backend test passed real loopback TLS, authenticated SSR, a complete daily API
 workflow, owner isolation, retry-safe capture, shutdown/restart durability and logout
-replay. Existing browser E2E: 48 passed on disposable PostgreSQL, desktop/mobile and axe.
-Typecheck, lint, production web/Electron builds and dependency audits passed. No new
+replay, encrypted IPC backup/candidate restore, fresh login and startup cancellation. The forced-process-stop
+recovery test preserves committed data; wrong keys/tampering/migration mismatch/live
+leases are rejected. Browser E2E passed 48 before the service-registry correction;
+its rerun passed 47, with one desktop intercepted account-switch case timing out.
+The mobile equivalent passed; a focused rerun is underway. Do not mark that gate
+clean until its result is recorded.
+The real PostgreSQL 17 domain suites also pass: 62 tests. Typecheck, lint, production
+web/Electron builds, frozen lockfile/peer checks and dependency audits passed. No new
 migration was added. CI checks are prepared; its remote run is not claimed.
 
 **Partial / unverified:** Electron does not yet start this backend; native utilityProcess,
 pinned certificate/key persistence, setup capability injection, Windows ACLs and offline
-NSIS installation must be integrated and tested locally. Guarded unclean lease recovery
-and local encrypted backups are not yet implemented. Live database files rely on private
-OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
+NSIS installation must be integrated and tested locally. Guarded recovery and encrypted
+embedded backup/candidate restore components now pass
+Cloud tests, but native key export/import, archive picker/writing and restore cutover
+remain unimplemented. Live database files rely on private OS directories/disk privacy; safeStorage is not database-at-rest encryption. No offline
 release or Phase 2 completion is claimed. See completion-report.md and offline-desktop.md.
 
-The Windows lead is paused at pushed **86e25f1** on windows/desktop-first-qa, based on
+The Windows lead checkpoint is pushed **86e25f1** on windows/desktop-first-qa, based on
 d4920db, with a clean tree. It reports a cookie notification/shutdown-drain fix,
 deterministic regression and two native nine-phase runs passing. This commit is not
 merged; Cloud has not edited its checkout, session-persistence.ts or native fixtures.
-Do not automatically resume or continuously poll it. Request a bounded native integration/
-verification only when the corresponding shared backend/build is ready.
+The user subsequently resumed it for one bounded offline integration. Backend work
+checkpoint 605d779 and exact selfsigned 5.5.0 dependency checkpoint 191755f are pushed;
+the private entry/protocol is in offline-desktop.md. Do not continuously poll it or
+resume further work without a concrete native need.
 
 Earlier hosted coordination sections are historical and superseded. Staging operator/
 backup logins are back to NOLOGIN, automatic Vercel Git builds remain ignored (exit 0),
@@ -350,8 +361,9 @@ production remains empty, and no personal account or backup location was fabrica
 ## Exact next recommended task
 
 **Finish the offline Phase 1 release: integrate the private standalone backend into
-Electron using offline-desktop.md, add guarded crash recovery and encrypted local
-backup/restore, then perform a bounded Windows disconnected install/full-day/restart/
+Electron using offline-desktop.md, connect its tested recovery/backup protocol to
+native key storage/archive selection/guarded cutover, then perform a bounded Windows
+disconnected install/full-day/restart/
 security/recovery acceptance run. After those gates pass, begin Phase 2 with Skills →
 Practice Problems → Attempts → Spaced Reviews, then the remaining Career/Performance
 requirements. Do not resume hosted deployment as a prerequisite for offline use.**

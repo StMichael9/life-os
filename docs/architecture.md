@@ -10,11 +10,14 @@ and synchronization remain optional future work. The secure local runtime contra
 The embedded adapter reuses Drizzle/PgDatabase, all seven migrations, repositories,
 Argon2id/opaque authentication and ownership predicates. Private filesystem PGlite runs
 in the privileged backend, with no PostgreSQL socket and no renderer database access.
+A private process-global service promise spans Next's separate SSR/API module graphs,
+preventing duplicate embedded engines and incorrect first-run/SSR behavior.
 Next standalone traces SQL/WASM/dependencies; a private utility-process-compatible entry
 binds only loopback HTTPS and drains the engine on stop. First local account setup needs
 a main-only capability, CSRF and a transactional first-account guard; hosted signup
-remains closed. Main's certificate/key/safeStorage/ACL integration and guarded crash
-recovery are still pending. Keep Windows work bounded and separate from shared code.
+remains closed. Guarded dead-process recovery and encrypted embedded candidate restore
+are component-tested; native certificate/key/safeStorage/ACL/menu/cutover integration
+and crash verification remain pending. Keep Windows work bounded and separate from shared code.
 
 ## Status and governing decisions
 

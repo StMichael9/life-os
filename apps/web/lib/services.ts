@@ -28,17 +28,20 @@ type Handlers = ReturnType<typeof createHttpHandlers> & {
   tasks: ReturnType<typeof createTaskHttp>;
   execution: ReturnType<typeof createExecutionHttp>;
 };
-let handlers: Promise<Handlers> | undefined;
-export async function getHandlers(): Promise<Handlers> {
-  if (!handlers) {
-    const pending = initialize();
-    handlers = pending;
-    void pending.catch(() => {
-      if (handlers === pending) handlers = undefined;
-    });
-  }
-  return handlers;
+// Next builds distinct SSR/API module graphs. Both must share one private engine/pool.
+const serviceRegistry = globalThis as unknown as Record<symbol, unknown>;
+const servicesKey = Symbol.for('life-os.private.services');
+export function getHandlers(): Promise<Handlers> {
+  const existing = serviceRegistry[servicesKey] as Promise<Handlers> | undefined;
+  if (existing) return existing;
+  const pending = initialize();
+  serviceRegistry[servicesKey] = pending;
+  void pending.catch(() => {
+    if (serviceRegistry[servicesKey] === pending) delete serviceRegistry[servicesKey];
+  });
+  return pending;
 }
+
 async function initialize(): Promise<Handlers> {
   if (process.env.VERCEL) validateHostedConfiguration(process.env);
   const { DATABASE_URL, AUTH_SECRET, APP_ORIGIN } = process.env;
@@ -72,11 +75,24 @@ async function initialize(): Promise<Handlers> {
         'The private desktop runtime requires isolated loopback HTTPS configuration.',
       );
     const { createEmbeddedDatabase } = await import('@life-os/database/embedded');
-    const local = await createEmbeddedDatabase(localDirectory, { migrationsFolder });
+    const opening = createEmbeddedDatabase(localDirectory, {
+      migrationsFolder,
+      recoverInterruptedShutdown: true,
+    });
+    const lifecycle = globalThis as unknown as Record<symbol, unknown>;
+    // Register before migration readiness so quit during initialization also awaits closure.
+    lifecycle[Symbol.for('life-os.desktop.shutdown')] = async () => (await opening).close();
+    const local = await opening;
     db = local.db;
-    // A private main/utility lifecycle hook. It is never an HTTP or renderer capability.
-    (globalThis as unknown as Record<symbol, unknown>)[Symbol.for('life-os.desktop.shutdown')] =
-      local.close;
+    const { createEncryptedEmbeddedBackup, restoreEncryptedEmbeddedBackup } =
+      await import('@life-os/database/embedded-backup');
+    lifecycle[Symbol.for('life-os.desktop.backup')] = (key: Uint8Array) =>
+      createEncryptedEmbeddedBackup(local, key, migrationsFolder);
+    lifecycle[Symbol.for('life-os.desktop.restore')] = (
+      archive: Uint8Array,
+      key: Uint8Array,
+      directory: string,
+    ) => restoreEncryptedEmbeddedBackup(archive, key, directory, migrationsFolder);
   } else {
     db = createDatabase(DATABASE_URL!).db;
   }
