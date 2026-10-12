@@ -47,6 +47,12 @@ request after that pause; hosted acceptance remains paused.
   ACL reapplication before backend start; Local is investigating. Restart, full-day
   and installed disconnected acceptance remain pending.
 
+The user's current Start-menu launch reports an unreachable workspace. Local is
+verifying whether that shortcut is the older hosted-shell QA installer; do not confuse
+it with the new offline bundle or claim the cause is confirmed. Cloud has not built a
+newer Windows installer or changed install paths. Local's DACL-only repeat-launch fix
+is under native test. Replacement offline NSIS acceptance remains pending.
+
 ## Remaining Phase 1 release work
 
 - Review/merge the separate Electron integration after native acceptance; fix Windows

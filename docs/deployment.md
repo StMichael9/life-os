@@ -21,6 +21,22 @@ embedded backup/candidate restore protocol is tested; native archive/key recover
 cutover still need integration. The hosted pg_dump commands below are not an offline
 backup implementation. Hosted resource instructions remain reference material for later.
 
+## Existing shortcut versus offline installer
+
+**Start-menu launch report — 2026-10-12:** the user reports Electron opens and
+then says the workspace cannot be reached. Local suspects the existing shortcut
+belongs to the earlier hosted-shell Life OS QA installer and is verifying its exact
+target; this is not yet confirmed. That shell is distinct from the new bundled offline
+app. Cloud has produced no newer Windows installer or changed install paths. Do not
+restart a test server or resume Vercel as the solution for the offline requirement.
+Local must verify the shortcut/executable identity, preserve any existing user data,
+and complete replacement offline NSIS acceptance before claiming a usable installer.
+
+Local identified the repeat-launch ACL error: Set-Acl requested SeSecurityPrivilege
+when reapplying protection. It is testing a DirectoryInfo fix that modifies only DACL,
+preserving private access instead of requiring broader privileges. Native repeated
+launch results are pending; Cloud has not edited the Windows source or its checkout.
+
 ## Current state
 
 Authenticated Phase 1 daily execution works in the production build against isolated PostgreSQL.
