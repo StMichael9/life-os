@@ -1,7 +1,7 @@
 {
   "name": "@life-os/desktop",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Life OS Windows shell",
   "author": "Life OS",
   "type": "module",

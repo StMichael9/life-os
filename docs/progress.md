@@ -1,5 +1,21 @@
 # Progress and handoff
 
+## Windows Focus installation — 2026-10-13
+
+Cloud `103fa94` was merged normally into `windows/desktop-first-qa` at `7c0018e`.
+The unsigned Windows 0.1.2 application was rebuilt and installed normally, including
+all nine migrations through `0008`. The actual installed executable passed isolated
+session switching: automatic pause, frozen paused clock, independent notes, selection
+after reload, and running/paused sessions after native close/reopen. Two launches on
+the retained normal profile restored the existing account and private origin, closed
+cleanly, and retained the encrypted identity unchanged. Comparisons of disposable
+stopped database copies confirmed existing Focus sessions/intervals unchanged and
+the new uniqueness indexes applied. An initial comparison script referenced a
+nonexistent time_entry table; correcting only that script made the comparison pass.
+Protected pre-upgrade profile and compatible 0.1.1 installer are retained; see
+deployment.md. This run was installation plus targeted switching/reopen verification,
+not comprehensive regression or hosted acceptance. No hosted resources were changed.
+
 ## Windows installation checkpoint — 2026-10-12
 
 The user requested installation-only integration of Cloud `38f8c4f`. It was merged

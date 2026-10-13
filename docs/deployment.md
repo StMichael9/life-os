@@ -1,5 +1,34 @@
 # Deployment and operations
 
+## Local Windows Focus update — Cloud 103fa94, 2026-10-13
+
+Life OS 0.1.2 was rebuilt on Windows and installed at
+`%LOCALAPPDATA%\Programs\Life OS`; the NSIS installer exited 0. Packaged migration
+`0008_focus_switching.sql` matches the repository and the migrated database ledger
+contains nine migrations. Existing Focus sessions and intervals were unchanged in
+read-only comparisons of disposable stopped database copies; the new one-running
+session and one-open-interval indexes are present and the old unfinished-session
+index is absent. The existing account restored on two actual installed launches;
+private origin and encrypted identity stayed unchanged and both exits cleared the
+database lease. Developer runtimes were removed from the launched app's PATH.
+
+The actual installed executable also passed a separate isolated-profile test of
+automatic pause when switching, frozen paused clocks, independent notes, selected
+session after reload, and both running/paused sessions after native close/reopen.
+Synthetic writes were confined to a confirmed separate user-data directory.
+An initial database comparison script referenced a nonexistent table; its correction
+passed without altering the app or real profile. Comprehensive regression, completion
+edge cases, large-session paging and broader release acceptance were not rerun.
+
+The complete stopped pre-upgrade normal profile and compatible 0.1.1 installer are
+retained together at
+`C:\Users\Micha\OneDrive\Documents\ChatGPT\life-os\work\windows-qa\pre-upgrade-103fa94-20261013-105942`.
+This directory has a protected DACL for the current Windows user, SYSTEM and
+Administrators. It is a filesystem recovery copy, not a portable encrypted archive;
+DPAPI records retain their Windows-user dependency. Never open an upgraded database
+with the older app. Signing remains absent. Prior QA uninstallations were retained;
+no hosted resources or production data were modified during this bounded update.
+
 ## Local Windows installation — Cloud 38f8c4f, 2026-10-12
 
 The normal unsigned Life OS 0.1.1 application was rebuilt on Windows from Cloud
