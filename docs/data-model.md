@@ -62,6 +62,13 @@ Old SQL is unchanged; isolated embedded and real PostgreSQL verification applies
 new chain. No personal/production migration was executed. Runtime grants and operator
 checkpoint verification now explicitly cover 0000–0007 and schedule_series.
 
+`0008_focus_switching.sql`: replaces one_open_focus_per_user with a partial unique
+index on unfinished **running** sessions and adds one_running_focus_interval_per_user.
+Paused sessions have no count cap. Existing rows, duration, notes, links, intervals,
+versions and history are untouched. Migration failure leaves data intact; never reset
+a profile to resolve a conflicting legacy interval. The chain is now 0000–0008 (nine
+migrations, still 23 tables). Isolated upgrade/restart and PostgreSQL tests verify it.
+
 | Table             | Purpose and relationships                                                                               |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |
 | app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                                |
@@ -81,7 +88,7 @@ checkpoint verification now explicitly cover 0000–0007 and schedule_series.
 | daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                               |
 | schedule_block    | Versioned instants, Task or Project, category/objective; optional recurring-series occurrence/exception |
 | schedule_series   | Owner-scoped explicit recurrence range, weekdays/local times/timezone; versioned complete-set edits     |
-| focus_session     | Versioned objective, Task or Project, category, resume state and duration; one open per user            |
+| focus_session     | Versioned objective, Task or Project, category, resume state and duration; one running per user         |
 
 Except auth credentials (whose user PK identifies the row), owned tables have UUID
 IDs, owners, created and updated timestamps. Content references include owner in
@@ -227,7 +234,7 @@ Business metrics retain definitions and units; no hard-coded startup assumptions
 
 PGlite runs the actual SQL migration chain in tests, including timestamp triggers.
 Tests exercise cross-owner references, one active Season, Big 3 positions, one daily
-plan/date, invalid values and one open focus session. PGlite is PostgreSQL-compatible
+plan/date, invalid values, unlimited paused Focus sessions and one running session. PGlite is PostgreSQL-compatible
 WASM, **not proof of Neon pooling/TLS/role behavior**. Before production, apply the
 chain on an isolated hosted PostgreSQL branch and test with the restricted app role.
 
@@ -243,7 +250,10 @@ chain on an isolated hosted PostgreSQL branch and test with the restricted app r
   from the following day. Scheduled-minute totals clip each interval to the selected
   local day, including 23/25-hour DST boundaries. No Task scheduled-time duplicate was introduced.
 - `focus_interval` retains running/paused intervals, with composite session ownership,
-  one open interval and valid dates. Daily totals intersect recorded intervals with
+  one open interval per session AND owner and valid dates. Start/resume atomically
+  pause the previous runner under the owner lock. Paused counters do not accrue; notes
+  update independently with optimistic versions. Finishing records time once and only
+  closes the chosen session, optionally completing its linked Task. Daily totals intersect recorded intervals with
   account-local day boundaries. Legacy sessions without intervals retain their original
   duration in history; they are not fabricated into daily interval metrics.
 - `routine.days` stores sorted distinct weekdays 0–6. Completion is unique per routine

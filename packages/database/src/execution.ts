@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, sql, desc, asc, inArray, isNull, lt, gt } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, inArray, isNull, isNotNull, lt, gt } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { ExecutionCommand } from '@life-os/validation';
 import {
@@ -90,6 +90,55 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
     if (taskId) await owned(tx, s.tasks, taskId, userId);
     if (projectId) await owned(tx, s.projects, projectId, userId);
     if (categoryId) await owned(tx, s.categories, categoryId, userId);
+  }
+  async function unfinished(tx: Tx, userId: string, before?: string) {
+    let boundary;
+    if (before) {
+      const [anchor] = await tx
+        .select({ createdAt: s.focusSessions.createdAt, id: s.focusSessions.id })
+        .from(s.focusSessions)
+        .where(and(eq(s.focusSessions.id, before), eq(s.focusSessions.userId, userId)));
+      if (!anchor) throw new DirectionNotFound();
+      boundary = sql`(${s.focusSessions.createdAt},${s.focusSessions.id}) < (select created_at,id from focus_session where id=${before}::uuid and user_id=${userId}::uuid)`;
+    }
+    const rows = await tx
+      .select()
+      .from(s.focusSessions)
+      .where(and(eq(s.focusSessions.userId, userId), isNull(s.focusSessions.endedAt), boundary))
+      .orderBy(desc(s.focusSessions.createdAt), desc(s.focusSessions.id))
+      .limit(51);
+    return { items: rows.slice(0, 50).map(focus), next: rows.length > 50 ? rows[49]!.id : null };
+  }
+  async function pauseRunning(tx: Tx, userId: string, now: Date) {
+    const [running] = await tx
+      .select()
+      .from(s.focusSessions)
+      .where(
+        and(
+          eq(s.focusSessions.userId, userId),
+          isNull(s.focusSessions.endedAt),
+          isNotNull(s.focusSessions.resumedAt),
+        ),
+      );
+    if (!running) return;
+    await tx
+      .update(s.focusIntervals)
+      .set({ endsAt: now })
+      .where(
+        and(
+          eq(s.focusIntervals.userId, userId),
+          eq(s.focusIntervals.sessionId, running.id),
+          isNull(s.focusIntervals.endsAt),
+        ),
+      );
+    await tx
+      .update(s.focusSessions)
+      .set({
+        resumedAt: null,
+        activeSeconds: elapsedFocus(focus(running), now),
+        version: running.version + 1,
+      })
+      .where(and(eq(s.focusSessions.userId, userId), eq(s.focusSessions.id, running.id)));
   }
   return {
     async mutate(userId: string, c: ExecutionCommand) {
@@ -355,12 +404,9 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
           resultId = c.id;
         } else if (c.action === 'focus-start') {
           await links(tx, userId, c.taskId, c.projectId, c.categoryId);
-          const open = await tx
-            .select({ id: s.focusSessions.id })
-            .from(s.focusSessions)
-            .where(and(eq(s.focusSessions.userId, userId), isNull(s.focusSessions.endedAt)))
-            .limit(1);
-          if (open.length) throw new DirectionConflict();
+          // The owner lock acquired above serializes every start/switch/control.
+          // Close the previous interval before opening the next, at the same instant.
+          await pauseRunning(tx, userId, now);
           await tx.insert(s.focusSessions).values({
             id: c.id,
             userId,
@@ -369,10 +415,23 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             projectId: c.projectId,
             categoryId: c.categoryId,
             plannedMinutes: c.plannedMinutes,
+            notes: c.notes,
             startedAt: now,
             resumedAt: now,
           });
           await tx.insert(s.focusIntervals).values({ userId, sessionId: c.id, startsAt: now });
+          resultId = c.id;
+        } else if (c.action === 'focus-notes') {
+          await versionCheck(tx, s.focusSessions, c.id, userId, c.version);
+          const [row] = await tx
+            .select()
+            .from(s.focusSessions)
+            .where(and(eq(s.focusSessions.id, c.id), eq(s.focusSessions.userId, userId)));
+          if (!row || row.endedAt) throw new DirectionConflict();
+          await tx
+            .update(s.focusSessions)
+            .set({ notes: c.notes, version: c.version + 1 })
+            .where(and(eq(s.focusSessions.id, c.id), eq(s.focusSessions.userId, userId)));
           resultId = c.id;
         } else if (c.action === 'focus-control') {
           await versionCheck(tx, s.focusSessions, c.id, userId, c.version);
@@ -387,9 +446,10 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
           )
             throw new DirectionConflict();
           const seconds = elapsedFocus(focus(row), now);
-          if (c.operation === 'resume')
+          if (c.operation === 'resume') {
+            await pauseRunning(tx, userId, now);
             await tx.insert(s.focusIntervals).values({ userId, sessionId: c.id, startsAt: now });
-          else
+          } else
             await tx
               .update(s.focusIntervals)
               .set({ endsAt: now })
@@ -619,10 +679,14 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
         return result;
       });
     },
+    async unfinished(userId: string, before?: string) {
+      return db.transaction((tx) => unfinished(tx, userId, before));
+    },
     async today(
       userId: string,
       date?: string,
       calendarDays: 1 | 7 = 1,
+      focusId?: string,
     ): Promise<Omit<ExecutionSnapshot, 'recommendations' | 'insights'>> {
       const now = new Date();
       // One repeatable-read snapshot bounds every collection, including Season allocations.
@@ -663,7 +727,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             : null;
 
           // Use local calendar predicates, including 23/25-hour DST days and blocks crossing midnight.
-          const inDay = (column: typeof s.tasks.completedAt | typeof s.focusSessions.startedAt) =>
+          const inDay = (column: typeof s.tasks.completedAt | typeof s.focusSessions.endedAt) =>
             sql`(${column} at time zone ${user.timeZone})::date = ${day}::date`;
           const [planRow] = await tx
             .select()
@@ -751,10 +815,33 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             .select({ n: sql<number>`count(*)::int` })
             .from(s.inboxItems)
             .where(and(eq(s.inboxItems.userId, userId), isNull(s.inboxItems.processedAt)));
-          const [current] = await tx
+          const open = await unfinished(tx, userId);
+          const [running] = await tx
             .select()
             .from(s.focusSessions)
-            .where(and(eq(s.focusSessions.userId, userId), isNull(s.focusSessions.endedAt)));
+            .where(
+              and(
+                eq(s.focusSessions.userId, userId),
+                isNull(s.focusSessions.endedAt),
+                isNotNull(s.focusSessions.resumedAt),
+              ),
+            );
+          const [selected] = focusId
+            ? await tx
+                .select()
+                .from(s.focusSessions)
+                .where(
+                  and(
+                    eq(s.focusSessions.userId, userId),
+                    eq(s.focusSessions.id, focusId),
+                    isNull(s.focusSessions.endedAt),
+                  ),
+                )
+            : [];
+          // A foreign/missing selection never discloses details or influences ownership.
+          const openItems = [...open.items];
+          for (const extra of [running, selected])
+            if (extra && !openItems.some((f) => f.id === extra.id)) openItems.push(focus(extra));
           const history = await tx
             .select()
             .from(s.focusSessions)
@@ -762,10 +849,10 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
               and(
                 eq(s.focusSessions.userId, userId),
                 sql`${s.focusSessions.endedAt} is not null`,
-                inDay(s.focusSessions.startedAt),
+                inDay(s.focusSessions.endedAt),
               ),
             )
-            .orderBy(desc(s.focusSessions.startedAt))
+            .orderBy(desc(s.focusSessions.endedAt), desc(s.focusSessions.id))
             .limit(20);
           const dayStart = sql`${day}::date::timestamp at time zone ${user.timeZone}`;
           const dayEnd = sql`(${day}::date + 1)::timestamp at time zone ${user.timeZone}`;
@@ -846,7 +933,9 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             calendarDays,
             tasks: clean(tasks),
             rankingCategories,
-            focus: current ? focus(current) : null,
+            focus: running ? focus(running) : (open.items[0] ?? null),
+            focusSessions: openItems,
+            focusNext: open.next,
             focusHistory: history.map(focus),
             routines: routines.slice(0, 100).map((row) => {
               const check = checks.find((x) => x.routineId === row.id);

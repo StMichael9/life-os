@@ -6,9 +6,15 @@ import { sql } from 'drizzle-orm';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { createEmbeddedDatabase } from '@life-os/database/embedded';
-import { createAuthRepository, createInboxRepository } from '@life-os/database';
+import {
+  createAuthRepository,
+  createInboxRepository,
+  createExecutionRepository,
+  schema as s,
+} from '@life-os/database';
 import { createAuthService } from './auth';
 import { createInboxService } from './index';
+import { createExecutionService } from './execution';
 import { randomUUID } from 'node:crypto';
 
 describe('offline filesystem persistence', () => {
@@ -74,3 +80,110 @@ describe('offline filesystem persistence', () => {
     }
   }, 30000);
 });
+
+it('keeps multiple unfinished Focus timers, notes and atomic switches across physical engine restarts', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'life-os-focus-persist-'));
+  const migrationsFolder = fileURLToPath(new URL('../../database/migrations', import.meta.url));
+  const path = join(folder, 'database'),
+    secret = 'focus-persistence-fixture-secret-over-32-bytes';
+  let connection: Awaited<ReturnType<typeof createEmbeddedDatabase>> | undefined;
+  try {
+    connection = await createEmbeddedDatabase(path, { migrationsFolder });
+    const auth = createAuthService(createAuthRepository(connection.db), secret);
+    const user = await auth.createAccount({
+      email: 'focus@offline.test',
+      displayName: 'Offline Focus',
+      timeZone: 'UTC',
+      password: 'Offline focus fixture password 123!',
+    });
+    const login = await auth.login({
+      email: 'focus@offline.test',
+      password: 'Offline focus fixture password 123!',
+    });
+    const algorithms = randomUUID(),
+      book = randomUUID();
+    // Synthetic saved 45-minute paused session; no fabricated active interval.
+    await connection.db.insert(s.focusSessions).values({
+      id: algorithms,
+      userId: user.id,
+      objective: 'Algorithms',
+      startedAt: new Date(),
+      plannedMinutes: 90,
+      activeSeconds: 2700,
+      notes: 'Return to this algorithm',
+    });
+    const execution = createExecutionService(auth, createExecutionRepository(connection.db));
+    await execution.mutate(login.token, {
+      action: 'focus-start',
+      requestId: randomUUID(),
+      id: book,
+      objective: 'Bookvane',
+      plannedMinutes: 60,
+      taskId: null,
+      projectId: null,
+      categoryId: null,
+      notes: 'Independent book notes',
+    });
+    await connection.close();
+    connection = await createEmbeddedDatabase(path, { migrationsFolder });
+    const reopenedAuth = createAuthService(createAuthRepository(connection.db), secret),
+      reopened = createExecutionService(reopenedAuth, createExecutionRepository(connection.db));
+    expect((await reopenedAuth.verify(login.token))?.userId).toBe(user.id);
+    let snapshot = await reopened.today(login.token, {});
+    expect(snapshot.focus?.id).toBe(book);
+    expect(snapshot.focusSessions.find((f) => f.id === algorithms)).toMatchObject({
+      activeSeconds: 2700,
+      resumedAt: null,
+      notes: 'Return to this algorithm',
+      plannedMinutes: 90,
+    });
+    await reopened.mutate(login.token, {
+      action: 'focus-control',
+      requestId: randomUUID(),
+      id: algorithms,
+      version: 1,
+      operation: 'resume',
+      completeTask: false,
+      outcome: '',
+      notes: '',
+    });
+    snapshot = await reopened.today(login.token, {});
+    expect(snapshot.focus?.id).toBe(algorithms);
+    expect(snapshot.focusSessions.find((f) => f.id === book)).toMatchObject({
+      resumedAt: null,
+      endedAt: null,
+      notes: 'Independent book notes',
+    });
+    await reopened.mutate(login.token, {
+      action: 'focus-control',
+      requestId: randomUUID(),
+      id: algorithms,
+      version: 2,
+      operation: 'pause',
+      completeTask: false,
+      outcome: '',
+      notes: '',
+    });
+    const paused = await reopened.today(login.token, {});
+    const seconds = new Map(paused.focusSessions.map((f) => [f.id, f.activeSeconds]));
+    await connection.close();
+    connection = await createEmbeddedDatabase(path, { migrationsFolder });
+    const final = createExecutionService(
+      createAuthService(createAuthRepository(connection.db), secret),
+      createExecutionRepository(connection.db),
+    );
+    snapshot = await final.today(login.token, {});
+    expect(snapshot.focusSessions).toHaveLength(2);
+    expect(
+      snapshot.focusSessions.every(
+        (f) => f.resumedAt === null && f.activeSeconds === seconds.get(f.id),
+      ),
+    ).toBe(true);
+    expect(snapshot.focusSessions.find((f) => f.id === algorithms)?.notes).toBe(
+      'Return to this algorithm',
+    );
+  } finally {
+    await connection?.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+}, 30000);

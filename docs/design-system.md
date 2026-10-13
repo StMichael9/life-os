@@ -138,3 +138,14 @@ view; motion respects reduced-motion. Pause/resume/finish use saved server versi
 Zero means the intention ended, not that recording stopped. Notes collapse in the
 finish dialog, and Task completion is an explicit optional checkbox. Comprehensive
 screen-reader/zoom/native Windows acceptance is delegated in ux-consolidation-handoff.md.
+
+## Switching saved Focus sessions
+
+Use one centered countdown and a compact scrollable list of other unfinished
+sessions, with objective/name, remaining time and a quiet Running/Paused label.
+Selecting a paused row resumes it and pauses the runner in one action. New Session
+reuses the existing native form; notes collapse and save independently. Only the
+selected timer is prominent. Paused rows derive frozen time from persisted active
+seconds. URL selection survives refresh, but UUIDs remain owner-checked by the server.
+Avoid new navigation branches, timer configuration dashboards or repeated analytics.
+The existing dark olive/teal tokens, responsive shell and reduced-motion ring remain.

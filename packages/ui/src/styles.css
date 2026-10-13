@@ -2673,3 +2673,164 @@ blockquote {
 body:has(.unified-shell) .palette-launch {
   display: none;
 }
+
+/* Focus keeps one timer in view; other intentions are compact, saved rows. */
+.focus-workspace {
+  max-width: 660px;
+  margin: 0 auto;
+}
+.focus-workspace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.focus-workspace-heading h2 {
+  font-size: 22px;
+  margin: 3px 0 0;
+}
+.selected-focus-title {
+  font-size: clamp(20px, 3vw, 27px);
+  font-weight: 400;
+  text-align: center;
+  margin: 22px auto 0;
+  max-width: 520px;
+  overflow-wrap: anywhere;
+}
+.focus-workspace .radial-focus {
+  width: min(280px, 100%);
+  margin: 18px auto;
+}
+.focus-day-objective {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  color: var(--muted);
+  padding: 10px 16px;
+}
+.focus-linked-work {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--accent);
+}
+.focus-session-notes {
+  margin: 18px 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--border);
+}
+.focus-session-notes summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.focus-session-notes p {
+  margin: 12px 0;
+  font-size: 13px;
+}
+.focus-save-status {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.unfinished-focus {
+  margin-top: 20px;
+}
+.unfinished-focus ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.focus-session-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+.focus-session-switch:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+.session-name {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.session-remaining {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.session-remaining small {
+  display: block;
+  font-size: 10px;
+  text-align: right;
+}
+.session-status {
+  width: 62px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+}
+.session-status.running {
+  color: #9abdaf;
+}
+.focus-more {
+  margin-top: 14px;
+}
+.focus-empty {
+  padding: 30px 0;
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  color: var(--muted);
+}
+.block-start-another {
+  display: block;
+  margin: 18px 0;
+  max-width: 100%;
+  white-space: normal;
+}
+.unified-shell .season-banner p {
+  margin: 0;
+}
+.unified-shell .allocation-pills {
+  margin: 5px 0 0;
+}
+.unified-shell .execution-grid .execution-card {
+  margin-bottom: 10px;
+}
+.unified-shell .topbar .execution-actions .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  white-space: nowrap;
+}
+@media (max-width: 580px) {
+  .focus-session-switch {
+    gap: 10px;
+    padding-inline: 4px;
+  }
+  .focus-workspace-heading .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .focus-workspace-heading {
+    align-items: flex-start;
+  }
+  .focus-workspace .radial-focus {
+    width: min(260px, 100%);
+  }
+}
+.unfinished-focus ul {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

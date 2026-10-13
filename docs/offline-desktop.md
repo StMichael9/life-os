@@ -22,7 +22,7 @@ are reused. No SQLite schema rewrite, remote sync or second public backend is pl
 
 Use PGlite's filesystem-backed embedded PostgreSQL engine through Drizzle's pglite
 adapter. Existing repositories already accept the shared PgDatabase interface; their
-SQL and owner predicates are retained. Apply committed migrations 0000–0007 through
+SQL and owner predicates are retained. Apply committed migrations 0000–0008 through
 the normal ledger on initialization. No external PostgreSQL daemon, port or installed
 Node.js is required. The database is accessible only inside the privileged local
 backend process, never directly from the renderer. Embedded database ownership is

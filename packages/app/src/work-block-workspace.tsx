@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { ExecutionSnapshot, ScheduleBlock } from '@life-os/shared';
-import { elapsedFocus } from '@life-os/shared';
-import { FocusTimer } from './focus-timer';
+import type { ExecutionSnapshot, ScheduleBlock, FocusSession } from '@life-os/shared';
+import { FocusWorkspace } from './focus-workspace';
 export function WorkBlockWorkspace({
   block,
   data,
@@ -11,6 +10,13 @@ export function WorkBlockWorkspace({
   busy,
   onClose,
   onStart,
+  sessions,
+  selected,
+  next,
+  onMore,
+  onSelect,
+  onNotes,
+  onNew,
   onControl,
   onFinish,
   onEdit,
@@ -24,8 +30,15 @@ export function WorkBlockWorkspace({
   busy: boolean;
   onClose: () => void;
   onStart: () => void;
-  onControl: () => void;
-  onFinish: () => void;
+  sessions: FocusSession[];
+  selected: FocusSession | null;
+  next: string | null;
+  onMore: () => void;
+  onSelect: (session: FocusSession) => void;
+  onNotes: (session: FocusSession) => void;
+  onNew: () => void;
+  onControl: (session: FocusSession) => void;
+  onFinish: (session: FocusSession) => void;
   onEdit: () => void;
   onSeries: () => void;
   onRemove: () => void;
@@ -34,7 +47,7 @@ export function WorkBlockWorkspace({
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
-  const session = data.focus;
+
   const format = new Intl.DateTimeFormat('en-US', {
     timeZone: data.timeZone,
     weekday: 'short',
@@ -60,7 +73,7 @@ export function WorkBlockWorkspace({
           <p className="eyebrow">Your work block</p>
           <h2 id="block-title">{block.title}</h2>
         </div>
-        <button className="button" aria-label="Close work block" disabled={busy} onClick={onClose}>
+        <button className="button" aria-label="Close work block" onClick={onClose}>
           ×
         </button>
       </div>
@@ -72,22 +85,35 @@ export function WorkBlockWorkspace({
           {error}
         </p>
       )}
-      {session ? (
+      {sessions.length > 0 ? (
         <>
-          <h3>{session.objective}</h3>
-          <FocusTimer
-            elapsed={elapsedFocus(session, new Date(now))}
-            plannedMinutes={session.plannedMinutes}
-            running={!!session.resumedAt}
+          {(!selected ||
+            selected.objective !== (block.objective || block.title) ||
+            selected.taskId !== block.taskId ||
+            selected.projectId !== block.projectId) && (
+            <button
+              className="button button-primary block-start-another"
+              disabled={busy}
+              onClick={onStart}
+            >
+              Start {block.title}
+            </button>
+          )}
+          <FocusWorkspace
+            sessions={sessions}
+            selected={selected}
+            now={now}
+            busy={busy}
+            settling={false}
+            objective={null}
+            next={next}
+            onMore={onMore}
+            onNew={onNew}
+            onSelect={onSelect}
+            onControl={onControl}
+            onFinish={onFinish}
+            onNotes={onNotes}
           />
-          <div className="focus-controls">
-            <button className="button" disabled={busy} onClick={onControl}>
-              {session.resumedAt ? 'Pause' : 'Resume'}
-            </button>
-            <button className="button button-primary" disabled={busy} onClick={onFinish}>
-              Finish Focus
-            </button>
-          </div>
         </>
       ) : (
         <div className="block-focus-intent">

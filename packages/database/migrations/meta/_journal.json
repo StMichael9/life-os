@@ -57,6 +57,13 @@
       "when": 1791838821385,
       "tag": "0007_work_block_series",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791911016677,
+      "tag": "0008_focus_switching",
+      "breakpoints": true
     }
   ]
 }
