@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceShell } from './workspace-shell';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Eyebrow, Panel } from '@life-os/ui';
 import {
@@ -202,154 +203,155 @@ export function Inbox() {
     }
   }
   return (
-    <main className="inbox-page">
-      <header className="inbox-top">
-        <a className="auth-brand" href="/">
-          LIFE OS
-        </a>
-        <nav aria-label="Workspace navigation">
-          <a href="/">Today</a>
-          <a href="/direction">Direction</a>
-          <a href="/tasks">Tasks</a>
-        </nav>
-        <div>
-          {profile && <span>{profile.displayName}</span>}
-          {profile && (
-            <Button onClick={() => void logout()} disabled={busy}>
-              Sign out
-            </Button>
-          )}
+    <WorkspaceShell
+      title="Inbox"
+      active="more"
+      actions={
+        profile && (
+          <Button onClick={() => void logout()} disabled={busy}>
+            Sign out
+          </Button>
+        )
+      }
+    >
+      <main id="main" className="inbox-page">
+        <div className="inbox-heading">
+          <Eyebrow>CAPTURE FIRST. ORGANIZE LATER.</Eyebrow>
+          <h1>Make room in your mind.</h1>
+          <p>Tasks, ideas, reminders, prayers. Start with a thought.</p>
         </div>
-      </header>
-      <div className="inbox-heading">
-        <Eyebrow>CAPTURE FIRST. ORGANIZE LATER.</Eyebrow>
-        <h1>Make room in your mind.</h1>
-        <p>Tasks, ideas, reminders, prayers. Start with a thought.</p>
-      </div>
-      {signedOut && (
-        <Panel className="session-notice">
-          <p>{message}</p>
-          <a
-            href="/login"
-            onClick={(event) => {
-              if (draft && !window.confirm('Discard your unsaved text and go to sign in?'))
-                event.preventDefault();
-            }}
-          >
-            Sign in again
-          </a>
-        </Panel>
-      )}
-      <Panel className="capture-panel">
-        <form onSubmit={capture}>
-          <label htmlFor="capture">What’s on your mind?</label>
-          <textarea
-            id="capture"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            maxLength={10_000}
-            rows={4}
-            readOnly={busy || uncertain}
-            placeholder="Capture something worth remembering…"
-          />
-          <div className="capture-actions">
-            <p className="quiet-note">
-              {uncertain
-                ? 'Retry uses the same request so your capture is saved once.'
-                : 'Your capture stays here until saving succeeds.'}
-            </p>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={busy || !profile || signedOut || !draft.trim()}
+        {signedOut && (
+          <Panel className="session-notice">
+            <p>{message}</p>
+            <a
+              href="/login"
+              onClick={(event) => {
+                if (draft && !window.confirm('Discard your unsaved text and go to sign in?'))
+                  event.preventDefault();
+              }}
             >
-              {busy ? 'Saving…' : uncertain ? 'Retry capture' : 'Capture'}
+              Sign in again
+            </a>
+          </Panel>
+        )}
+        <Panel className="capture-panel">
+          <form onSubmit={capture}>
+            <label htmlFor="capture">What’s on your mind?</label>
+            <textarea
+              id="capture"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={10_000}
+              rows={4}
+              readOnly={busy || uncertain}
+              placeholder="Capture something worth remembering…"
+            />
+            <div className="capture-actions">
+              <p className="quiet-note">
+                {uncertain
+                  ? 'Retry uses the same request so your capture is saved once.'
+                  : 'Your capture stays here until saving succeeds.'}
+              </p>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={busy || !profile || signedOut || !draft.trim()}
+              >
+                {busy ? 'Saving…' : uncertain ? 'Retry capture' : 'Capture'}
+              </Button>
+            </div>
+          </form>
+        </Panel>
+        {!signedOut && (
+          <p className="form-message" role="status">
+            {message}
+          </p>
+        )}
+        <section aria-labelledby="captured-heading" className="captured-section">
+          <div className="panel-heading">
+            <h2 id="captured-heading">Your Inbox</h2>
+            <Button onClick={() => void refresh()} disabled={busy || signedOut}>
+              Refresh
             </Button>
           </div>
-        </form>
-      </Panel>
-      {!signedOut && (
-        <p className="form-message" role="status">
-          {message}
-        </p>
-      )}
-      <section aria-labelledby="captured-heading" className="captured-section">
-        <div className="panel-heading">
-          <h2 id="captured-heading">Your Inbox</h2>
-          <Button onClick={() => void refresh()} disabled={busy || signedOut}>
-            Refresh
-          </Button>
-        </div>
-        {loading ? (
-          <p className="card-description">Opening your Inbox…</p>
-        ) : profile && !items.length ? (
-          <p className="card-description">Give a thought a place to land. Capture it above.</p>
-        ) : null}
-        <ul className="capture-list">
-          {items.map((item) => (
-            <li key={item.id}>
-              <p>{item.body}</p>
-              <time dateTime={item.createdAt}>
-                {new Intl.DateTimeFormat('en-US', {
-                  timeZone: profile?.timeZone ?? 'UTC',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                }).format(new Date(item.createdAt))}
-              </time>
-              {item.processed && (
-                <p className="muted">
-                  Processed capture · original text preserved.{' '}
-                  {item.convertedTaskId && (
-                    <a href={'/tasks?id=' + item.convertedTaskId}>Open linked Task →</a>
-                  )}
-                </p>
-              )}
-              {profile && !item.processed && (
-                <>
-                  <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
-                    Turn into Task
-                  </a>
-                  <a className="button" href={'/vault?fromInbox=' + item.id}>
-                    Keep in Vault / Not Now
-                  </a>
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (!profile || !confirm('Archive this capture? The original text is kept.'))
-                        return;
-                      setBusy(true);
-                      try {
-                        await postJson(
-                          '/api/execution',
-                          { action: 'inbox-dismiss', requestId: crypto.randomUUID(), id: item.id },
-                          'POST',
-                          profile.id,
-                        );
-                        await refresh();
-                      } catch (e) {
-                        fail(e);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    Archive capture
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        {cursor && (
-          <Button onClick={() => void loadMore()} disabled={busy || signedOut}>
-            Load earlier captures
-          </Button>
-        )}
-        {!profile && !signedOut && !loading && <a href="/login">Go to sign in</a>}
-      </section>
-    </main>
+          {loading ? (
+            <p className="card-description">Opening your Inbox…</p>
+          ) : profile && !items.length ? (
+            <p className="card-description">Give a thought a place to land. Capture it above.</p>
+          ) : null}
+          <ul className="capture-list">
+            {items.map((item) => (
+              <li key={item.id}>
+                <p>{item.body}</p>
+                <time dateTime={item.createdAt}>
+                  {new Intl.DateTimeFormat('en-US', {
+                    timeZone: profile?.timeZone ?? 'UTC',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  }).format(new Date(item.createdAt))}
+                </time>
+                {item.processed && (
+                  <p className="muted">
+                    Processed capture · original text preserved.{' '}
+                    {item.convertedTaskId && (
+                      <a href={'/tasks?id=' + item.convertedTaskId}>Open linked Task →</a>
+                    )}
+                  </p>
+                )}
+                {profile && !item.processed && (
+                  <>
+                    <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
+                      Turn into Task
+                    </a>
+                    <a className="button" href={'/vault?fromInbox=' + item.id}>
+                      Keep in Vault / Not Now
+                    </a>
+                    <button
+                      className="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (
+                          !profile ||
+                          !confirm('Archive this capture? The original text is kept.')
+                        )
+                          return;
+                        setBusy(true);
+                        try {
+                          await postJson(
+                            '/api/execution',
+                            {
+                              action: 'inbox-dismiss',
+                              requestId: crypto.randomUUID(),
+                              id: item.id,
+                            },
+                            'POST',
+                            profile.id,
+                          );
+                          await refresh();
+                        } catch (e) {
+                          fail(e);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      Archive capture
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          {cursor && (
+            <Button onClick={() => void loadMore()} disabled={busy || signedOut}>
+              Load earlier captures
+            </Button>
+          )}
+          {!profile && !signedOut && !loading && <a href="/login">Go to sign in</a>}
+        </section>
+      </main>
+    </WorkspaceShell>
   );
 }

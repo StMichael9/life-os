@@ -1,8 +1,15 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, sql, desc, asc, inArray, isNull, lt, gt } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { ExecutionCommand } from '@life-os/validation';
-import { localDate, dailyContent, emptyReflection, elapsedFocus } from '@life-os/shared';
+import {
+  localDate,
+  dailyContent,
+  emptyReflection,
+  elapsedFocus,
+  recurringInstants,
+  shiftDate,
+} from '@life-os/shared';
 import type {
   ExecutionSnapshot,
   DailyPlan,
@@ -53,7 +60,11 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
   async function versionCheck(
     tx: Tx,
     table:
-      typeof s.scheduleBlocks | typeof s.focusSessions | typeof s.routines | typeof s.vaultItems,
+      | typeof s.scheduleSeries
+      | typeof s.scheduleBlocks
+      | typeof s.focusSessions
+      | typeof s.routines
+      | typeof s.vaultItems,
     id: string,
     userId: string,
     version: number,
@@ -166,17 +177,44 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
           resultId = planId!;
         } else if (c.action === 'schedule') {
           await versionCheck(tx, s.scheduleBlocks, c.id, userId, c.version);
-          await links(tx, userId, c.taskId);
+          await links(tx, userId, c.taskId, c.projectId, c.categoryId);
+          const [priorBlock] = c.version
+            ? await tx
+                .select()
+                .from(s.scheduleBlocks)
+                .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)))
+            : [];
+          if (priorBlock?.seriesId)
+            await tx
+              .update(s.scheduleSeries)
+              .set({ version: sql`${s.scheduleSeries.version}+1` })
+              .where(
+                and(
+                  eq(s.scheduleSeries.id, priorBlock.seriesId),
+                  eq(s.scheduleSeries.userId, userId),
+                ),
+              );
           if (c.remove) {
             if (!c.version) throw new DirectionNotFound();
-            await tx
-              .delete(s.scheduleBlocks)
-              .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
+            if (priorBlock?.seriesId)
+              await tx
+                .update(s.scheduleBlocks)
+                .set({ skipped: true, overridden: true, version: c.version + 1 })
+                .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
+            else
+              await tx
+                .delete(s.scheduleBlocks)
+                .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
           } else {
             const values = {
               title: c.title,
               kind: c.kind,
               taskId: c.taskId,
+              projectId: c.projectId,
+              categoryId: c.categoryId,
+              objective: c.objective,
+              overridden: !!priorBlock?.seriesId,
+              skipped: false,
               startsAt: new Date(c.startsAt),
               endsAt: new Date(c.endsAt),
               version: c.version + 1,
@@ -188,6 +226,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
               .where(
                 and(
                   eq(s.scheduleBlocks.userId, userId),
+                  eq(s.scheduleBlocks.skipped, false),
                   sql`${s.scheduleBlocks.id} <> ${c.id}`,
                   lt(s.scheduleBlocks.startsAt, values.endsAt),
                   gt(s.scheduleBlocks.endsAt, values.startsAt),
@@ -203,6 +242,116 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
                 .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
             else await tx.insert(s.scheduleBlocks).values({ ...values, id: c.id, userId });
           }
+          resultId = c.id;
+        } else if (c.action === 'schedule-series') {
+          await versionCheck(tx, s.scheduleSeries, c.id, userId, c.version);
+          await links(tx, userId, c.taskId, c.projectId, c.categoryId);
+          const [prior] = c.version
+            ? await tx
+                .select()
+                .from(s.scheduleSeries)
+                .where(and(eq(s.scheduleSeries.id, c.id), eq(s.scheduleSeries.userId, userId)))
+            : [];
+          const timeZone = prior?.timeZone ?? user.timeZone;
+          let occurrences;
+          try {
+            occurrences = recurringInstants(c, timeZone);
+          } catch (error) {
+            throw new DirectionInvalid(
+              error instanceof Error ? error.message : 'Invalid repeat times.',
+            );
+          }
+          const existing = c.version
+            ? await tx
+                .select()
+                .from(s.scheduleBlocks)
+                .where(
+                  and(eq(s.scheduleBlocks.seriesId, c.id), eq(s.scheduleBlocks.userId, userId)),
+                )
+            : [];
+          const exceptions = new Set(
+            existing.filter((b) => b.overridden).map((b) => b.occurrenceDate),
+          );
+          const generated = occurrences.filter((o) => !exceptions.has(o.date));
+          // Owner row lock serializes all schedule writes. Replace only normal occurrences;
+          // edited/skipped occurrences are kept, including ones outside a changed repeat range.
+          await tx
+            .delete(s.scheduleBlocks)
+            .where(
+              and(
+                eq(s.scheduleBlocks.userId, userId),
+                eq(s.scheduleBlocks.seriesId, c.id),
+                eq(s.scheduleBlocks.overridden, false),
+              ),
+            );
+          if (generated.length) {
+            const other = await tx
+              .select()
+              .from(s.scheduleBlocks)
+              .where(
+                and(
+                  eq(s.scheduleBlocks.userId, userId),
+                  eq(s.scheduleBlocks.skipped, false),
+                  lt(s.scheduleBlocks.startsAt, new Date(generated[generated.length - 1]!.endsAt)),
+                  gt(s.scheduleBlocks.endsAt, new Date(generated[0]!.startsAt)),
+                ),
+              )
+              .limit(5001);
+            if (other.length > 5000)
+              throw new DirectionInvalid('Choose a shorter repeat range for this busy calendar.');
+            if (
+              generated.some((o) =>
+                other.some(
+                  (b) => b.startsAt < new Date(o.endsAt) && b.endsAt > new Date(o.startsAt),
+                ),
+              )
+            )
+              throw new DirectionInvalid(
+                'A repeated occurrence overlaps another block. The entire series was left unchanged.',
+              );
+          }
+          const values = {
+            version: c.version + 1,
+            title: c.title,
+            kind: c.kind,
+            taskId: c.taskId,
+            projectId: c.projectId,
+            categoryId: c.categoryId,
+            objective: c.objective,
+            startsOn: c.startsOn,
+            endsOn: c.endsOn,
+            startTime: c.startTime,
+            endTime: c.endTime,
+            days: [...c.days].sort().join(','),
+            timeZone,
+          };
+          if (c.version)
+            await tx
+              .update(s.scheduleSeries)
+              .set(values)
+              .where(and(eq(s.scheduleSeries.id, c.id), eq(s.scheduleSeries.userId, userId)));
+          else await tx.insert(s.scheduleSeries).values({ ...values, id: c.id, userId });
+          if (generated.length)
+            await tx.insert(s.scheduleBlocks).values(
+              generated.map((o) => {
+                const prior = existing.find((b) => b.occurrenceDate === o.date);
+                return {
+                  id: prior?.id ?? randomUUID(),
+                  userId,
+                  version: (prior?.version ?? 0) + 1,
+                  title: c.title,
+                  kind: c.kind,
+                  taskId: c.taskId,
+                  projectId: c.projectId,
+                  categoryId: c.categoryId,
+                  objective: c.objective,
+                  seriesId: c.id,
+                  occurrenceDate: o.date,
+                  startsAt: new Date(o.startsAt),
+                  endsAt: new Date(o.endsAt),
+                };
+              }),
+            );
           resultId = c.id;
         } else if (c.action === 'focus-start') {
           await links(tx, userId, c.taskId, c.projectId, c.categoryId);
@@ -268,6 +417,12 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
               .set({
                 actualMinutes: sql`coalesce(${s.tasks.actualMinutes},0) + ${Math.round(seconds / 60)}`,
                 version: sql`${s.tasks.version}+1`,
+                ...(c.completeTask
+                  ? {
+                      status: 'completed' as const,
+                      completedAt: sql`coalesce(${s.tasks.completedAt},${now})`,
+                    }
+                  : {}),
               })
               .where(and(eq(s.tasks.id, row.taskId), eq(s.tasks.userId, userId)));
           resultId = c.id;
@@ -467,6 +622,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
     async today(
       userId: string,
       date?: string,
+      calendarDays: 1 | 7 = 1,
     ): Promise<Omit<ExecutionSnapshot, 'recommendations' | 'insights'>> {
       const now = new Date();
       // One repeatable-read snapshot bounds every collection, including Season allocations.
@@ -536,11 +692,21 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             .where(
               and(
                 eq(s.scheduleBlocks.userId, userId),
-                sql`(${s.scheduleBlocks.startsAt} at time zone ${user.timeZone})::date <= ${day}::date AND (${s.scheduleBlocks.endsAt} at time zone ${user.timeZone})::date >= ${day}::date AND ${s.scheduleBlocks.endsAt} > (${day}::date::timestamp at time zone ${user.timeZone})`,
+                eq(s.scheduleBlocks.skipped, false),
+                sql`${s.scheduleBlocks.startsAt} < (${shiftDate(day, calendarDays)}::date::timestamp at time zone ${user.timeZone}) AND ${s.scheduleBlocks.endsAt} > (${day}::date::timestamp at time zone ${user.timeZone})`,
               ),
             )
             .orderBy(asc(s.scheduleBlocks.startsAt))
-            .limit(101);
+            .limit(calendarDays === 7 ? 501 : 101);
+          const seriesIds = [...new Set(blocks.flatMap((b) => (b.seriesId ? [b.seriesId] : [])))];
+          const series = seriesIds.length
+            ? await tx
+                .select()
+                .from(s.scheduleSeries)
+                .where(
+                  and(eq(s.scheduleSeries.userId, userId), inArray(s.scheduleSeries.id, seriesIds)),
+                )
+            : [];
           const candidates = await tx
             .select({
               task: s.tasks,
@@ -611,6 +777,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             .where(
               and(
                 eq(s.scheduleBlocks.userId, userId),
+                eq(s.scheduleBlocks.skipped, false),
                 sql`${s.scheduleBlocks.startsAt} < ${dayEnd}`,
                 sql`${s.scheduleBlocks.endsAt} > ${dayStart}`,
               ),
@@ -671,7 +838,12 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             content: dailyContent(new Date(`${day}T12:00:00Z`), 'UTC'),
             plan,
             activeSeason: season,
-            schedule: clean(blocks.slice(0, 100)),
+            schedule: clean(blocks.slice(0, calendarDays === 7 ? 500 : 100)),
+            scheduleSeries: series.map((row) => ({
+              ...clean<typeof row>(row),
+              days: row.days.split(',').map(Number),
+            })),
+            calendarDays,
             tasks: clean(tasks),
             rankingCategories,
             focus: current ? focus(current) : null,
@@ -696,7 +868,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             },
             limits: {
               tasks: candidates.length > 200,
-              schedule: blocks.length > 100,
+              schedule: blocks.length > (calendarDays === 7 ? 500 : 100),
               routines: routines.length > 100,
             },
           };

@@ -1,5 +1,45 @@
 # Progress and handoff
 
+## Phase 1 UX consolidation — 2026-10-12
+
+Current assignment is calendar-centered Phase 1 UX only; do not begin Phases 2–6.
+Cloud implemented a shared Today / Calendar / Goals / More shell across authenticated
+views, visible search/capture, compact Season/priorities, real day/week hourly calendar,
+inline block → Focus workspace and radial countdown. Existing secondary routes remain.
+Recommendations, Insights, routines and capture collapse; counts remain persisted data.
+
+Work blocks now support optional owned Task **or** Project, category and objective.
+Migration `0007_work_block_series.sql` adds a versioned owner-scoped schedule_series and
+additive occurrence fields on schedule_block (23 tables, eight migrations). Daily or
+selected-weekday recurrence materializes at most 366 dates atomically. One bad overlap,
+DST gap/fold or invalid parent rejects the whole series. Single edits/skips remain
+exceptions across series edits; series edits replace all normal occurrences in the
+selected complete date range, including past dates. A skipped occurrence is retained
+privately and excluded from the calendar/counts. Focus completion optionally completes
+its linked Task in the same retry-safe transaction; all overtime is retained.
+
+Limits: repeat ranges are bounded to one year and same-day times; extend by editing the
+series. Day/week display caps are 100/500 blocks. Week view starts on the selected date.
+Editing a series is currently accessed through a visible occurrence; a fully skipped
+series has no visible workspace entry. There is no drag/resize gesture, cloud sync or
+new settings backend. Existing account timezone management remains unchanged. New
+migration applies only to test databases in Cloud; no personal/hosted data is changed.
+Older encrypted embedded backups require the matching old application for restoration
+before upgrade, because backup migration identity remains exact; native backup UI is
+still a separate pending release gate.
+
+Verification: 31 focused embedded/shared/upgrade tests passed (one guarded skip),
+27 isolated real PostgreSQL17 execution tests passed, and one required default run
+passed 118 tests (eight guarded skips). Typecheck/lint, format, migration generation
+(no drift) and production web/Electron builds passed. The focused calendar/inline-Focus/
+recurrence journey passed desktop and mobile (two cases), including axe/overflow;
+the entire browser suite/native acceptance was deliberately delegated.
+Exact Local/QA instructions are in
+[ux-consolidation-handoff.md](ux-consolidation-handoff.md). These changes are not proof
+of a working installed Windows release. Local owns apps/desktop and deployment;
+comprehensive regression/native acceptance remains delegated. Historical verification
+counts below refer to earlier checkpoints, not this new UI.
+
 ## Current phase
 
 **Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and

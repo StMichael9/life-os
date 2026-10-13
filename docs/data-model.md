@@ -52,25 +52,36 @@ is created before the interval FK. Legacy Focus history gets no invented interva
 receipts from their IDs before enforcing NOT NULL/uniqueness. New receipt row IDs are
 server-generated; retry UUIDs are independent across accounts.
 
-| Table             | Purpose and relationships                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                               |
-| auth_credential   | One password hash per user; no plaintext password                                                      |
-| auth_session      | Many per user; hashed current/previous tokens, absolute/idle expiry, rotation/grace and revocation     |
-| auth_rate_limit   | Fixed-window bucket key (global or HMAC email), bounded attempts, reset instant and expiry index       |
-| category          | User-owned category slug/name, explicit spiritual classification                                       |
-| season            | User-owned objective/date range; at most one active per user                                           |
-| season_allocation | Season × category, unique pair; integer percentage 0–100                                               |
-| vision            | User-owned long-term direction                                                                         |
-| goal              | Optional Vision and category; typed measurement values/unit and target date                            |
-| milestone         | Required Goal; completion and target date                                                              |
-| project           | Optional Milestone **or** direct Goal; category and manual priority 1–5                                |
-| task              | Optional Project **or** direct Goal, never both; optional category, scores, due instant and duration   |
-| inbox_item        | Owner-scoped retry UUID, bounded text, processed timestamp, millisecond created time and ordered index |
-| daily_plan        | Unique user/local-date; version, timezone snapshot, One Thing, Start/Close and private reflection      |
-| daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                              |
-| schedule_block    | Versioned start/end instants, kind, optional owned Task link                                           |
-| focus_session     | Versioned objective, Task or Project, category, resume state and duration; one open per user           |
+`0007_work_block_series.sql`: adds schedule_series (23 total tables), owned optional
+Task/Project/category/objective links, a one-year explicit repeat range, weekdays,
+local times and timezone snapshot. schedule_block gains additive parent/objective,
+series/occurrence-date, overridden and skipped fields with safe defaults for legacy
+records. Composite ownership FKs, single-parent/occurrence pairing checks and unique
+series/date preserve integrity. A new updated_at trigger covers series changes.
+Old SQL is unchanged; isolated embedded and real PostgreSQL verification applies the
+new chain. No personal/production migration was executed. Runtime grants and operator
+checkpoint verification now explicitly cover 0000–0007 and schedule_series.
+
+| Table             | Purpose and relationships                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| app_user          | Unique normalized email, display name, verified timestamp, IANA timezone                                |
+| auth_credential   | One password hash per user; no plaintext password                                                       |
+| auth_session      | Many per user; hashed current/previous tokens, absolute/idle expiry, rotation/grace and revocation      |
+| auth_rate_limit   | Fixed-window bucket key (global or HMAC email), bounded attempts, reset instant and expiry index        |
+| category          | User-owned category slug/name, explicit spiritual classification                                        |
+| season            | User-owned objective/date range; at most one active per user                                            |
+| season_allocation | Season × category, unique pair; integer percentage 0–100                                                |
+| vision            | User-owned long-term direction                                                                          |
+| goal              | Optional Vision and category; typed measurement values/unit and target date                             |
+| milestone         | Required Goal; completion and target date                                                               |
+| project           | Optional Milestone **or** direct Goal; category and manual priority 1–5                                 |
+| task              | Optional Project **or** direct Goal, never both; optional category, scores, due instant and duration    |
+| inbox_item        | Owner-scoped retry UUID, bounded text, processed timestamp, millisecond created time and ordered index  |
+| daily_plan        | Unique user/local-date; version, timezone snapshot, One Thing, Start/Close and private reflection       |
+| daily_big_three   | Up to positions 1–3 per plan; deliberate outcome text, optional Task link                               |
+| schedule_block    | Versioned instants, Task or Project, category/objective; optional recurring-series occurrence/exception |
+| schedule_series   | Owner-scoped explicit recurrence range, weekdays/local times/timezone; versioned complete-set edits     |
+| focus_session     | Versioned objective, Task or Project, category, resume state and duration; one open per user            |
 
 Except auth credentials (whose user PK identifies the row), owned tables have UUID
 IDs, owners, created and updated timestamps. Content references include owner in

@@ -16,7 +16,11 @@ export function CommandPalette() {
     [capture, setCapture] = useState(''),
     [busy, setBusy] = useState(false);
   useEffect(() => {
-    async function show() {
+    async function show(captureFirst = false) {
+      if (dialog.current?.open) {
+        if (captureFirst) dialog.current.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+        return;
+      }
       try {
         const { profile } = await requestJson<{ profile: Profile }>('/api/auth/session');
         account.current = profile.id;
@@ -26,6 +30,11 @@ export function CommandPalette() {
         setCapture('');
         setError('');
         dialog.current?.showModal();
+        if (captureFirst)
+          setTimeout(
+            () => dialog.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus(),
+            0,
+          );
       } catch {
         location.assign('/login');
       }
@@ -40,8 +49,14 @@ export function CommandPalette() {
         } else void show();
       }
     }
+    const requested = (event: Event) =>
+      void show((event as CustomEvent<{ capture?: boolean }>).detail?.capture ?? false);
     window.addEventListener('keydown', shortcut);
-    return () => window.removeEventListener('keydown', shortcut);
+    window.addEventListener('life-os:command', requested);
+    return () => {
+      window.removeEventListener('keydown', shortcut);
+      window.removeEventListener('life-os:command', requested);
+    };
   }, []);
   useEffect(() => {
     const epoch = ++generation.current;

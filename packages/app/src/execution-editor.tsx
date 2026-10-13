@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { emptyReflection, dueInstant, wallTime } from '@life-os/shared';
+import { emptyReflection, dueInstant, wallTime, shiftDate } from '@life-os/shared';
 import type {
   ExecutionSnapshot,
   ScheduleBlock,
+  ScheduleSeries,
   Routine,
   VaultItem,
   Reflection,
@@ -13,7 +14,8 @@ import { executionCommandSchema } from '@life-os/validation';
 import type { ExecutionCommand } from '@life-os/validation';
 export type ExecutionEditor =
   | { kind: 'plan'; workflow: 'save' | 'start' | 'close' }
-  | { kind: 'schedule'; record?: ScheduleBlock }
+  | { kind: 'schedule'; record?: ScheduleBlock; date?: string; startsAt?: string }
+  | { kind: 'schedule-series'; record: ScheduleSeries }
   | { kind: 'focus'; taskId?: string; objective?: string; minutes?: number }
   | { kind: 'routine'; record?: Routine }
   | { kind: 'vault'; record?: VaultItem; source?: { id: string; body: string } }
@@ -36,6 +38,7 @@ export function ExecutionForm({
     request = useRef<{ body: string; id: string } | null>(null);
   const [error, setError] = useState(''),
     [saving, setSaving] = useState(false);
+  const [repeat, setRepeat] = useState(editor.kind === 'schedule-series' ? 'weekdays' : 'once');
   const [id] = useState(() => crypto.randomUUID());
   const title =
     editor.kind === 'plan'
@@ -44,8 +47,10 @@ export function ExecutionForm({
         : editor.workflow === 'close'
           ? 'Close Day'
           : 'Daily priorities'
-      : editor.kind === 'schedule'
-        ? 'Time block'
+      : editor.kind === 'schedule' || editor.kind === 'schedule-series'
+        ? editor.kind === 'schedule-series'
+          ? 'Edit recurring series'
+          : 'Work block'
         : editor.kind === 'focus'
           ? 'Start Focus'
           : editor.kind === 'focus-finish'
@@ -100,20 +105,41 @@ export function ExecutionForm({
           workflow: editor.workflow,
           reflection,
         };
-      } else if (editor.kind === 'schedule')
-        input = {
-          ...base,
-          action: 'schedule',
-          id: editor.record?.id ?? id,
-          version: editor.record?.version ?? 0,
+      } else if (editor.kind === 'schedule' || editor.kind === 'schedule-series') {
+        const parent = text(form, 'parent');
+        const work = {
           title: text(form, 'title'),
           kind: text(form, 'kind'),
-          taskId: text(form, 'task') || null,
-          startsAt: dueInstant(text(form, 'starts'), data.timeZone),
-          endsAt: dueInstant(text(form, 'ends'), data.timeZone),
-          remove: false,
+          taskId: parent.startsWith('task:') ? parent.slice(5) : null,
+          projectId: parent.startsWith('project:') ? parent.slice(8) : null,
+          categoryId: text(form, 'category') || null,
+          objective: text(form, 'objective'),
         };
-      else if (editor.kind === 'focus') {
+        if (repeat !== 'once')
+          input = {
+            ...base,
+            ...work,
+            action: 'schedule-series',
+            id: editor.record?.id ?? id,
+            version: editor.record?.version ?? 0,
+            startsOn: text(form, 'startsOn'),
+            endsOn: text(form, 'endsOn'),
+            startTime: text(form, 'startTime'),
+            endTime: text(form, 'endTime'),
+            days: repeat === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : form.getAll('days').map(Number),
+          };
+        else
+          input = {
+            ...base,
+            ...work,
+            action: 'schedule',
+            id: editor.record?.id ?? id,
+            version: editor.record?.version ?? 0,
+            startsAt: dueInstant(text(form, 'starts'), data.timeZone),
+            endsAt: dueInstant(text(form, 'ends'), data.timeZone),
+            remove: false,
+          };
+      } else if (editor.kind === 'focus') {
         const parent = text(form, 'parent');
         input = {
           ...base,
@@ -132,6 +158,7 @@ export function ExecutionForm({
           id: data.focus!.id,
           version: data.focus!.version,
           operation: 'finish',
+          completeTask: form.has('completeTask'),
           outcome: text(form, 'outcome'),
           notes: text(form, 'notes'),
         };
@@ -271,37 +298,160 @@ export function ExecutionForm({
         ))}
       </>
     );
-  } else if (editor.kind === 'schedule') {
+  } else if (editor.kind === 'schedule' || editor.kind === 'schedule-series') {
+    const record = editor.record;
+    const series = editor.kind === 'schedule-series' ? editor.record : null;
+    const block = editor.kind === 'schedule' ? editor.record : null;
+    const date =
+      series?.startsOn ?? (editor.kind === 'schedule' ? editor.date : undefined) ?? data.date;
+    const starts = block?.startsAt ?? (editor.kind === 'schedule' ? editor.startsAt : undefined);
+    const parent = record?.taskId
+      ? 'task:' + record.taskId
+      : record?.projectId
+        ? 'project:' + record.projectId
+        : '';
     fields = (
       <>
-        {field('Block title', 'title', editor.record?.title ?? '', {
-          required: true,
-          maxLength: 500,
-        })}
+        {field('Block title', 'title', record?.title ?? '', { required: true, maxLength: 500 })}
+        {field('Objective (optional)', 'objective', record?.objective ?? '', { maxLength: 500 })}
+        <div className="form-two-columns">
+          <label className="direction-field">
+            Block type
+            <select name="kind" defaultValue={record?.kind ?? 'focus'}>
+              {['task', 'focus', 'routine', 'meeting', 'training', 'custom'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label className="direction-field">
+            Category
+            <select name="category" defaultValue={record?.categoryId ?? ''}>
+              <option value="">Uncategorized</option>
+              {data.categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <label className="direction-field">
-          Block type
-          <select name="kind" defaultValue={editor.record?.kind ?? 'task'}>
-            {['task', 'focus', 'routine', 'meeting', 'training', 'custom'].map((x) => (
-              <option key={x}>{x}</option>
-            ))}
+          Linked work
+          <select name="parent" defaultValue={parent}>
+            <option value="">Independent block</option>
+            <optgroup label="Tasks">
+              {data.tasks.map((t) => (
+                <option key={t.id} value={'task:' + t.id}>
+                  {t.title}
+                </option>
+              ))}
+              {record?.taskId && !data.tasks.some((t) => t.id === record.taskId) && (
+                <option value={parent}>Current linked Task</option>
+              )}
+            </optgroup>
+            <optgroup label="Projects">
+              {data.projects.map((p) => (
+                <option key={p.id} value={'project:' + p.id}>
+                  {p.title}
+                </option>
+              ))}
+              {record?.projectId && !data.projects.some((p) => p.id === record.projectId) && (
+                <option value={parent}>Current linked Project</option>
+              )}
+            </optgroup>
           </select>
         </label>
-        <label className="direction-field">
-          Linked Task{taskSelect('task', editor.record?.taskId ?? '')}
-        </label>
-        <p className="muted">Times use {data.timeZone}. Overlapping blocks are rejected.</p>
-        {field(
-          'Starts',
-          'starts',
-          editor.record ? wallTime(editor.record.startsAt, data.timeZone) : `${data.date}T09:00:00`,
-          { type: 'datetime-local', required: true, step: 1 },
+        {(!block || series) && (
+          <label className="direction-field">
+            Repeat
+            <select value={repeat} onChange={(e) => setRepeat(e.target.value)}>
+              <option value="once" disabled={!!series}>
+                One time
+              </option>
+              <option value="daily">Daily</option>
+              <option value="weekdays">Selected weekdays</option>
+            </select>
+          </label>
         )}
-        {field(
-          'Ends',
-          'ends',
-          editor.record ? wallTime(editor.record.endsAt, data.timeZone) : `${data.date}T10:00:00`,
-          { type: 'datetime-local', required: true, step: 1 },
+        {repeat === 'once' ? (
+          <div className="form-two-columns">
+            {field(
+              'Starts',
+              'starts',
+              starts ? wallTime(starts, data.timeZone) : date + 'T09:00:00',
+              { type: 'datetime-local', required: true, step: 1 },
+            )}
+            {field(
+              'Ends',
+              'ends',
+              block
+                ? wallTime(block.endsAt, data.timeZone)
+                : starts
+                  ? wallTime(new Date(Date.parse(starts) + 3600000).toISOString(), data.timeZone)
+                  : date + 'T10:00:00',
+              { type: 'datetime-local', required: true, step: 1 },
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="form-two-columns">
+              {field('Repeat from', 'startsOn', series?.startsOn ?? date, {
+                type: 'date',
+                required: true,
+              })}
+              {field('Repeat through', 'endsOn', series?.endsOn ?? shiftDate(date, 90), {
+                type: 'date',
+                required: true,
+              })}
+              {field(
+                'Start time',
+                'startTime',
+                series?.startTime ??
+                  (starts ? wallTime(starts, data.timeZone).slice(11, 16) : '09:00'),
+                { type: 'time', required: true },
+              )}
+              {field(
+                'End time',
+                'endTime',
+                series?.endTime ??
+                  (starts
+                    ? wallTime(
+                        new Date(Date.parse(starts) + 3600000).toISOString(),
+                        data.timeZone,
+                      ).slice(11, 16)
+                    : '10:00'),
+                { type: 'time', required: true },
+              )}
+            </div>
+            {repeat === 'weekdays' && (
+              <fieldset>
+                <legend>Repeat on</legend>
+                <div className="weekday-options">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                    <label key={day}>
+                      <input
+                        type="checkbox"
+                        name="days"
+                        value={i}
+                        defaultChecked={series?.days.includes(i) ?? (i > 0 && i < 6)}
+                      />
+                      {day}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            <p className="muted">
+              Up to one year, using {series?.timeZone ?? data.timeZone}. Every occurrence is saved
+              together; any overlap or ambiguous daylight-saving time rejects the whole change.
+              Edited and skipped occurrences are preserved when editing a series.
+            </p>
+          </>
         )}
+        <p className="muted">
+          {block?.seriesId ? 'Only this occurrence changes. ' : ''}Times use{' '}
+          {series?.timeZone ?? data.timeZone}. Overlapping blocks are rejected.
+        </p>
       </>
     );
   } else if (editor.kind === 'focus')
@@ -374,10 +524,18 @@ export function ExecutionForm({
     fields = (
       <>
         {note('What did you accomplish?', 'outcome')}
-        {note('Focus notes', 'notes')}
+        <details>
+          <summary>Session notes</summary>
+          {note('Focus notes', 'notes')}
+        </details>
+        {data.focus?.taskId && (
+          <label className="check-label">
+            <input type="checkbox" name="completeTask" />
+            Also mark the linked Task complete
+          </label>
+        )}
         <p className="muted">
-          Recorded time is added once to the linked Task. Finishing does not automatically complete
-          the Task.
+          All active time, including overtime, is recorded once. Task completion is optional.
         </p>
       </>
     );

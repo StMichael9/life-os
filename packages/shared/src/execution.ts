@@ -39,6 +39,29 @@ export interface ScheduleBlock {
   taskId: string | null;
   startsAt: string;
   endsAt: string;
+  projectId: string | null;
+  categoryId: string | null;
+  objective: string;
+  seriesId: string | null;
+  occurrenceDate: string | null;
+  overridden: boolean;
+  skipped: boolean;
+}
+export interface ScheduleSeries {
+  id: string;
+  version: number;
+  title: string;
+  kind: string;
+  taskId: string | null;
+  projectId: string | null;
+  categoryId: string | null;
+  objective: string;
+  startsOn: string;
+  endsOn: string;
+  startTime: string;
+  endTime: string;
+  days: number[];
+  timeZone: string;
 }
 export interface FocusSession {
   id: string;
@@ -95,6 +118,8 @@ export interface ExecutionSnapshot {
   plan: DailyPlan | null;
   activeSeason: Season | null;
   schedule: ScheduleBlock[];
+  scheduleSeries: ScheduleSeries[];
+  calendarDays: number;
   focus: FocusSession | null;
   focusHistory: FocusSession[];
   routines: Routine[];

@@ -581,7 +581,7 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
       await db.execute(sql.raw(`GRANT INSERT ON task,goal,project TO ${role}`));
       await db.execute(
         sql.raw(
-          `GRANT SELECT,INSERT,UPDATE ON daily_plan,daily_big_three,schedule_block,focus_session,focus_interval,routine,routine_completion,vault_item TO ${role}`,
+          `GRANT SELECT,INSERT,UPDATE ON daily_plan,daily_big_three,schedule_block,schedule_series,focus_session,focus_interval,routine,routine_completion,vault_item TO ${role}`,
         ),
       );
       await db.execute(
@@ -602,6 +602,7 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
             id: focusInput.id,
             version: 1,
             operation: 'pause',
+            completeTask: false,
             outcome: '',
             notes: '',
           }),
@@ -677,4 +678,206 @@ it('keeps archived routine completion evidence visible and restores the definiti
   });
   await service.mutate(a, { ...c, requestId: id(), version: 2, archived: false });
   expect((await service.today(a, { date: '2026-10-08' })).routines[0]?.scheduled).toBe(true);
+});
+
+const series = (patch: Record<string, unknown> = {}) => ({
+  action: 'schedule-series',
+  requestId: id(),
+  id: id(),
+  version: 0,
+  title: 'Algorithms',
+  kind: 'focus',
+  taskId: task,
+  projectId: null,
+  categoryId: null,
+  objective: 'Understand one algorithm',
+  startsOn: '2026-10-05',
+  endsOn: '2026-10-11',
+  startTime: '09:00',
+  endTime: '10:00',
+  days: [1, 3, 5],
+  ...patch,
+});
+describe('reusable calendar work blocks', () => {
+  it('persists a whole series, exact retries and a real week; rejects foreign links and series edits', async () => {
+    const c = series();
+    const saved = await service.mutate(a, c);
+    expect(await service.mutate(a, c)).toEqual(saved);
+    const week = await service.today(a, { date: '2026-10-05', calendarDays: 7 });
+    expect(week.schedule).toHaveLength(3);
+    expect(week.scheduleSeries[0]).toMatchObject({
+      id: c.id,
+      days: [1, 3, 5],
+      timeZone: 'America/Los_Angeles',
+      version: 1,
+    });
+    expect(week.schedule.every((b) => b.seriesId === c.id && b.objective === c.objective)).toBe(
+      true,
+    );
+    expect((await service.today(b, { date: '2026-10-05', calendarDays: 7 })).schedule).toEqual([]);
+    await expect(
+      service.mutate(b, { ...c, requestId: id(), version: 1, taskId: null }),
+    ).rejects.toBeInstanceOf(DirectionNotFound);
+    await expect(service.mutate(a, series({ taskId: foreign }))).rejects.toBeInstanceOf(
+      DirectionNotFound,
+    );
+    expect(
+      (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).scheduleSeries,
+    ).toHaveLength(1);
+  });
+  it('rejects any series conflict atomically, including overlap on a later occurrence', async () => {
+    await service.mutate(
+      a,
+      block({ startsAt: '2026-10-09T09:30:00-07:00', endsAt: '2026-10-09T10:30:00-07:00' }),
+    );
+    await expect(service.mutate(a, series())).rejects.toThrow('overlaps');
+    const week = await service.today(a, { date: '2026-10-05', calendarDays: 7 });
+    expect(week.schedule).toHaveLength(1);
+    expect(week.scheduleSeries).toEqual([]);
+    expect((await db.select().from(s.scheduleSeries)).length).toBe(0);
+    const c = series({ startTime: '11:00', endTime: '12:00' });
+    await service.mutate(a, c);
+    await expect(
+      service.mutate(a, {
+        ...c,
+        requestId: id(),
+        version: 1,
+        startTime: '09:00',
+        endTime: '10:00',
+      }),
+    ).rejects.toThrow('overlaps');
+    expect(
+      (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).scheduleSeries[0]?.version,
+    ).toBe(1);
+  });
+  it('preserves single edits and skips when editing a series, with stale-write protection', async () => {
+    const c = series();
+    await service.mutate(a, c);
+    const week = await service.today(a, { date: '2026-10-05', calendarDays: 7 });
+    const first = week.schedule[0]!,
+      second = week.schedule[1]!;
+    await service.mutate(
+      a,
+      block({
+        id: first.id,
+        version: first.version,
+        title: 'Edited occurrence',
+        startsAt: '2026-10-05T10:00:00-07:00',
+        endsAt: '2026-10-05T11:00:00-07:00',
+      }),
+    );
+    await service.mutate(
+      a,
+      block({
+        id: second.id,
+        version: second.version,
+        startsAt: second.startsAt,
+        endsAt: second.endsAt,
+        remove: true,
+      }),
+    );
+    await expect(service.mutate(a, { ...c, requestId: id(), version: 1 })).rejects.toBeInstanceOf(
+      DirectionConflict,
+    );
+    await service.mutate(a, {
+      ...c,
+      requestId: id(),
+      version: 3,
+      title: 'Series updated',
+      startTime: '12:00',
+      endTime: '13:00',
+    });
+    const after = await service.today(a, { date: '2026-10-05', calendarDays: 7 });
+    expect(after.schedule).toHaveLength(2);
+    expect(after.schedule.find((b) => b.id === first.id)).toMatchObject({
+      title: 'Edited occurrence',
+      overridden: true,
+    });
+    expect(after.schedule.some((b) => b.id === second.id)).toBe(false);
+    expect(after.schedule.find((b) => !b.overridden)?.title).toBe('Series updated');
+    expect(
+      (await db.select().from(s.scheduleBlocks).where(eq(s.scheduleBlocks.id, second.id)))[0],
+    ).toMatchObject({ skipped: true, overridden: true });
+  });
+  it('rejects DST gaps/folds and invalid repeat sets without creating any records', async () => {
+    for (const patch of [
+      {
+        startsOn: '2026-03-08',
+        endsOn: '2026-03-08',
+        startTime: '02:30',
+        endTime: '03:30',
+        days: [0],
+      },
+      {
+        startsOn: '2026-11-01',
+        endsOn: '2026-11-01',
+        startTime: '01:30',
+        endTime: '03:30',
+        days: [0],
+      },
+      { days: [1, 1] },
+      { startsOn: '2026-01-01', endsOn: '2028-01-01' },
+    ])
+      await expect(service.mutate(a, series(patch))).rejects.toThrow();
+    expect(await db.select().from(s.scheduleBlocks)).toEqual([]);
+    expect(await db.select().from(s.scheduleSeries)).toEqual([]);
+  });
+  it('enforces Project/Task ownership and single-parent rules on work blocks', async () => {
+    const ownedProject = id(),
+      foreignProject = id();
+    await db.insert(s.projects).values([
+      { id: ownedProject, userId: aid, title: 'A project' },
+      { id: foreignProject, userId: bid, title: 'B project' },
+    ]);
+    await expect(
+      service.mutate(a, block({ taskId: null, projectId: foreignProject })),
+    ).rejects.toBeInstanceOf(DirectionNotFound);
+    await expect(service.mutate(a, series({ projectId: ownedProject }))).rejects.toThrow();
+    const c = block({ taskId: null, projectId: ownedProject, objective: 'Project objective' });
+    await service.mutate(a, c);
+    expect((await service.today(a, { date: '2026-10-08' })).schedule[0]).toMatchObject({
+      projectId: ownedProject,
+      objective: 'Project objective',
+    });
+    await expect(
+      db.insert(s.scheduleBlocks).values({
+        userId: bid,
+        title: 'Foreign series',
+        kind: 'focus',
+        seriesId: (
+          await service.mutate(a, series({ taskId: null, startTime: '11:00', endTime: '12:00' }))
+        ).id,
+        occurrenceDate: '2026-10-06',
+        startsAt: new Date('2026-10-06T11:00Z'),
+        endsAt: new Date('2026-10-06T12:00Z'),
+      }),
+    ).rejects.toThrow();
+  });
+  it('optionally completes a Focus Task atomically and records overtime once on retry', async () => {
+    const c = start();
+    await service.mutate(a, c);
+    // Use real persisted state instead of a running clock-dependent assertion.
+    await db
+      .update(s.focusSessions)
+      .set({ activeSeconds: 3300, resumedAt: null })
+      .where(eq(s.focusSessions.id, c.id));
+    const finish = {
+      action: 'focus-control',
+      requestId: id(),
+      id: c.id,
+      version: 1,
+      operation: 'finish',
+      outcome: 'Done',
+      notes: 'Context',
+      completeTask: true,
+    };
+    await service.mutate(a, finish);
+    await service.mutate(a, finish);
+    const [saved] = await db.select().from(s.tasks).where(eq(s.tasks.id, task));
+    expect(saved).toMatchObject({ status: 'completed', actualMinutes: 55 });
+    expect(saved?.completedAt).not.toBeNull();
+    await expect(
+      service.mutate(a, { ...finish, requestId: id(), operation: 'pause' }),
+    ).rejects.toThrow();
+  });
 });
