@@ -1,18 +1,19 @@
 {
   "name": "@life-os/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Life OS Windows shell",
   "author": "Life OS",
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "dev": "pnpm build && electron .",
+    "dev": "pnpm --filter @life-os/web build && pnpm build && electron .",
     "typecheck": "tsc --noEmit",
     "test:native": "node scripts/verify-native.mjs",
     "test:gui": "node scripts/build-gui.mjs && playwright test --config playwright.config.ts",
-    "package:win": "node scripts/build.mjs --release && electron-builder --win nsis --publish never"
+    "test:offline": "pnpm build && playwright test --config playwright.offline.config.ts",
+    "package:win": "pnpm --filter @life-os/web build && node scripts/build.mjs --release && electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "electron": "^44.6.0",

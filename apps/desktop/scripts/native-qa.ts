@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { persistSession } from '../src/session-persistence';
 import { createCredentialStore, type SessionCookie } from '../src/credentials';
+import { protectDirectory } from '../src/private-directory';
 
 // Test-only entry point. Never included in the application bundle or installer.
 const directory = process.env.LIFE_OS_NATIVE_QA_DIRECTORY;
@@ -35,6 +36,7 @@ void app
   .then(async () => {
     assert.equal(process.platform, 'win32', 'Native Windows verification required');
     assert(safeStorage.isEncryptionAvailable(), 'Windows encryption is unavailable');
+    await protectDirectory(directory);
     const cookies = session.fromPartition('life-os-native-qa').cookies;
     assert.deepEqual(await cookies.get({}), [], 'Partition must start empty in each process');
     const persistence = await persistSession(

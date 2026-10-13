@@ -1,8 +1,12 @@
 import { build } from 'esbuild';
 
-const value = process.env.LIFE_OS_WEB_URL ?? 'http://localhost:3000';
+const hosted = process.argv.includes('--hosted');
+const value = hosted
+  ? (process.env.LIFE_OS_WEB_URL ?? 'http://localhost:3000')
+  : 'https://127.0.0.1';
 const url = new URL(value);
 if (
+  hosted &&
   process.argv.includes('--release') &&
   (!process.env.LIFE_OS_WEB_URL || url.protocol !== 'https:')
 ) {
@@ -27,6 +31,9 @@ await build({
   format: 'cjs',
   target: 'node22',
   external: ['electron'],
-  define: { __LIFE_OS_WEB_URL__: JSON.stringify(url.origin) },
+  define: {
+    __LIFE_OS_WEB_URL__: JSON.stringify(url.origin),
+    __LIFE_OS_OFFLINE__: JSON.stringify(!hosted),
+  },
   sourcemap: true,
 });

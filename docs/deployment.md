@@ -1,5 +1,40 @@
 # Deployment and operations
 
+## Local Windows installation — Cloud 38f8c4f, 2026-10-12
+
+The normal unsigned Life OS 0.1.1 application was rebuilt on Windows from Cloud
+checkpoint `38f8c4f` plus the isolated desktop integration and installed at
+`%LOCALAPPDATA%\Programs\Life OS`. The installer exited 0. Its backend includes
+all eight SQL migrations; installed `0007_work_block_series.sql` matches the
+repository. Packaged resources contain no junctions or environment files. The
+actual installed window shows the new Today / Calendar / Goals / More shell using
+the existing Life OS profile and stable private HTTPS origin. Two actual installed
+startup/clean-close cycles passed with Node/Python/PostgreSQL removed from PATH:
+the same authenticated account restored, the private origin remained stable, the
+encrypted runtime identity was byte-identical, and the database lease disappeared
+after each normal exit. The user closed the primary window when native control
+reported input/minimization; no forced shutdown was used. Earlier installer-pending
+notes below are historical for this separate Windows checkout.
+
+Life OS was closed normally before the upgrade and its database lease disappeared.
+The complete existing normal, offline-QA and legacy-desktop profiles and compatible
+previous installer are retained at
+`C:\Users\Micha\OneDrive\Documents\ChatGPT\life-os\work\windows-qa\pre-upgrade-38f8c4f-20261012-183648`.
+This recovery directory has a protected DACL for the current Windows user, SYSTEM
+and Administrators. It is a stopped filesystem copy, not the pending portable
+encrypted-archive feature; database files rely on OS privacy and encrypted runtime/
+session records retain this Windows user's DPAPI dependency. Keep its README and
+previous installer together. Do not open an upgraded database with the older app.
+
+Old Life OS QA and Life OS Offline QA uninstallers previously exited 0 and retained
+their profiles. Registry verification found zero QA installations; the sole Life OS
+Start-menu shortcut points to the normal installed executable. This run is
+installation-only: production web/Electron/NSIS build,
+payload checks and native startup/reopen. Comprehensive calendar/recurrence/Focus,
+dirty-form, crash/recovery, backup-menu, physical network-disconnection/reboot and
+full regression acceptance are not repeated or claimed here. No hosted data was
+changed. Code signing remains absent and the default Electron installer icon remains.
+
 ## Superseding offline-first desktop target
 
 Hosted production deployment is postponed at the user's instruction. Vercel/Neon are

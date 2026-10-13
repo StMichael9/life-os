@@ -127,7 +127,10 @@ test('a failed navigation after startup offers retry and returns to the workspac
       platform: 'node',
       format: 'cjs',
       external: ['electron'],
-      define: { __LIFE_OS_WEB_URL__: JSON.stringify(`http://127.0.0.1:${port}`) },
+      define: {
+        __LIFE_OS_WEB_URL__: JSON.stringify(`http://127.0.0.1:${port}`),
+        __LIFE_OS_OFFLINE__: 'false',
+      },
     });
     const entry = join(directory, 'offline-launch.cjs');
     await writeFile(

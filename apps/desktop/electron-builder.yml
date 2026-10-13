@@ -1,11 +1,25 @@
 appId: com.lifeos.desktop
 productName: Life OS
+extraMetadata:
+  name: life-os
+  productName: Life OS
+compression: store
 asar: true
 directories:
   output: release
 files:
-  - dist/**
+  - dist/main.cjs
+  - dist/main.cjs.map
   - package.json
+beforePack: scripts/prepare-backend.cjs
+extraResources:
+  # The parent mapping avoids builder's unconditional top-level node_modules exclusion.
+  - from: dist
+    to: .
+    filter:
+      - 'backend/**/*'
+      - '!**/.env'
+      - '!**/.env.*'
 win:
   target: nsis
 nsis:

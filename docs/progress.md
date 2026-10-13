@@ -1,5 +1,24 @@
 # Progress and handoff
 
+## Windows installation checkpoint — 2026-10-12
+
+The user requested installation-only integration of Cloud `38f8c4f`. It was merged
+normally into `windows/desktop-first-qa`; existing desktop work was retained.
+Next standalone and Electron/NSIS were rebuilt on Windows, including migration
+`0007` (eight SQL migrations). The normal unsigned 0.1.1 installer exited 0 and
+the installed migration matches the repository. The actual window displays the
+consolidated navigation on the retained Life OS profile/private origin. Two actual
+installed startup/clean-close cycles passed with no developer runtimes on PATH:
+the existing account/session restored, the origin stayed stable, the encrypted
+identity was retained unchanged, and the database lease cleared after each exit.
+The user closed the primary app when native control detected input/minimization;
+no forced shutdown was used. The old QA applications were already uninstalled through
+their normal uninstallers, preserving profiles; no QA registry entries remain and
+the normal Life OS Start-menu shortcut targets the installed executable. A protected stopped pre-upgrade
+copy and compatible previous installer are retained; see deployment.md for location
+and recovery limits. This is a bounded installation record, not comprehensive
+Phase 1 acceptance or work on Phases 2–6. No hosted resources were changed.
+
 ## Phase 1 UX consolidation — 2026-10-12
 
 Current assignment is calendar-centered Phase 1 UX only; do not begin Phases 2–6.
