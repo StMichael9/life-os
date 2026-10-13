@@ -129,9 +129,11 @@ export const executionCommandSchema = z.discriminatedUnion('action', [
       projectId: link,
       categoryId: link,
       plannedMinutes: z.number().int().min(1).max(720),
+      notes: note.default(''),
     })
     .strict()
     .refine((c) => !(c.taskId && c.projectId), 'Choose a Task or Project.'),
+  z.object({ action: z.literal('focus-notes'), requestId: id, id, version, notes: note }).strict(),
   z
     .object({
       action: z.literal('focus-control'),
@@ -195,6 +197,7 @@ export type ExecutionCommand = z.infer<typeof executionCommandSchema>;
 export const executionQuerySchema = z
   .object({
     date: calendarDate.optional(),
+    focusId: id.optional(),
     calendarDays: z.coerce
       .number()
       .pipe(z.union([z.literal(1), z.literal(7)]))
@@ -211,3 +214,5 @@ export const vaultQuerySchema = z
     archived: z.enum(['true', 'false']).default('false'),
   })
   .strict();
+
+export const focusQuerySchema = z.object({ before: id.optional() }).strict();

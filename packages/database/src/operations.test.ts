@@ -152,7 +152,7 @@ describe.skipIf(!raw || !restoreRaw)(
     it('verifies the committed ledger and actual standalone runtime login permissions', async () => {
       expect(
         await withOperationsClient(connection('life_os_migrator'), true, verifyMigrationCheckpoint),
-      ).toEqual({ migrations: 8, tables: 23 });
+      ).toEqual({ migrations: 9, tables: 23 });
       expect(
         await withOperationsClient(connection('life_os_runtime'), true, verifyRuntimePermissions),
       ).toEqual({ runtimePermissions: 'verified' });
@@ -196,7 +196,7 @@ describe.skipIf(!raw || !restoreRaw)(
         ...(pgRestore ? { pgRestore } : {}),
       });
       expect(result).toEqual({
-        migrations: 8,
+        migrations: 9,
         tables: 23,
         sessionsRestored: 0,
         rateLimitsRestored: 0,

@@ -6,6 +6,7 @@ import type {
   ExecutionSnapshot,
   ScheduleBlock,
   ScheduleSeries,
+  FocusSession,
   Routine,
   VaultItem,
   Reflection,
@@ -19,7 +20,8 @@ export type ExecutionEditor =
   | { kind: 'focus'; taskId?: string; objective?: string; minutes?: number }
   | { kind: 'routine'; record?: Routine }
   | { kind: 'vault'; record?: VaultItem; source?: { id: string; body: string } }
-  | { kind: 'focus-finish' }
+  | { kind: 'focus-finish'; record: FocusSession }
+  | { kind: 'focus-notes'; record: FocusSession }
   | { kind: 'routine-note'; record: Routine };
 const text = (f: FormData, name: string) => String(f.get(name) ?? '').trim();
 export function ExecutionForm({
@@ -53,13 +55,15 @@ export function ExecutionForm({
           : 'Work block'
         : editor.kind === 'focus'
           ? 'Start Focus'
-          : editor.kind === 'focus-finish'
-            ? 'Finish Focus'
-            : editor.kind === 'routine'
-              ? 'Routine'
-              : editor.kind === 'routine-note'
-                ? 'Routine day note'
-                : 'Vault item';
+          : editor.kind === 'focus-notes'
+            ? 'Session notes'
+            : editor.kind === 'focus-finish'
+              ? 'Finish Focus'
+              : editor.kind === 'routine'
+                ? 'Routine'
+                : editor.kind === 'routine-note'
+                  ? 'Routine day note'
+                  : 'Vault item';
   function close() {
     if (!saving && (!dirty.current || confirm('Discard these unsaved changes?'))) onClose();
   }
@@ -146,17 +150,26 @@ export function ExecutionForm({
           action: 'focus-start',
           id,
           objective: text(form, 'objective'),
+          notes: text(form, 'notes'),
           taskId: parent.startsWith('task:') ? parent.slice(5) : null,
           projectId: parent.startsWith('project:') ? parent.slice(8) : null,
           categoryId: text(form, 'category') || null,
           plannedMinutes: Number(text(form, 'minutes')),
         };
-      } else if (editor.kind === 'focus-finish')
+      } else if (editor.kind === 'focus-notes')
+        input = {
+          ...base,
+          action: 'focus-notes',
+          id: editor.record.id,
+          version: editor.record.version,
+          notes: text(form, 'notes'),
+        };
+      else if (editor.kind === 'focus-finish')
         input = {
           ...base,
           action: 'focus-control',
-          id: data.focus!.id,
-          version: data.focus!.version,
+          id: editor.record.id,
+          version: editor.record.version,
           operation: 'finish',
           completeTask: form.has('completeTask'),
           outcome: text(form, 'outcome'),
@@ -515,8 +528,22 @@ export function ExecutionForm({
           max: 720,
           required: true,
         })}
+        <details>
+          <summary>Session notes (optional)</summary>
+          {note('Focus notes', 'notes')}
+        </details>
         <p className="muted">
-          Time continues across reloads while running. Pause before stepping away.
+          Starting this session automatically pauses the running one. Every paused session stays
+          saved.
+        </p>
+      </>
+    );
+  else if (editor.kind === 'focus-notes')
+    fields = (
+      <>
+        {note('Focus notes', 'notes', editor.record.notes ?? '')}
+        <p className="muted">
+          Notes belong to {editor.record.objective}. Saving them does not change the timer.
         </p>
       </>
     );
@@ -526,9 +553,9 @@ export function ExecutionForm({
         {note('What did you accomplish?', 'outcome')}
         <details>
           <summary>Session notes</summary>
-          {note('Focus notes', 'notes')}
+          {note('Focus notes', 'notes', editor.record.notes ?? '')}
         </details>
-        {data.focus?.taskId && (
+        {editor.record.taskId && (
           <label className="check-label">
             <input type="checkbox" name="completeTask" />
             Also mark the linked Task complete

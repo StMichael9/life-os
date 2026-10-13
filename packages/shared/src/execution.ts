@@ -121,6 +121,8 @@ export interface ExecutionSnapshot {
   scheduleSeries: ScheduleSeries[];
   calendarDays: number;
   focus: FocusSession | null;
+  focusSessions: FocusSession[];
+  focusNext: string | null;
   focusHistory: FocusSession[];
   routines: Routine[];
   tasks: Task[];

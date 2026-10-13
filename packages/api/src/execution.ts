@@ -3,6 +3,7 @@ import type { ExecutionRepository } from '@life-os/database';
 import {
   executionCommandSchema,
   executionQuerySchema,
+  focusQuerySchema,
   searchQuerySchema,
   vaultQuerySchema,
 } from '@life-os/validation';
@@ -22,7 +23,7 @@ export function createExecutionService(sessions: SessionVerifier, repo: Executio
     async today(token: string | undefined, input: unknown) {
       const userId = await owner(token),
         q = executionQuerySchema.parse(input),
-        data = await repo.today(userId, q.date, q.calendarDays);
+        data = await repo.today(userId, q.date, q.calendarDays, q.focusId);
       const recommendations = rankActions(
         data.tasks
           .filter((t) => t.estimateMinutes !== null)
@@ -63,6 +64,11 @@ export function createExecutionService(sessions: SessionVerifier, repo: Executio
     async mutate(token: string | undefined, input: unknown, expected?: string) {
       return repo.mutate(await owner(token, expected), executionCommandSchema.parse(input));
     },
+    async unfinished(token: string | undefined, input: unknown) {
+      const userId = await owner(token),
+        q = focusQuerySchema.parse(input);
+      return { ...(await repo.unfinished(userId, q.before)), ownerId: userId };
+    },
     async vaultDetail(token: string | undefined, id: unknown) {
       const userId = await owner(token);
       return { item: await repo.vaultDetail(userId, z.uuid().parse(id)), ownerId: userId };
@@ -96,6 +102,7 @@ export function createExecutionHttp(
       if (request.method === 'GET' && parts.length === 2 && parts[0] === 'vault' && !url.search)
         return json(await service.vaultDetail(token, parts[1]));
       if (request.method === 'GET' && parts.length === 1) {
+        if (parts[0] === 'focus') return json(await service.unfinished(token, query));
         if (parts[0] === 'today') return json(await service.today(token, query));
         if (parts[0] === 'vault') return json(await service.vault(token, query));
         if (parts[0] === 'search') return json(await service.search(token, query));

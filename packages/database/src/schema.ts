@@ -459,9 +459,9 @@ export const focusSessions = pgTable(
       'focus_duration',
       sql`${t.plannedMinutes} > 0 and ${t.activeSeconds} >= 0 and (${t.endedAt} is null or ${t.endedAt} >= ${t.startedAt})`,
     ),
-    uniqueIndex('one_open_focus_per_user')
+    uniqueIndex('one_running_focus_per_user')
       .on(t.userId)
-      .where(sql`${t.endedAt} is null`),
+      .where(sql`${t.endedAt} is null and ${t.resumedAt} is not null`),
     unique('focus_owner_key').on(t.id, t.userId),
     index('focus_user_start_idx').on(t.userId, t.startedAt),
   ],
@@ -588,6 +588,9 @@ export const focusIntervals = pgTable(
     check('focus_interval_dates', sql`${t.endsAt} is null or ${t.endsAt} >= ${t.startsAt}`),
     uniqueIndex('one_running_interval')
       .on(t.sessionId)
+      .where(sql`${t.endsAt} is null`),
+    uniqueIndex('one_running_focus_interval_per_user')
+      .on(t.userId)
       .where(sql`${t.endsAt} is null`),
     index('focus_interval_owner_start').on(t.userId, t.startsAt),
   ],

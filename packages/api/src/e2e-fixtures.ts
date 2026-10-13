@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { fileURLToPath } from 'node:url';
-import { createDatabase, createAuthRepository } from '@life-os/database';
+import { createDatabase, createAuthRepository, schema as s } from '@life-os/database';
 import { createAuthService } from './auth';
 
 export const E2E_SECRET = 'isolated-browser-fixture-secret-at-least-32-bytes';
@@ -36,6 +36,30 @@ export async function clearE2ELimits(url: string) {
   const connection = createDatabase(url);
   try {
     await connection.db.execute(sql`truncate auth_rate_limit`);
+  } finally {
+    await connection.close();
+  }
+}
+
+/** Synthetic browser fixture only: an existing saved 45-minute paused session. */
+export async function seedPausedFocusE2E(url: string, objective: string) {
+  if (!new URL(url).pathname.endsWith('_e2e')) throw new Error('Isolated _e2e database required.');
+  const connection = createDatabase(url);
+  try {
+    const owner = await connection.db.execute(
+      sql`select id from app_user where email='alice@example.test'`,
+    );
+    const userId = owner.rows[0]?.id;
+    if (typeof userId !== 'string') throw new Error('Synthetic Alice fixture required.');
+    await connection.db.insert(s.focusSessions).values({
+      userId,
+      objective,
+      plannedMinutes: 90,
+      activeSeconds: 2700,
+      startedAt: new Date(Date.now() - 2700000),
+      notes: 'Return to binary search',
+      resumedAt: null,
+    });
   } finally {
     await connection.close();
   }

@@ -7,7 +7,7 @@ Installed laptop use must work without internet or manual server startup. Hosted
 and synchronization remain optional future work. The secure local runtime contract is
 [offline-desktop.md](offline-desktop.md); component tests are not proof of a Windows release.
 
-The embedded adapter reuses Drizzle/PgDatabase, the committed migration chain (0000–0007), repositories,
+The embedded adapter reuses Drizzle/PgDatabase, the committed migration chain (0000–0008), repositories,
 Argon2id/opaque authentication and ownership predicates. Private filesystem PGlite runs
 in the privileged backend, with no PostgreSQL socket and no renderer database access.
 A private process-global service promise spans Next's separate SSR/API module graphs,
@@ -384,7 +384,7 @@ allocation trend without a recorded evidence window.
 `GET /api/execution/today` verifies the opaque session and returns one repeatable-read
 snapshot: account-local selected date, bundled daily content, active Season and its
 allocations, versioned daily plan/Big 3, timeline, current Focus, 20 recent completed
-Focus sessions on the selected start day, routines/completions, task choices,
+Focus sessions on the selected completion day, routines/completions, task choices,
 recommendations, Insights and SQL counts. The client does not assemble individual
 cards through dozens of calls. One foreground/visible 60-second refresh revalidates
 identity; open forms retain their drafts. Timer rendering updates locally each second
@@ -405,10 +405,17 @@ reuse a request UUID independently. No client ID provides owner authority.
   overlapping blocks are rejected under the owner lock. Daily scheduled totals clip
   intervals to local-day boundaries. Edit/remove is versioned.
 - Focus supports Task **or** Project, category or custom objective, 25/50/90/custom
-  duration, pause/resume/finish and Later Inbox capture. Server-timed intervals retain
-  pauses and split daily totals at local midnight (including DST). Finishing adds
-  rounded recorded minutes once to the linked Task and advances its version; it does
-  not complete the Task. An open/paused session is restored on reload.
+  duration, pause/resume/finish and Later Inbox capture. Unlimited paused sessions
+  coexist with one runner. Start/resume automatically pauses the runner and opens the
+  target at the same transaction timestamp, under the owner lock; no implicit finish.
+  Partial unique indexes cover running sessions and open intervals per owner. Versions
+  and receipts protect switches, notes and completion. Server-timed intervals retain
+  pauses and split totals at local midnight (including DST). Finish adds rounded
+  recorded minutes once to its Task; Task completion is optional and atomic.
+  GET /api/execution/focus pages 50 owner-scoped unfinished sessions; Today also includes
+  the runner/selected session. Read-only focusId never provides owner authority. Notes
+  persist through focus-notes commands. One shared timer/list surface serves Today,
+  Focus and block dialogs; selection is a validated URL UUID, not a second timer.
 - Routines are separate weekday-recurrence definitions with per-local-day completion
   and notes. Archive retains completions; completed archived routines remain visible
   on their recorded day. Faith/reflective routines never enter execution Insights.

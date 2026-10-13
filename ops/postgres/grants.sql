@@ -1,4 +1,4 @@
--- Apply after 0000–0007 using the migration owner. Explicit lists, no future-table grants.
+-- Apply after 0000–0008 using the migration owner. Explicit lists, no future-table grants.
 BEGIN;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO life_os_runtime, life_os_operator, life_os_backup;

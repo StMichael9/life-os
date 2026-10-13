@@ -19,6 +19,43 @@ copy and compatible previous installer are retained; see deployment.md for locat
 and recovery limits. This is a bounded installation record, not comprehensive
 Phase 1 acceptance or work on Phases 2–6. No hosted resources were changed.
 
+## Focus session switching — 2026-10-13
+
+Implemented unlimited stored paused sessions with one running session. Starting a new
+session or resuming another atomically pauses the current runner under the verified
+owner row lock, closes its interval, saves its time/version and opens the target at
+that same instant. No session is finished/deleted by switching. Exact receipts and
+stale-version checks prevent replays/double completion; database indexes independently
+enforce one runner and one open interval per user. Finishing a paused session leaves
+another runner intact. History groups by the selected local completion day.
+
+The shared Focus workspace keeps one large radial timer, a compact scrollable list of
+other sessions (name, remaining time, Running/Paused), one-click switching and New
+Session. Session notes persist while unfinished; selected-session URLs survive refresh
+and are owner-checked. Account changes clear selection/drafts. Today and calendar
+workspaces reuse this surface. Existing design tokens/navigation remain; spacing and
+hierarchy are tightened without a new styling dependency.
+
+Migration `0008_focus_switching.sql` replaces the old one-unfinished-session index with
+one-running-session and one-open-interval-per-owner indexes. It changes no content or
+timers (nine migrations, still 23 tables). Paused storage has no application count cap;
+reads page 50 records, including the current runner/selected record when necessary.
+Foreground refresh resets loaded pages to the first page; selected sessions remain
+available. Timing retains the existing whole-second precision.
+
+Verification: 35 embedded/shared execution/countdown tests passed (one guarded
+role-test skip), three physical persistence/upgrade tests passed, and 32 isolated real
+PostgreSQL17 execution tests passed. A final Focus-only rerun passed six checks;
+30 other cases were deliberately filtered. Four focused desktop/mobile calendar and
+switching journeys passed with axe/overflow checks. Typecheck/lint, format and
+production builds passed; generated schema has no drift. Full regression/native
+acceptance was not run in Cloud for this revision.
+Local/QA instructions:
+[focus-switching-handoff.md](focus-switching-handoff.md). Comprehensive regression and
+Windows deployment remain delegated; Cloud did not change apps/desktop or a laptop
+profile. The prior Windows installation is Local-reported `d18ccf5` based on `38f8c4f`;
+it does not contain this new Focus revision. Phase 2 remains outside this run.
+
 ## Phase 1 UX consolidation — 2026-10-12
 
 Current assignment is calendar-centered Phase 1 UX only; do not begin Phases 2–6.
@@ -64,9 +101,10 @@ counts below refer to earlier checkpoints, not this new UI.
 **Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and
 hosted production. The immediate product must be an installed laptop Electron app
 that launches its own local backend/database automatically and works without internet.
-The existing Electron shell does NOT yet launch the implemented local backend. The
-standalone backend and embedded persistence are component-tested; native packaging
-and installed offline acceptance remain incomplete.
+Local reports the normal unsigned offline app installed at checkpoint d18ccf5
+(base 38f8c4f), with two clean startup/reopen cycles and preserved profile/session.
+Native changes remain isolated on windows/desktop-first-qa; comprehensive acceptance,
+backup readiness and installation of the new Focus revision remain pending.
 Preserve the implemented Phase 1 domains/security while adding local persistence and
 packaging. This explicit user direction supersedes earlier online-first assumptions and
 the hosted acceptance assignment below. Offline daily-use acceptance is now the Phase 1
@@ -500,14 +538,13 @@ production remains empty, and no personal account or backup location was fabrica
 
 ## Exact next recommended task
 
-**Resolve the native quit/cleanup stall, complete the isolated unsigned offline NSIS install/shortcut/disconnected acceptance
-and serial Windows shared-test rerun, then review/merge the native checkpoint. Finish
-the offline Phase 1 release using offline-desktop.md, connect its tested recovery/backup protocol to
-native key storage/archive selection/guarded cutover, then perform a bounded Windows
-disconnected install/full-day/restart/
-security/recovery acceptance run. After those gates pass, begin Phase 2 with Skills →
-Practice Problems → Attempts → Spaced Reviews, then the remaining Career/Performance
-requirements. Do not resume hosted deployment as a prerequisite for offline use.**
+**Local: normally merge the pushed Focus-switching checkpoint into d18ccf5, preserve
+profiles/compatible backups, rebuild the Windows standalone/portable resources and
+installer with migrations 0000–0008, then verify upgrade/startup and paused/running
+session restoration. Lead QA: complete the Focus-switching and existing Phase 1
+release acceptance in focus-switching-handoff.md, including native backup/crash/reboot
+checks. Report and stop after the bounded assignment. Do not begin Phase 2 or resume
+hosted deployment during this Focus run.**
 
 ## Checkpoint for the next session
 

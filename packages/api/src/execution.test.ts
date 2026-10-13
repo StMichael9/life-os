@@ -285,13 +285,12 @@ describe('authenticated daily execution', () => {
     await service.mutate(a, { ...c, requestId: id(), version: 2, remove: true });
     expect((await service.today(a, { date: '2026-10-08' })).schedule).toEqual([]);
   });
-  it('keeps one open Focus, restores pause / resume, records actual minutes exactly once', async () => {
+  it('restores pause / resume and records actual minutes exactly once', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const initial = Date.now();
     vi.setSystemTime(initial);
     const c = start();
     await service.mutate(a, c);
-    await expect(service.mutate(a, start())).rejects.toBeInstanceOf(DirectionConflict);
     vi.setSystemTime(initial + 125000);
     const control = {
       action: 'focus-control',
@@ -592,7 +591,7 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
         await tx.execute(sql.raw(`SET LOCAL ROLE ${role}`));
         const repo = createExecutionRepository(tx);
         await repo.mutate(aid, plan() as Parameters<typeof repo.mutate>[1]);
-        const focusInput = start();
+        const focusInput = { ...start(), notes: '' };
         await repo.mutate(aid, focusInput as Parameters<typeof repo.mutate>[1]);
         expect((await repo.today(aid, '2026-10-08')).plan?.oneThing).toBe('Deliver useful work');
         await expect(
@@ -879,5 +878,254 @@ describe('reusable calendar work blocks', () => {
     await expect(
       service.mutate(a, { ...finish, requestId: id(), operation: 'pause' }),
     ).rejects.toThrow();
+  });
+});
+
+const focusControl = (
+  session: { id: string; version: number },
+  operation: 'pause' | 'resume' | 'finish',
+  patch: Record<string, unknown> = {},
+) => ({
+  action: 'focus-control',
+  requestId: id(),
+  id: session.id,
+  version: session.version,
+  operation,
+  outcome: '',
+  notes: '',
+  completeTask: false,
+  ...patch,
+});
+describe('independent unfinished Focus sessions', () => {
+  it('preserves the exact Algorithms/Bookvane switch sequence, notes and independent completion', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const initial = Date.now();
+    vi.setSystemTime(initial);
+    const bookTask = id();
+    await db
+      .insert(s.tasks)
+      .values({ id: bookTask, userId: aid, title: 'Bookvane', status: 'planned' });
+    const algorithms = start({
+      objective: 'Algorithms',
+      plannedMinutes: 90,
+      notes: 'Return to binary search',
+    });
+    await service.mutate(a, algorithms);
+    await db
+      .update(s.focusSessions)
+      .set({ startedAt: new Date(initial - 2 * 86400000) })
+      .where(eq(s.focusSessions.id, algorithms.id));
+    vi.setSystemTime(initial + 45 * 60000);
+    await service.mutate(a, focusControl({ id: algorithms.id, version: 1 }, 'pause'));
+    let snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions.find((s) => s.id === algorithms.id)).toMatchObject({
+      activeSeconds: 2700,
+      resumedAt: null,
+      plannedMinutes: 90,
+      notes: 'Return to binary search',
+    });
+    const book = start({
+      objective: 'Bookvane',
+      taskId: bookTask,
+      plannedMinutes: 60,
+      notes: 'Keep the plot outline',
+    });
+    await service.mutate(a, book);
+    vi.setSystemTime(initial + 60 * 60000);
+    const resume = focusControl({ id: algorithms.id, version: 2 }, 'resume');
+    await service.mutate(a, resume);
+    await service.mutate(a, resume);
+    snapshot = await service.today(a, {});
+    expect(snapshot.focus?.id).toBe(algorithms.id);
+    expect(snapshot.focusSessions.find((s) => s.id === book.id)).toMatchObject({
+      activeSeconds: 900,
+      resumedAt: null,
+      endedAt: null,
+      notes: 'Keep the plot outline',
+      taskId: bookTask,
+    });
+    expect(snapshot.focus?.activeSeconds).toBe(2700);
+    vi.setSystemTime(initial + 80 * 60000);
+    await service.mutate(a, focusControl({ id: book.id, version: 2 }, 'resume'));
+    snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions.find((s) => s.id === algorithms.id)).toMatchObject({
+      activeSeconds: 3900,
+      resumedAt: null,
+      endedAt: null,
+      version: 4,
+    });
+    // Finishing a paused session must not pause or finish the other running one.
+    const finish = focusControl({ id: algorithms.id, version: 4 }, 'finish', {
+      notes: 'Return to binary search',
+    });
+    await service.mutate(a, finish);
+    await service.mutate(a, finish);
+    snapshot = await service.today(a, {});
+    expect(snapshot.focus?.id).toBe(book.id);
+    expect(snapshot.focusSessions).toHaveLength(1);
+    expect(
+      snapshot.focusHistory.some((s) => s.id === algorithms.id && s.activeSeconds === 3900),
+    ).toBe(true);
+    expect((await db.select().from(s.tasks).where(eq(s.tasks.id, task)))[0]?.actualMinutes).toBe(
+      65,
+    );
+    expect(
+      (await db.select().from(s.tasks).where(eq(s.tasks.id, bookTask)))[0]?.actualMinutes,
+    ).toBeNull();
+    const intervals = await db
+      .select()
+      .from(s.focusIntervals)
+      .where(eq(s.focusIntervals.userId, aid));
+    const ordered = intervals.sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime());
+    for (let i = 1; i < ordered.length; i++)
+      expect(ordered[i - 1]!.endsAt!.getTime()).toBeLessThanOrEqual(ordered[i]!.startsAt.getTime());
+    expect(intervals.filter((i) => !i.endsAt)).toHaveLength(1);
+    vi.useRealTimers();
+  });
+  it('auto-pauses on New Session, preserves paused clocks/notes, and rolls back invalid starts/switches', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const initial = Date.now();
+    vi.setSystemTime(initial);
+    const first = start({ objective: 'Algorithms', notes: 'Independent note' });
+    await service.mutate(a, first);
+    vi.setSystemTime(initial + 90000);
+    await expect(service.mutate(a, start({ taskId: foreign }))).rejects.toBeInstanceOf(
+      DirectionNotFound,
+    );
+    expect((await service.today(a, {})).focus?.id).toBe(first.id);
+    const second = start({ objective: 'Bookvane' });
+    await service.mutate(a, second);
+    vi.setSystemTime(initial + 900000);
+    let snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions.find((s) => s.id === first.id)).toMatchObject({
+      activeSeconds: 90,
+      resumedAt: null,
+      notes: 'Independent note',
+      version: 2,
+    });
+    await expect(
+      service.mutate(b, focusControl({ id: first.id, version: 2 }, 'resume')),
+    ).rejects.toBeInstanceOf(DirectionNotFound);
+    await expect(
+      service.mutate(a, focusControl({ id: first.id, version: 1 }, 'resume')),
+    ).rejects.toBeInstanceOf(DirectionConflict);
+    expect((await service.today(a, {})).focus?.id).toBe(second.id);
+    await service.mutate(a, {
+      action: 'focus-notes',
+      requestId: id(),
+      id: first.id,
+      version: 2,
+      notes: 'Saved while paused',
+    });
+    snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions.find((s) => s.id === first.id)).toMatchObject({
+      activeSeconds: 90,
+      resumedAt: null,
+      notes: 'Saved while paused',
+      version: 3,
+    });
+    expect(snapshot.focus?.id).toBe(second.id);
+    vi.useRealTimers();
+  });
+  it('serializes concurrent starts and switches, prevents overlapping intervals and exact-retry double counting', async () => {
+    const first = start({ objective: 'First' }),
+      second = start({ objective: 'Second' }),
+      third = start({ objective: 'Third' });
+    await Promise.all([
+      service.mutate(a, first),
+      service.mutate(a, second),
+      service.mutate(a, third),
+    ]);
+    let snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions).toHaveLength(3);
+    expect(snapshot.focusSessions.filter((s) => s.resumedAt)).toHaveLength(1);
+    const paused = snapshot.focusSessions.filter((s) => !s.resumedAt);
+    await Promise.all(paused.map((s) => service.mutate(a, focusControl(s, 'resume'))));
+    snapshot = await service.today(a, {});
+    expect(snapshot.focusSessions.filter((s) => s.resumedAt)).toHaveLength(1);
+    const target = snapshot.focusSessions.find((s) => !s.resumedAt)!;
+    const races = await Promise.allSettled([
+      service.mutate(a, focusControl(target, 'resume')),
+      service.mutate(a, focusControl(target, 'resume')),
+    ]);
+    expect(races.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(races.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    snapshot = await service.today(a, {});
+    const finish = focusControl(snapshot.focus!, 'finish');
+    await Promise.all([service.mutate(a, finish), service.mutate(a, finish)]);
+    const finished = await db
+      .select()
+      .from(s.focusSessions)
+      .where(eq(s.focusSessions.id, finish.id));
+    expect(finished[0]?.endedAt).not.toBeNull();
+    const intervals = (
+      await db.select().from(s.focusIntervals).where(eq(s.focusIntervals.userId, aid))
+    ).sort(
+      (x, y) =>
+        x.startsAt.getTime() - y.startsAt.getTime() ||
+        (x.endsAt?.getTime() ?? Infinity) - (y.endsAt?.getTime() ?? Infinity),
+    );
+    for (let i = 1; i < intervals.length; i++)
+      expect(intervals[i - 1]!.endsAt!.getTime()).toBeLessThanOrEqual(
+        intervals[i]!.startsAt.getTime(),
+      );
+    expect(intervals.filter((i) => !i.endsAt)).toHaveLength(0);
+    expect((await service.today(a, {})).focusSessions).toHaveLength(2);
+  });
+  it('stores more than 50 paused sessions, pages owner-scoped results and includes an older selected session', async () => {
+    const rows = Array.from({ length: 57 }, (_, i) => ({
+      id: id(),
+      userId: aid,
+      objective: 'Paused ' + i,
+      startedAt: new Date(),
+      plannedMinutes: 90,
+      activeSeconds: i,
+      resumedAt: null,
+    }));
+    await db.insert(s.focusSessions).values(rows);
+    const first = await service.unfinished(a, {});
+    expect(first.items).toHaveLength(50);
+    expect(first.next).toBeTruthy();
+    const second = await service.unfinished(a, { before: first.next });
+    expect(second.items).toHaveLength(7);
+    expect(new Set([...first.items, ...second.items].map((s) => s.id)).size).toBe(57);
+    expect((await service.unfinished(b, {})).items).toEqual([]);
+    await expect(service.unfinished(b, { before: first.next })).rejects.toBeInstanceOf(
+      DirectionNotFound,
+    );
+    const old = second.items[6]!;
+    expect(
+      (await service.today(a, { focusId: old.id })).focusSessions.some((s) => s.id === old.id),
+    ).toBe(true);
+    expect((await service.today(b, { focusId: old.id })).focusSessions).toEqual([]);
+    await expect(service.unfinished(undefined, {})).rejects.toBeInstanceOf(AuthenticationRequired);
+  });
+  it('enforces one running session and one open interval per owner in PostgreSQL constraints', async () => {
+    const c = start();
+    await service.mutate(a, c);
+    const paused = id();
+    await db.insert(s.focusSessions).values({
+      id: paused,
+      userId: aid,
+      objective: 'Paused',
+      plannedMinutes: 90,
+      startedAt: new Date(),
+    });
+    await expect(
+      db.insert(s.focusSessions).values({
+        userId: aid,
+        objective: 'Invalid concurrent running',
+        startedAt: new Date(),
+        plannedMinutes: 90,
+        resumedAt: new Date(),
+      }),
+    ).rejects.toMatchObject({ cause: { code: '23505', constraint: 'one_running_focus_per_user' } });
+    await expect(
+      db.insert(s.focusIntervals).values({ userId: aid, sessionId: paused, startsAt: new Date() }),
+    ).rejects.toMatchObject({
+      cause: { code: '23505', constraint: 'one_running_focus_interval_per_user' },
+    });
+    expect((await service.today(a, {})).focus?.id).toBe(c.id);
+    expect((await service.today(a, {})).focusSessions).toHaveLength(2);
   });
 });

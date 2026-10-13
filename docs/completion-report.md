@@ -7,6 +7,17 @@ on bounded requested builds; its session fix is checkpointed separately. The use
 one bounded integration
 request after that pause; hosted acceptance remains paused.
 
+## Focus switching update — 2026-10-13
+
+Cloud now implements multiple saved paused sessions, one running session and atomic
+one-click switching without implicit finish/delete. The shared timer/list workspace,
+independent notes and New Session reuse existing services/styles. Migration 0008
+changes uniqueness indexes only, preserving existing session data. See
+focus-switching-handoff.md for targeted checks and the bounded Local installation/QA
+assignment. Prior Local installation d18ccf5 (base 38f8c4f) is reported working, but
+has not been updated with this revision. Comprehensive acceptance/backup readiness
+remain pending; this work does not begin Phase 2.
+
 ## Latest assignment: Phase 1 UX consolidation
 
 Calendar-centered UX is implemented in Cloud: one Today / Calendar / Goals / More

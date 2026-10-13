@@ -1,0 +1,3 @@
+DROP INDEX "one_open_focus_per_user";--> statement-breakpoint
+CREATE UNIQUE INDEX "one_running_focus_interval_per_user" ON "focus_interval" USING btree ("user_id") WHERE "focus_interval"."ends_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "one_running_focus_per_user" ON "focus_session" USING btree ("user_id") WHERE "focus_session"."ended_at" is null and "focus_session"."resumed_at" is not null;
