@@ -1,6 +1,7 @@
 'use client';
 import { elapsedFocus, focusCountdown } from '@life-os/shared';
 import type { FocusSession } from '@life-os/shared';
+import { Plus, Pause, Play, Check } from 'lucide-react';
 import { FocusTimer } from './focus-timer';
 export function FocusWorkspace({
   sessions,
@@ -38,11 +39,11 @@ export function FocusWorkspace({
     <div className="focus-workspace">
       <div className="focus-workspace-heading">
         <div>
-          <p className="eyebrow">One session at a time. Every intention saved.</p>
-          <h2>Focus</h2>
+          <p className="eyebrow">Protected time</p>
+          <h2>{selected ? 'Current session' : 'Your intentions'}</h2>
         </div>
         <button className="button" disabled={busy || settling} onClick={onNew}>
-          New Session
+          <Plus size={14} aria-hidden="true" /> New Session
         </button>
       </div>
       {selected ? (
@@ -55,18 +56,23 @@ export function FocusWorkspace({
           />
           <div className="focus-controls">
             <button
-              className="button"
+              className="button button-primary"
               disabled={busy || settling}
               onClick={() => onControl(selected)}
             >
+              {selected.resumedAt ? (
+                <Pause size={14} aria-hidden="true" />
+              ) : (
+                <Play size={14} aria-hidden="true" />
+              )}
               {selected.resumedAt ? 'Pause' : 'Resume'}
             </button>
             <button
-              className="button button-primary"
+              className="button"
               disabled={busy || settling}
               onClick={() => onFinish(selected)}
             >
-              Finish Focus
+              <Check size={14} aria-hidden="true" /> Finish Focus
             </button>
           </div>
           {objective && (

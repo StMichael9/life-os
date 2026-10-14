@@ -71,6 +71,7 @@ test.describe('persisted Tasks and Inbox conversion', () => {
       form.getByLabel('Due date and time (America/Los_Angeles)', { exact: true }),
     ).toHaveValue('2026-10-15T08:30');
     await form.getByLabel('Notes', { exact: true }).fill('An edited reason');
+    await form.getByText('Effort & decision ratings', { exact: true }).click();
     await form.getByLabel('Actual duration (minutes)', { exact: true }).fill('40');
     await form.getByRole('button', { name: 'Save Task', exact: true }).click();
     await expect(form).not.toBeVisible();

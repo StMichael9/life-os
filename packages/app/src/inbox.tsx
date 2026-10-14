@@ -1,7 +1,15 @@
 'use client';
 import { WorkspaceShell } from './workspace-shell';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Eyebrow, Panel } from '@life-os/ui';
+import {
+  Button,
+  Panel,
+  PageHeading,
+  EmptyState,
+  ActionMenu,
+  MenuItem,
+  LoadingState,
+} from '@life-os/ui';
 import {
   postJson,
   requestJson,
@@ -215,11 +223,11 @@ export function Inbox() {
       }
     >
       <main id="main" className="inbox-page">
-        <div className="inbox-heading">
-          <Eyebrow>CAPTURE FIRST. ORGANIZE LATER.</Eyebrow>
-          <h1>Make room in your mind.</h1>
-          <p>Tasks, ideas, reminders, prayers. Start with a thought.</p>
-        </div>
+        <PageHeading
+          title="Inbox"
+          description="Get it out of your head. Decide when you’re ready."
+          eyebrow="Capture"
+        />
         {signedOut && (
           <Panel className="session-notice">
             <p>{message}</p>
@@ -242,7 +250,7 @@ export function Inbox() {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               maxLength={10_000}
-              rows={4}
+              rows={3}
               readOnly={busy || uncertain}
               placeholder="Capture something worth remembering…"
             />
@@ -275,9 +283,11 @@ export function Inbox() {
             </Button>
           </div>
           {loading ? (
-            <p className="card-description">Opening your Inbox…</p>
+            <LoadingState label="Opening your Inbox…" />
           ) : profile && !items.length ? (
-            <p className="card-description">Give a thought a place to land. Capture it above.</p>
+            <EmptyState title="A little breathing room.">
+              Your Inbox is clear. Capture a thought above when it arrives.
+            </EmptyState>
           ) : null}
           <ul className="capture-list">
             {items.map((item) => (
@@ -305,40 +315,46 @@ export function Inbox() {
                     <a className="capture-convert" href={`/tasks?fromInbox=${item.id}`}>
                       Turn into Task
                     </a>
-                    <a className="button" href={'/vault?fromInbox=' + item.id}>
-                      Keep in Vault / Not Now
-                    </a>
-                    <button
-                      className="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        if (
-                          !profile ||
-                          !confirm('Archive this capture? The original text is kept.')
-                        )
-                          return;
-                        setBusy(true);
-                        try {
-                          await postJson(
-                            '/api/execution',
-                            {
-                              action: 'inbox-dismiss',
-                              requestId: crypto.randomUUID(),
-                              id: item.id,
-                            },
-                            'POST',
-                            profile.id,
-                          );
-                          await refresh();
-                        } catch (e) {
-                          fail(e);
-                        } finally {
-                          setBusy(false);
-                        }
-                      }}
-                    >
-                      Archive capture
-                    </button>
+                    <ActionMenu label="Capture actions" disabled={busy}>
+                      <MenuItem>
+                        <a className="button" href={'/vault?fromInbox=' + item.id}>
+                          Keep in Vault / Not Now
+                        </a>
+                      </MenuItem>
+                      <MenuItem>
+                        <button
+                          className="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (
+                              !profile ||
+                              !confirm('Archive this capture? The original text is kept.')
+                            )
+                              return;
+                            setBusy(true);
+                            try {
+                              await postJson(
+                                '/api/execution',
+                                {
+                                  action: 'inbox-dismiss',
+                                  requestId: crypto.randomUUID(),
+                                  id: item.id,
+                                },
+                                'POST',
+                                profile.id,
+                              );
+                              await refresh();
+                            } catch (e) {
+                              fail(e);
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                        >
+                          Archive capture
+                        </button>
+                      </MenuItem>
+                    </ActionMenu>
                   </>
                 )}
               </li>

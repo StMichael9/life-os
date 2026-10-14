@@ -1,5 +1,54 @@
 # Progress and handoff
 
+## Complete frontend refresh — 2026-10-13
+
+Implemented a shared dark olive/teal interface across Today, Calendar, Goals/Projects,
+Tasks, Focus, Inbox, Routines, Vault, login and search. A compact 204px sidebar preserves
+Today / Calendar / Goals / More; keyboard-managed Radix menus provide contextual
+navigation/actions. Tailwind 4.3.3/PostCSS 8.5.30 compiles one shared theme/base/component
+system in packages/ui, replacing the accumulated override layers. UI components are
+owned here; shadcn's shared-workspace approach was evaluated without wholesale
+scaffolding/library installation. Existing Lucide icons remain; short reduced-motion
+CSS transitions avoid an unnecessary Motion dependency.
+
+Today prioritizes date/Season, One Thing/Big 3 and calendar, with actual compact counts
+and expandable secondary context/Focus. Start/Close Day and Pause/Resume have primary
+emphasis. Goal measurements, Task effort/ratings, optional morning reflection, ranking
+reasons and long Vault context disclose on demand without removing values or features.
+Capture processing and routine/Vault secondary actions use contextual menus; search
+Goal/Project commands use the correct existing deep links. Loading retains the shell
+with neutral skeletons; delivery/error feedback is visible. A current-time-line ARIA
+role issue found by the new present-day accessibility checks was corrected.
+
+Backend/services/API/schema/authentication, ownership/version/receipt guards, calendar
+recurrence/DST, independent Focus timers/notes/automatic switching and all personal
+data remain unchanged. No migration or desktop source change, hosted action, personal
+profile write or Phase 2 feature is included. Styling/assets work offline. Research and
+canonical component/layout contracts: [design-system.md](design-system.md).
+
+Verification: format/lint/typecheck and normal production web/standalone/Electron
+builds passed. 35 targeted embedded/shared execution/calendar tests passed with one
+guarded role-test skip. 18 distinct focused desktop/mobile browser scenarios passed
+across bounded runs: calendar recurrence, Focus switching/notes/persistence, Goal→
+Milestone→Project, Task edits/completion, Start/Close Day reflection, anonymous preview
+CSP/content/timezone and the new eight-screen UI/capture/Vault/search/keyboard journey.
+The final UI rerun additionally verified expanding/collapsing Today’s saved timer.
+WCAG A/AA axe and overflow checks passed on all eight authenticated screens; synthetic
+screenshots were inspected. Production and full dependency audits reported zero known
+vulnerabilities. Full unit/integration/browser/native suites were deliberately not run
+for this frontend revision; previously documented results are historical.
+Comprehensive regression, manual screen-reader/200% zoom/high-contrast review, actual
+Windows build/install/restart and final visual acceptance are delegated explicitly
+in [ui-refresh-handoff.md](ui-refresh-handoff.md). Cloud cannot claim this new interface
+is installed. The latest Local-reported installed baseline is normal unsigned 0.1.2,
+checkpoint a17ce81 (Cloud 103fa94 merged at 7c0018e), with isolated native switching and
+two preserved-profile clean launch/reopen cycles. Retain that branch's native fixes.
+
+Exact next task: **Local/Lead QA merge this frontend checkpoint into the existing
+Windows branch, complete bounded visual/keyboard/regression acceptance, rebuild and
+install the normal offline app preserving the profile, then verify startup/reopen.**
+Do not begin Phase 2 or resume hosting as part of this UI acceptance.
+
 ## Focus session switching — 2026-10-13
 
 Implemented unlimited stored paused sessions with one running session. Starting a new
@@ -82,10 +131,11 @@ counts below refer to earlier checkpoints, not this new UI.
 **Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and
 hosted production. The immediate product must be an installed laptop Electron app
 that launches its own local backend/database automatically and works without internet.
-Local reports the normal unsigned offline app installed at checkpoint d18ccf5
-(base 38f8c4f), with two clean startup/reopen cycles and preserved profile/session.
-Native changes remain isolated on windows/desktop-first-qa; comprehensive acceptance,
-backup readiness and installation of the new Focus revision remain pending.
+Local reports the normal unsigned offline 0.1.2 app installed at checkpoint a17ce81
+(base Cloud103fa94 merged at7c0018e), with isolated native session switching and two
+clean preserved-profile startup/reopen cycles. Native changes remain isolated on
+windows/desktop-first-qa; comprehensive acceptance, backup readiness and installation
+of the new frontend refresh remain pending.
 Preserve the implemented Phase 1 domains/security while adding local persistence and
 packaging. This explicit user direction supersedes earlier online-first assumptions and
 the hosted acceptance assignment below. Offline daily-use acceptance is now the Phase 1

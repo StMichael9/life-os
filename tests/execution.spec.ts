@@ -98,6 +98,7 @@ test.describe('integrated Phase 1 execution', () => {
     await form.getByLabel('The One Thing', { exact: true }).fill('Deliver one useful result');
     await form.getByLabel('Outcome 1', { exact: true }).fill('A clear result');
     await form.getByLabel('Outcome 2', { exact: true }).fill('Protect attention');
+    await form.getByText('Optional reflection', { exact: true }).click();
     await form.getByLabel('What am I grateful for?').fill('The chance to build');
     const { default: AxeBuilder } = await import('@axe-core/playwright');
     expect(
@@ -255,7 +256,8 @@ test.describe('integrated Phase 1 execution', () => {
     await page.getByLabel('What’s on your mind?').fill(title + '\nOriginal context stays safe.');
     await page.getByRole('button', { name: 'Capture', exact: true }).click();
     const row = page.locator('.capture-list li').filter({ hasText: title });
-    await row.getByRole('link', { name: 'Keep in Vault / Not Now' }).click();
+    await row.getByRole('button', { name: 'Capture actions' }).click();
+    await page.getByRole('menuitem', { name: 'Keep in Vault / Not Now' }).click();
     const form = page.getByRole('dialog');
     await expect(form.getByLabel('Vault title')).toHaveValue(title);
     await form.getByRole('button', { name: 'Save', exact: true }).click();

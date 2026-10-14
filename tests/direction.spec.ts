@@ -57,9 +57,7 @@ test.describe('persisted Direction', () => {
     await form.getByLabel('Status', { exact: true }).selectOption('archived');
     await form.getByRole('button', { name: 'Save Season', exact: true }).click();
     await expect(form).not.toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'A little clarity changes everything.' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Choose your next chapter.' })).toBeVisible();
     await page.getByLabel('Show records').selectOption('all');
     await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
   });
@@ -75,6 +73,7 @@ test.describe('persisted Direction', () => {
     await form.getByLabel('Title', { exact: true }).fill(goal);
     await form.getByLabel('Description', { exact: true }).fill('Make the why clear');
     await form.getByLabel('Notes', { exact: true }).fill('Preserve this reasoning');
+    await form.getByText('Measurable outcome', { exact: false }).click();
     await form.getByLabel('Target value', { exact: true }).fill('10');
     await form.getByLabel('Current value', { exact: true }).fill('2');
     await form.getByLabel('Unit', { exact: true }).fill('pieces');

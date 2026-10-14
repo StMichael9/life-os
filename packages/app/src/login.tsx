@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Leaf } from 'lucide-react';
 import { Button, Eyebrow } from '@life-os/ui';
 import { postJson } from './auth-client';
 
@@ -43,8 +44,11 @@ export function Login({ setup = false }: { setup?: boolean }) {
   }
   return (
     <main className="auth-page">
-      <a className="auth-brand" href="/">
-        LIFE OS
+      <a className="brand auth-brand" href="/">
+        <span className="brand-symbol">
+          <Leaf size={18} aria-hidden="true" />
+        </span>
+        Life <strong>OS</strong>
       </a>
       <section className="panel auth-card" aria-labelledby="login-heading">
         <Eyebrow>YOUR PERSONAL WORKSPACE</Eyebrow>
@@ -52,7 +56,7 @@ export function Login({ setup = false }: { setup?: boolean }) {
         <p className="auth-intro">
           {setup
             ? 'Create your private account on this device.'
-            : 'Sign in to capture what’s on your mind.'}
+            : 'A clear direction. A deliberate day.'}
         </p>
         <form onSubmit={submit}>
           {setup && (
@@ -128,7 +132,7 @@ export function Login({ setup = false }: { setup?: boolean }) {
         <p className="quiet-note">
           {setup
             ? 'Your records stay on this device. Keep your password safe; recovery is not available yet.'
-            : 'Accounts are created by the workspace owner. Contact them if you need access or help signing in.'}
+            : 'Your workspace is private. Sign in with your personal account.'}
         </p>
       </section>
     </main>

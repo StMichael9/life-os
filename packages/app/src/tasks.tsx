@@ -12,7 +12,7 @@ import type {
 } from '@life-os/shared';
 import { taskStatusLabels } from '@life-os/shared';
 import type { TaskCommand } from '@life-os/validation';
-import { Button, Eyebrow, Panel } from '@life-os/ui';
+import { Button, Eyebrow, Panel, PageHeading, LoadingState } from '@life-os/ui';
 import { postJson, requestJson, RequestFailed, type Profile } from './auth-client';
 import { TaskEditor, taskEditCommand } from './task-editor';
 type Owned<T> = T & { ownerId: string };
@@ -359,18 +359,20 @@ export function Tasks({
           Skip to Tasks
         </a>
 
-        <section className="direction-intro task-intro">
-          <div>
-            <Eyebrow>CLARITY BECOMES ACTION</Eyebrow>
-            <h1 id="tasks-heading">A deliberate next step.</h1>
-            <p>Keep the work small enough to start, and connected to what matters.</p>
-          </div>
-          {profile && (
-            <Button variant="primary" onClick={() => start(null)} disabled={busy}>
-              New Task
-            </Button>
-          )}
-        </section>
+        <div id="tasks-heading">
+          <PageHeading
+            title="Tasks"
+            description="Small enough to start. Connected to what matters."
+            eyebrow="Execution"
+            actions={
+              profile && (
+                <Button variant="primary" onClick={() => start(null)} disabled={busy}>
+                  New Task
+                </Button>
+              )
+            }
+          />
+        </div>
         {message && (
           <p role={ended ? 'alert' : 'status'} className="form-message">
             {message}
@@ -384,7 +386,7 @@ export function Tasks({
           </Panel>
         )}
         {loading && (
-          <p role="status">{profile ? 'Refreshing your Tasks…' : 'Opening your Tasks…'}</p>
+          <LoadingState label={profile ? 'Refreshing your Tasks…' : 'Opening your Tasks…'} />
         )}
         {!loading && !profile && !ended && (
           <Panel>

@@ -1,4 +1,5 @@
 'use client';
+import { PageHeading, ActionMenu, MenuItem, EmptyState, LoadingState } from '@life-os/ui';
 import { WorkspaceShell } from './workspace-shell';
 import { WorkCalendar } from './calendar';
 import { WorkBlockWorkspace } from './work-block-workspace';
@@ -567,35 +568,49 @@ export function Execution({
       void processCapture(source);
     }
   }, [section, data]);
-  if (!data)
-    return (
-      <main className="private-page">
-        <a href="/">Life OS</a>
-        <h1>{loading ? 'Opening your workspace…' : 'Your private workspace'}</h1>
-        {error && <p role="alert">{error}</p>}
-        {!loading && (
-          <a
-            className="button"
-            href={'/login?next=' + encodeURIComponent(section === 'today' ? '/' : '/' + section)}
-          >
-            Sign in
-          </a>
-        )}
-      </main>
-    );
-  const session = selectedFocusId
-    ? (sessions.find((s) => s.id === selectedFocusId) ?? null)
-    : data.focus;
   const selectedTitle =
     section === 'today'
       ? 'Today'
       : section === 'vault'
-        ? 'Vault'
+        ? 'Vault & Not Now'
         : section === 'schedule'
           ? 'Calendar'
           : section === 'focus'
             ? 'Focus'
             : 'Routines';
+  if (!data)
+    return (
+      <WorkspaceShell
+        title={selectedTitle}
+        active={section === 'today' ? 'today' : section === 'schedule' ? 'calendar' : 'more'}
+      >
+        <main id="main" className="execution-main">
+          <PageHeading title={selectedTitle} />
+          {loading ? (
+            <LoadingState />
+          ) : (
+            <EmptyState
+              title="Return to your workspace."
+              action={
+                <a
+                  className="button button-primary"
+                  href={
+                    '/login?next=' + encodeURIComponent(section === 'today' ? '/' : '/' + section)
+                  }
+                >
+                  Sign in
+                </a>
+              }
+            >
+              {error || 'Sign in to see your private records.'}
+            </EmptyState>
+          )}
+        </main>
+      </WorkspaceShell>
+    );
+  const session = selectedFocusId
+    ? (sessions.find((s) => s.id === selectedFocusId) ?? null)
+    : data.focus;
   const planCommand = (workflow: 'save' | 'reopen'): ExecutionCommand => ({
     action: 'plan',
     requestId: uuid(),
@@ -614,7 +629,7 @@ export function Execution({
   const scheduledMinutes = data.snapshot.scheduledMinutes;
   return (
     <WorkspaceShell
-      className="execution-shell"
+      className={'execution-shell' + (section === 'focus' ? ' focused-workspace' : '')}
       title={selectedTitle}
       active={section === 'today' ? 'today' : section === 'schedule' ? 'calendar' : 'more'}
       actions={
@@ -627,32 +642,41 @@ export function Execution({
       }
     >
       <main id="main" className="execution-main">
-        <header className="execution-top">
-          <div>
-            <p className="eyebrow">Make room for what matters</p>
-            <h1>
-              {section === 'today'
-                ? new Intl.DateTimeFormat('en-US', {
-                    timeZone: 'UTC',
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  }).format(new Date((date || data.date) + 'T12:00Z'))
-                : selectedTitle}
-            </h1>
-          </div>
-          <div className="execution-actions">
-            <button className="button" onClick={() => void reload()} disabled={busy}>
+        <PageHeading
+          title={
+            section === 'today'
+              ? new Intl.DateTimeFormat('en-US', {
+                  timeZone: 'UTC',
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                }).format(new Date((date || data.date) + 'T12:00Z'))
+              : selectedTitle
+          }
+          eyebrow={section === 'today' ? 'Today / A deliberate day' : 'Your workspace'}
+          description={
+            section === 'schedule'
+              ? 'Protect time for what matters.'
+              : section === 'focus'
+                ? 'One intention in view. Every session saved.'
+                : section === 'routines'
+                  ? 'Small practices. A steady rhythm.'
+                  : section === 'vault'
+                    ? 'Keep the possibility. Release the pressure.'
+                    : undefined
+          }
+          actions={
+            <button className="button button-quiet" onClick={() => void reload()} disabled={busy}>
               Refresh
             </button>
-          </div>
-        </header>
+          }
+        />
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
-        <p className="sr-only" role="status">
+        <p className="form-message" role="status">
           {message}
         </p>
         {section !== 'vault' && (
@@ -669,22 +693,26 @@ export function Execution({
             <button className="button" onClick={() => setDate('')}>
               Today
             </button>
-            <time dateTime={data.date}>{data.date}</time>
+            <time className="sr-only" dateTime={data.date}>
+              {data.date}
+            </time>
             {!dayReady && <span role="status">Loading selected day…</span>}
             <span className="muted">{data.timeZone}</span>
-            <span className="day-state">
-              {data.plan?.closedAt
-                ? 'Day closed'
-                : data.plan?.startedAt
-                  ? 'Day started'
-                  : 'Ready to plan'}
-            </span>
+            {section === 'today' && (
+              <span className="day-state">
+                {data.plan?.closedAt
+                  ? 'Day closed'
+                  : data.plan?.startedAt
+                    ? 'Day started'
+                    : 'Ready to plan'}
+              </span>
+            )}
           </div>
         )}
         {section === 'today' && (
           <>
             <section className="season-banner" aria-labelledby="season-heading">
-              <p className="eyebrow">YOUR WORKSPACE</p>
+              <p className="eyebrow">Active Season</p>
               {data.activeSeason ? (
                 <>
                   <h2 id="season-heading">{data.activeSeason.name}</h2>
@@ -725,7 +753,7 @@ export function Execution({
                 </p>
                 <div className="execution-actions">
                   <button
-                    className="button button-primary"
+                    className="button"
                     disabled={busy || !dayReady || !!data.plan?.closedAt}
                     onClick={() => setEditor({ kind: 'plan', workflow: 'save' })}
                   >
@@ -733,7 +761,7 @@ export function Execution({
                   </button>
                   {!data.plan?.startedAt && (
                     <button
-                      className="button"
+                      className="button button-primary"
                       disabled={busy || !dayReady}
                       onClick={() => setEditor({ kind: 'plan', workflow: 'start' })}
                     >
@@ -742,7 +770,7 @@ export function Execution({
                   )}
                   {data.plan?.startedAt && !data.plan.closedAt && (
                     <button
-                      className="button"
+                      className="button button-primary"
                       disabled={busy || !dayReady}
                       onClick={() => setEditor({ kind: 'plan', workflow: 'close' })}
                     >
@@ -762,9 +790,16 @@ export function Execution({
                     </button>
                   )}
                 </div>
+                {data.recommendations[0] && (
+                  <a className="next-action" href={'/tasks?id=' + data.recommendations[0].id}>
+                    <span>Recommended next</span>
+                    {data.tasks.find((t) => t.id === data.recommendations[0]!.id)?.title}{' '}
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                )}
               </section>
               <section className="execution-card">
-                <p className="eyebrow">A successful day, deliberately chosen</p>
+                <p className="eyebrow">Three meaningful outcomes</p>
                 <h2>Today’s Big 3</h2>
                 {data.plan?.outcomes.length ? (
                   <ol className="big-three-list">
@@ -841,34 +876,42 @@ export function Execution({
         )}
         {((section === 'today' && sessions.length > 0) || section === 'focus') && (
           <section className="execution-card focus-card" id="focus">
-            <FocusWorkspace
-              sessions={sessions}
-              selected={session}
-              now={clock + clockOffset}
-              busy={busy}
-              settling={focusSettling}
-              objective={data.plan?.oneThing ?? null}
-              next={focusNext}
-              onMore={() => void moreFocus()}
-              onNew={() => setEditor({ kind: 'focus' })}
-              onSelect={selectFocus}
-              onControl={controlFocus}
-              onFinish={(record) => setEditor({ kind: 'focus-finish', record })}
-              onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
-            />
-            {section === 'focus' && data.focusHistory.length > 0 && (
-              <details>
-                <summary>Recorded sessions on {data.date}</summary>
-                <ul>
-                  {data.focusHistory.map((f) => (
-                    <li key={f.id}>
-                      {f.objective} · {Math.round(f.activeSeconds / 60)} minutes
-                      {f.outcome && <p>{f.outcome}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
+            <details className="focus-disclosure" open={section === 'focus'}>
+              <summary>
+                Focus <span>{session?.objective ?? 'Saved intentions'}</span>
+                <span className="session-status">
+                  {session?.resumedAt ? 'Running' : 'Paused'} · {sessions.length} unfinished
+                </span>
+              </summary>
+              <FocusWorkspace
+                sessions={sessions}
+                selected={session}
+                now={clock + clockOffset}
+                busy={busy}
+                settling={focusSettling}
+                objective={data.plan?.oneThing ?? null}
+                next={focusNext}
+                onMore={() => void moreFocus()}
+                onNew={() => setEditor({ kind: 'focus' })}
+                onSelect={selectFocus}
+                onControl={controlFocus}
+                onFinish={(record) => setEditor({ kind: 'focus-finish', record })}
+                onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
+              />
+              {section === 'focus' && data.focusHistory.length > 0 && (
+                <details>
+                  <summary>Recorded sessions on {data.date}</summary>
+                  <ul>
+                    {data.focusHistory.map((f) => (
+                      <li key={f.id}>
+                        {f.objective} · {Math.round(f.activeSeconds / 60)} minutes
+                        {f.outcome && <p>{f.outcome}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </details>
           </section>
         )}
         {(section === 'today' || section === 'routines') && (
@@ -926,39 +969,45 @@ export function Execution({
                               Day note
                             </button>
                           )}
-                          <button
-                            className="button"
-                            disabled={busy || r.archived}
-                            onClick={() => setEditor({ kind: 'routine', record: r })}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="button"
-                            disabled={busy}
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  r.archived
-                                    ? 'Restore this routine?'
-                                    : 'Archive this routine? Past completions are kept.',
-                                )
-                              )
-                                void action({
-                                  action: 'routine',
-                                  requestId: uuid(),
-                                  id: r.id,
-                                  version: r.version,
-                                  title: r.title,
-                                  days: r.days,
-                                  spiritual: r.spiritual,
-                                  notes: r.notes ?? '',
-                                  archived: !r.archived,
-                                });
-                            }}
-                          >
-                            {r.archived ? 'Restore' : 'Archive'}
-                          </button>
+                          <ActionMenu label={'Actions for ' + r.title} disabled={busy}>
+                            <MenuItem>
+                              <button
+                                className="button"
+                                disabled={busy || r.archived}
+                                onClick={() => setEditor({ kind: 'routine', record: r })}
+                              >
+                                Edit
+                              </button>
+                            </MenuItem>
+                            <MenuItem>
+                              <button
+                                className="button"
+                                disabled={busy}
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      r.archived
+                                        ? 'Restore this routine?'
+                                        : 'Archive this routine? Past completions are kept.',
+                                    )
+                                  )
+                                    void action({
+                                      action: 'routine',
+                                      requestId: uuid(),
+                                      id: r.id,
+                                      version: r.version,
+                                      title: r.title,
+                                      days: r.days,
+                                      spiritual: r.spiritual,
+                                      notes: r.notes ?? '',
+                                      archived: !r.archived,
+                                    });
+                                }}
+                              >
+                                {r.archived ? 'Restore' : 'Archive'}
+                              </button>
+                            </MenuItem>
+                          </ActionMenu>
                         </div>
                       </li>
                     ))}
@@ -1013,12 +1062,15 @@ export function Execution({
                           <p>
                             {t.estimateMinutes} minutes · Priority heuristic {r.score}
                           </p>
-                          <ul>
-                            {r.reasons.map((reason) => (
-                              <li key={reason}>{reason}</li>
-                            ))}
-                          </ul>
-                          {!session && (
+                          <details className="recommendation-reasons">
+                            <summary>Why this Task?</summary>
+                            <ul>
+                              {r.reasons.map((reason) => (
+                                <li key={reason}>{reason}</li>
+                              ))}
+                            </ul>
+                          </details>
+                          {
                             <button
                               className="button button-primary"
                               disabled={busy}
@@ -1033,7 +1085,7 @@ export function Execution({
                             >
                               Focus on Task
                             </button>
-                          )}
+                          }
                           <button
                             className="button"
                             disabled={busy}
@@ -1122,8 +1174,7 @@ export function Execution({
           <section className="execution-card">
             <div className="card-heading">
               <div>
-                <p className="eyebrow">Capture possibility. Protect the present.</p>
-                <h2>Vault & Not Now</h2>
+                <h2>Saved for later</h2>
               </div>
               <button
                 className="button button-primary"
@@ -1167,15 +1218,13 @@ export function Execution({
                   <li key={v.id} id={'vault-' + v.id}>
                     <p className="eyebrow">{v.kind.replace('_', ' ')}</p>
                     <h3>{v.title}</h3>
-                    <p className="preserve-lines">{v.body}</p>
+                    {v.body && (
+                      <details className="vault-body">
+                        <summary>Context & notes</summary>
+                        <p className="preserve-lines">{v.body}</p>
+                      </details>
+                    )}
                     <div className="execution-actions">
-                      <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() => setEditor({ kind: 'vault', record: v })}
-                      >
-                        Edit
-                      </button>
                       {v.convertedGoalId ? (
                         <a href={'/direction?view=goals&id=' + v.convertedGoalId}>
                           Converted Goal →
@@ -1208,53 +1257,69 @@ export function Execution({
                           Turn into Task
                         </button>
                       )}
-                      {!v.convertedTaskId && !v.convertedGoalId && !v.convertedProjectId && (
-                        <>
+                      <ActionMenu label={'Actions for ' + v.title} disabled={busy}>
+                        <MenuItem>
                           <button
                             className="button"
                             disabled={busy}
-                            onClick={() => promoteVault(v, 'goal')}
+                            onClick={() => setEditor({ kind: 'vault', record: v })}
                           >
-                            Turn into Goal
+                            Edit
                           </button>
+                        </MenuItem>
+                        {!v.convertedTaskId && !v.convertedGoalId && !v.convertedProjectId && (
+                          <>
+                            <MenuItem>
+                              <button
+                                className="button"
+                                disabled={busy}
+                                onClick={() => promoteVault(v, 'goal')}
+                              >
+                                Turn into Goal
+                              </button>
+                            </MenuItem>
+                            <MenuItem>
+                              <button
+                                className="button"
+                                disabled={busy}
+                                onClick={() => promoteVault(v, 'project')}
+                              >
+                                Turn into Project
+                              </button>
+                            </MenuItem>
+                          </>
+                        )}
+                        <MenuItem>
                           <button
                             className="button"
                             disabled={busy}
-                            onClick={() => promoteVault(v, 'project')}
+                            onClick={() => {
+                              if (confirm(v.archived ? 'Restore this item?' : 'Archive this item?'))
+                                void action({
+                                  action: 'vault',
+                                  requestId: uuid(),
+                                  id: v.id,
+                                  version: v.version,
+                                  title: v.title,
+                                  body: v.body,
+                                  kind: v.kind as 'idea',
+                                  archived: !v.archived,
+                                  sourceInboxId: v.sourceInboxId,
+                                });
+                            }}
                           >
-                            Turn into Project
+                            {v.archived ? 'Restore' : 'Archive'}
                           </button>
-                        </>
-                      )}
-                      <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() => {
-                          if (confirm(v.archived ? 'Restore this item?' : 'Archive this item?'))
-                            void action({
-                              action: 'vault',
-                              requestId: uuid(),
-                              id: v.id,
-                              version: v.version,
-                              title: v.title,
-                              body: v.body,
-                              kind: v.kind as 'idea',
-                              archived: !v.archived,
-                              sourceInboxId: v.sourceInboxId,
-                            });
-                        }}
-                      >
-                        {v.archived ? 'Restore' : 'Archive'}
-                      </button>
+                        </MenuItem>
+                      </ActionMenu>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="muted">
-                Keep an idea without making it a commitment. Not Now gives your current priorities
-                room.
-              </p>
+              <EmptyState title="Room for another season.">
+                Save ideas and possibilities here without adding them to today’s commitments.
+              </EmptyState>
             )}
             {next && (
               <button className="button" onClick={() => void moreVault()}>
