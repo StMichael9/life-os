@@ -1,5 +1,44 @@
 # Deployment and operations
 
+## Local Windows UI refresh — Cloud 150e464, 2026-10-13
+
+Normal unsigned Life OS 0.1.3 is installed at `%LOCALAPPDATA%\Programs\Life OS`.
+Cloud `150e464` was merged normally at `711bfc2`, preserving the Windows implementation.
+Frozen dependency installation and refreshed web/standalone/Electron/NSIS build passed;
+the installer exited 0. Portable resources were inspected: all nine SQL migrations
+exactly match the repository, with no junctions or `.env` files. This refresh has no
+new migration or database model change.
+
+An isolated empty-profile packaged smoke passed startup, the olive/teal compiled theme,
+sandbox/context isolation/disabled Node integration, private HTTPS and denied external
+requests/new windows, followed by clean exit. After installation, the actual normal
+executable passed two startup/native-window-close cycles on the existing profile,
+restoring the same authenticated account and private origin with the refreshed theme.
+Both clean exits removed the database lease. The encrypted identity was unchanged.
+Comparisons on disposable stopped database copies verified the nine-migration ledger
+and unchanged content in all 21 application/credential tables. Authentication sessions
+and rate-limit tables were excluded from content comparison; session restoration was
+verified in the installed renderer. Developer runtimes were absent from its PATH.
+
+Protected stopped-profile copies and compatible `Life OS Setup 0.1.2.exe` are retained at
+`C:\Users\Micha\OneDrive\Documents\ChatGPT\life-os\work\windows-qa\pre-upgrade-150e464-20261013-210939`.
+`interrupted-profile` retains the initial state; `Life OS` retains the stopped
+pre-install state. An abandoned lease with a dead owner was present on entry. Guarded
+recovery restored the old account, but old-app automated close checks timed out;
+the updated installed app's two closes passed. No installer command force-closed a
+database process. The directory has a protected DACL for this Windows user, SYSTEM
+and Administrators. Keep the README and compatible installer together. These are
+filesystem recovery copies, not portable encrypted archives; DPAPI remains tied to
+this Windows account. Never overwrite the sole recovery copy or use an incompatible
+application to open its database.
+
+This was bounded installation acceptance. Full typecheck/lint/unit/integration/browser
+regression, detailed native visual QA, scaling/200% zoom/high contrast/screen-reader
+review and comprehensive calendar/Focus workflows remain deferred. The web build's
+TypeScript check passed; Cloud's earlier targeted results remain separately recorded.
+Code signing and a custom installer icon remain absent. No hosting or Phase 2 work
+was done. The normal Start-menu shortcut is used for the final launch.
+
 ## Local Windows Focus update — Cloud 103fa94, 2026-10-13
 
 Life OS 0.1.2 was rebuilt on Windows and installed at

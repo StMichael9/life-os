@@ -1,5 +1,33 @@
 # Progress and handoff
 
+## Windows UI refresh installation — 2026-10-13
+
+Cloud `150e464` was merged normally into `windows/desktop-first-qa` at `711bfc2`,
+retaining both dated handoff sections and all Windows lifecycle, security, persistence
+and portable-packaging fixes. Frozen dependency installation and the production
+web/standalone/Electron/NSIS build passed. Normal unsigned Life OS 0.1.3 installed
+with exit 0. The portable resources contain all nine exact migrations through `0008`,
+no workspace junctions and no `.env` files. No new migration was introduced.
+
+The actual packaged executable passed isolated startup, refreshed compiled theme,
+sandbox/context isolation/disabled renderer Node, private HTTPS, denied external
+requests/windows and clean close. The actual installed executable then passed two
+native window-close/startup cycles on the retained profile, with the same existing
+account/session/private origin and refreshed theme. Both exits cleared the database
+lease. Encrypted identity stayed byte-identical. Disposable stopped database copies
+confirmed all 21 application/credential tables unchanged; session/rate-limit tables
+were excluded from content comparison because authentication may rotate them.
+
+An abandoned lease with no live owner was present before work. A protected initial
+copy and compatible 0.1.2 installer were retained before guarded app recovery.
+Old-app automated close checks timed out during this run; no claim of successful
+old-app close is made. The stopped pre-install profile was retained separately;
+the updated installed app's two clean closes passed. No installer command forced a
+database process closed. Backup location and recovery limits are in deployment.md.
+Comprehensive regression, detailed native visual/accessibility QA and broader
+calendar/Focus acceptance are deferred at the user's instruction. No hosting,
+production data, test fixtures in the real profile, or Phase 2 work was performed.
+
 ## Windows Focus installation — 2026-10-13
 
 Cloud `103fa94` was merged normally into `windows/desktop-first-qa` at `7c0018e`.
