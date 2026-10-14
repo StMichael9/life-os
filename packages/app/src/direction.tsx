@@ -15,7 +15,7 @@ import type {
   Project,
   Season,
 } from '@life-os/shared';
-import { Button, Eyebrow, Panel } from '@life-os/ui';
+import { Button, Eyebrow, Panel, PageHeading, LoadingState } from '@life-os/ui';
 import { postJson, requestJson, RequestFailed, type Profile } from './auth-client';
 import {
   AllocationList,
@@ -378,12 +378,12 @@ export function Direction({
           Skip to Direction
         </a>
 
-        <div className="direction-intro" id="direction-content">
-          <Eyebrow>DIRECTION / DELIBERATE LIVING</Eyebrow>
-          <h1>
-            Give your effort a direction<span>.</span>
-          </h1>
-          <p>Choose the season. Name the outcome. Make the next step meaningful.</p>
+        <div id="direction-content">
+          <PageHeading
+            title="Goals"
+            description="A clear direction. Meaningful next steps."
+            eyebrow="Direction"
+          />
         </div>
         <p className="form-message" role="status">
           {message}
@@ -396,10 +396,7 @@ export function Direction({
           </Panel>
         )}
         {loading ? (
-          <Panel className="direction-loading">
-            <Compass size={28} />
-            <p>Opening your Direction workspace…</p>
-          </Panel>
+          <LoadingState label="Opening your Goals workspace…" />
         ) : !profile || !meta ? (
           !ended && (
             <Panel>
@@ -413,9 +410,7 @@ export function Direction({
             <Panel className="active-direction" aria-labelledby="active-direction-title">
               <div>
                 <Eyebrow>YOUR ACTIVE SEASON</Eyebrow>
-                <h2 id="active-direction-title">
-                  {active?.name ?? 'A little clarity changes everything.'}
-                </h2>
+                <h2 id="active-direction-title">{active?.name ?? 'Choose your next chapter.'}</h2>
                 <p className="active-objective">
                   {active?.objective ??
                     'Give your attention a home. Create a Season around what matters in this part of your life.'}

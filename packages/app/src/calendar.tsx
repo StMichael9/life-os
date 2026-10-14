@@ -73,7 +73,7 @@ export function WorkCalendar({
     <section className="work-calendar" aria-label="Work calendar" aria-busy={disabled}>
       <div className="calendar-toolbar">
         <div>
-          <p className="eyebrow">Space for your intentions</p>
+          <p className="eyebrow">Your time</p>
           <h2>{dateLabel(selectedDate)}</h2>
         </div>
         <div className="execution-actions">
@@ -220,6 +220,7 @@ export function WorkCalendar({
                     <div
                       className="current-time-line"
                       style={{ top: ((now - window.start) / 3600000) * hourHeight }}
+                      role="img"
                       aria-label="Current time"
                     >
                       <span />
@@ -232,8 +233,7 @@ export function WorkCalendar({
         </div>
       </div>
       <p className="calendar-caption">
-        {data.timeZone} · Each hour uses real elapsed time; daylight-saving hours are labeled
-        explicitly.
+        {data.timeZone} · Select an hour to add a block. Select a block to work on it.
         {data.limits.schedule ? ' Some blocks exceed the display limit; switch to Day.' : ''}
       </p>
     </section>

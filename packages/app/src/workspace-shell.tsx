@@ -1,6 +1,20 @@
 'use client';
 import type { ReactNode } from 'react';
-import { CalendarDays, Compass, Sun, Search, Plus, MoreHorizontal } from 'lucide-react';
+import {
+  CalendarDays,
+  Compass,
+  Sun,
+  Search,
+  Plus,
+  MoreHorizontal,
+  Inbox,
+  CheckSquare,
+  Timer,
+  Repeat2,
+  Archive,
+  Leaf,
+} from 'lucide-react';
+import { ActionMenu, MenuItem } from '@life-os/ui';
 export function WorkspaceShell({
   title,
   className = '',
@@ -23,9 +37,12 @@ export function WorkspaceShell({
       </a>
       <aside className="sidebar" aria-label="Life OS">
         <a className="brand" href="/">
-          LIFE <strong>OS</strong>
+          <span className="brand-symbol">
+            <Leaf size={18} />
+          </span>
+          Life <strong>OS</strong>
         </a>
-        <p className="workspace-label">A little space for what matters.</p>
+        <p className="workspace-label">Your personal workspace</p>
         <nav aria-label="Main navigation">
           {(
             [
@@ -40,45 +57,57 @@ export function WorkspaceShell({
               aria-current={active === key ? 'page' : undefined}
               href={href}
             >
-              <Icon size={18} />
+              <Icon size={18} aria-hidden="true" />
               {label}
             </a>
           ))}
-          <details className={'nav-more' + (active === 'more' ? ' active' : '')}>
-            <summary className="nav-link">
-              <MoreHorizontal size={18} />
-              More
-            </summary>
-            <div className="more-links">
-              {[
-                ['Inbox', '/inbox'],
-                ['Tasks', '/tasks'],
-                ['Focus', '/focus'],
-                ['Routines', '/routines'],
-                ['Vault & Not Now', '/vault'],
-              ].map(([label, href]) => (
-                <a key={href} href={href}>
+          <ActionMenu
+            label="More"
+            className={'nav-link nav-more' + (active === 'more' ? ' active' : '')}
+            trigger={
+              <>
+                <MoreHorizontal size={18} aria-hidden="true" />
+                More
+              </>
+            }
+          >
+            {(
+              [
+                ['Inbox', '/inbox', Inbox],
+                ['Tasks', '/tasks', CheckSquare],
+                ['Focus', '/focus', Timer],
+                ['Routines', '/routines', Repeat2],
+                ['Vault & Not Now', '/vault', Archive],
+              ] as const
+            ).map(([label, href, Icon]) => (
+              <MenuItem key={href}>
+                <a href={href} aria-current={label === title ? 'page' : undefined}>
+                  <Icon size={16} aria-hidden="true" />
                   {label}
                 </a>
-              ))}
-            </div>
-          </details>
+              </MenuItem>
+            ))}
+          </ActionMenu>
         </nav>
         <div className="shell-tools">
-          <button className="button" onClick={() => open()}>
-            <Search size={16} />
-            Search <kbd>⌘ / Ctrl K</kbd>
+          <button className="button button-quiet" onClick={() => open()}>
+            <Search size={16} aria-hidden="true" />
+            Search <kbd>Ctrl K</kbd>
           </button>
-          <button className="button" onClick={() => open(true)}>
-            <Plus size={16} />
+          <button className="button button-primary" onClick={() => open(true)}>
+            <Plus size={16} aria-hidden="true" />
             Quick capture
           </button>
+        </div>
+        <div className="sidebar-footer">
+          <span className="status-dot" />
+          Make space for what matters.
         </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
           <span className="breadcrumb">
-            Life OS <span>/</span> <strong>{title}</strong>
+            Workspace <span>/</span> <strong>{title}</strong>
           </span>
           <div className="execution-actions">{actions}</div>
         </header>

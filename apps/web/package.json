@@ -10,14 +10,19 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@life-os/api": "workspace:*",
     "@life-os/app": "workspace:*",
+    "@life-os/database": "workspace:*",
+    "@life-os/shared": "workspace:*",
     "@life-os/ui": "workspace:*",
     "next": "^16.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@life-os/api": "workspace:*",
-    "@life-os/database": "workspace:*",
-    "server-only": "^0.0.1",
-    "@life-os/shared": "workspace:*"
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "postcss": "8.5.30",
+    "tailwindcss": "4.3.3"
   }
 }

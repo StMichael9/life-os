@@ -55,7 +55,7 @@ claims of persistence, incorrect local-day boundaries, and premature feature bre
 | `apps/web`            | Next.js App Router composition, security headers, HTTP/auth adapters        | shared app, server services        |
 | `apps/desktop`        | Electron lifecycle and trust boundary; packaged Windows shell               | Electron and pure security helpers |
 | `packages/app`        | Shared React views for all Phase 1 daily execution workflows                | ui, shared, validation             |
-| `packages/ui`         | Semantic primitives, global design tokens and responsive styles             | React                              |
+| `packages/ui`         | Shared primitives, Tailwind theme and responsive semantic layouts           | React                              |
 | `packages/shared`     | Browser-safe local-date and versioned daily-content functions               | platform APIs only                 |
 | `packages/validation` | Zod schemas for untrusted inputs                                            | Zod                                |
 | `packages/insights`   | Deterministic priority and evidence rules                                   | validation                         |
@@ -370,8 +370,10 @@ allocation trend without a recorded evidence window.
 
 ## Meaningful deviations and tradeoffs
 
-- Shared token CSS replaces Tailwind initially: a small semantic system avoids
-  another build layer and does not prevent Tailwind adoption later.
+- The shared UI now uses Tailwind v4 theme/base/components/utilities through Next
+  PostCSS, with explicit monorepo sources and canonical semantic layout rules.
+  Radix supplies contextual menu focus/navigation; native guarded dialogs and all
+  services remain unchanged. See design-system.md and ui-refresh-handoff.md.
 - Electron uses the hosted application, not a separate bundled React runtime.
 - Later domain schemas are documented before feature migrations are committed.
 - Root config replaces an empty `packages/config`; no cache library until needed.

@@ -162,7 +162,13 @@ export function CommandPalette() {
           account.current = null;
         }}
       >
-        <h2 id="command-title">Find your next step</h2>
+        <div className="editor-heading">
+          <div>
+            <p className="eyebrow">Search & commands</p>
+            <h2 id="command-title">Find your next step</h2>
+          </div>
+          <kbd>Esc</kbd>
+        </div>
         <label className="direction-field">
           Search your workspace
           <input
@@ -221,10 +227,10 @@ export function CommandPalette() {
             ['Create Task', '/tasks?new=1'],
             ['Start Focus', '/focus?start=1'],
             ['Open Inbox', '/inbox'],
-            ['Open Goals', '/direction?resource=goals'],
-            ['Open Projects', '/direction?resource=projects'],
+            ['Open Goals', '/direction?view=goals'],
+            ['Open Projects', '/direction?view=projects'],
             ['Open Not Now', '/vault?kind=not_now'],
-            ['Schedule', '/schedule'],
+            ['Calendar', '/schedule'],
             ['Routines', '/routines'],
           ].map(([label, path]) => (
             <a key={path} href={path}>

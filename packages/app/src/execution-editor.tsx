@@ -306,9 +306,16 @@ export function ExecutionForm({
             </fieldset>
           );
         })}
-        {questions.map(([key, label]) => (
-          <div key={key}>{note(label, key, r?.[key] ?? '')}</div>
-        ))}
+        {questions.length > 0 && (
+          <details className="form-disclosure" open={editor.workflow === 'close'}>
+            <summary>Optional reflection</summary>
+            <div>
+              {questions.map(([key, label]) => (
+                <div key={key}>{note(label, key, r?.[key] ?? '')}</div>
+              ))}
+            </div>
+          </details>
+        )}
       </>
     );
   } else if (editor.kind === 'schedule' || editor.kind === 'schedule-series') {
@@ -657,7 +664,21 @@ export function ExecutionForm({
           dirty.current = true;
         }}
       >
-        <h2 id="execution-form-title">{title}</h2>
+        <div className="editor-heading">
+          <div>
+            <p className="eyebrow">Make the intention clear</p>
+            <h2 id="execution-form-title">{title}</h2>
+          </div>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={saving}
+            onClick={close}
+            aria-label="Close editor"
+          >
+            ✕
+          </button>
+        </div>
         {fields}
         {error && (
           <p role="alert" className="form-error">

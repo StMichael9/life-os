@@ -451,10 +451,13 @@ export function DirectionEditor({
                 </p>
               )}
               {field('targetDate', 'Target date', { type: 'date' })}
-              <div className="measurement-fields field-wide">
-                <h3>
-                  Measurable outcome <span className="small-muted">Optional</span>
-                </h3>
+              <details
+                className="measurement-fields field-wide"
+                open={!!(values.targetValue || values.currentValue || values.unit)}
+              >
+                <summary>
+                  Measurable outcome <span className="small-muted">· Optional</span>
+                </summary>
                 <div className="direction-fields">
                   {field('targetValue', 'Target value', { max: 20 })}
                   {field('currentValue', 'Current value', { max: 20 })}
@@ -464,7 +467,7 @@ export function DirectionEditor({
                   Use a target, current value and unit together. A written outcome can stand on its
                   own.
                 </p>
-              </div>
+              </details>
             </>
           )}
           {resource === 'projects' && (

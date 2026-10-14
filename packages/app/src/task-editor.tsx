@@ -305,31 +305,36 @@ export function TaskEditor({
           )}
           {field('dueAt', `Due date and time (${timeZone})`, { type: 'datetime-local' })}
           {field('estimateMinutes', 'Estimate (minutes)', { type: 'number', min: 1, max: 1440 })}
-          {field('actualMinutes', 'Actual duration (minutes)', {
-            type: 'number',
-            min: 0,
-            max: 1_000_000,
-          })}
-          {select(
-            'energy',
-            'Energy needed',
-            ['low', 'medium', 'high'].map((value) => (
-              <option key={value} value={value}>
-                {value[0]!.toUpperCase() + value.slice(1)}
-              </option>
-            )),
-          )}
-          <details className="task-ratings field-wide">
-            <summary>Optional decision ratings</summary>
-            <p className="quiet-note">
-              Rate 0–5 only where useful. These are your assessments; no score or ranking is
-              generated here.
-            </p>
+          <details className="form-disclosure field-wide">
+            <summary>Effort & decision ratings</summary>
             <div className="direction-fields">
-              {field('impact', 'Impact', { type: 'number', min: 0, max: 5 })}
-              {field('urgency', 'Urgency', { type: 'number', min: 0, max: 5 })}
-              {field('opportunity', 'Opportunity value', { type: 'number', min: 0, max: 5 })}
-              {field('goalAlignment', 'Goal alignment', { type: 'number', min: 0, max: 5 })}
+              {field('actualMinutes', 'Actual duration (minutes)', {
+                type: 'number',
+                min: 0,
+                max: 1_000_000,
+              })}
+              {select(
+                'energy',
+                'Energy needed',
+                ['low', 'medium', 'high'].map((value) => (
+                  <option key={value} value={value}>
+                    {value[0]!.toUpperCase() + value.slice(1)}
+                  </option>
+                )),
+              )}
+              <details className="task-ratings field-wide">
+                <summary>Optional decision ratings</summary>
+                <p className="quiet-note">
+                  Rate 0–5 only where useful. These are your assessments; no score or ranking is
+                  generated here.
+                </p>
+                <div className="direction-fields">
+                  {field('impact', 'Impact', { type: 'number', min: 0, max: 5 })}
+                  {field('urgency', 'Urgency', { type: 'number', min: 0, max: 5 })}
+                  {field('opportunity', 'Opportunity value', { type: 'number', min: 0, max: 5 })}
+                  {field('goalAlignment', 'Goal alignment', { type: 'number', min: 0, max: 5 })}
+                </div>
+              </details>
             </div>
           </details>
           {field('notes', 'Notes', { multiline: true, max: 4000 })}
