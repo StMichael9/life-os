@@ -1,5 +1,5 @@
 'use client';
-import { elapsedFocus, focusCountdown } from '@life-os/shared';
+import { elapsedFocus, focusCountdown, stopwatchTime } from '@life-os/shared';
 import type { FocusSession } from '@life-os/shared';
 import { Plus, Pause, Play, Check } from 'lucide-react';
 import { FocusTimer } from './focus-timer';
@@ -17,6 +17,7 @@ export function FocusWorkspace({
   onControl,
   onFinish,
   onNotes,
+  onReview,
 }: {
   sessions: FocusSession[];
   selected: FocusSession | null;
@@ -31,6 +32,7 @@ export function FocusWorkspace({
   onControl: (session: FocusSession) => void;
   onFinish: (session: FocusSession) => void;
   onNotes: (session: FocusSession) => void;
+  onReview?: ((session: FocusSession) => void) | undefined;
 }) {
   const others = sessions.filter((s) => s.id !== selected?.id);
   const format = (seconds: number) =>
@@ -50,6 +52,7 @@ export function FocusWorkspace({
         <>
           <h3 className="selected-focus-title">{selected.objective}</h3>
           <FocusTimer
+            mode={selected.timerMode}
             elapsed={elapsedFocus(selected, new Date(now))}
             plannedMinutes={selected.plannedMinutes}
             running={!!selected.resumedAt}
@@ -87,6 +90,17 @@ export function FocusWorkspace({
               <a href={'/direction?view=projects&id=' + selected.projectId}>Linked Project →</a>
             )}
           </div>
+          {onReview && (
+            <div className="focus-linked-work">
+              <button
+                className="button button-quiet"
+                disabled={busy || settling}
+                onClick={() => onReview(selected)}
+              >
+                Review / correct time
+              </button>
+            </div>
+          )}
           <details className="focus-session-notes">
             <summary>Session notes</summary>
             <p className="preserve-lines">
@@ -133,7 +147,10 @@ export function FocusWorkspace({
                   >
                     <span className="session-name">{s.objective}</span>
                     <span className="session-remaining">
-                      {format(remaining)} <small>remaining</small>
+                      {s.timerMode === 'stopwatch'
+                        ? stopwatchTime(elapsedFocus(s, new Date(now)))
+                        : format(remaining)}{' '}
+                      <small>{s.timerMode === 'stopwatch' ? 'worked' : 'remaining'}</small>
                     </span>
                     <span className={'session-status ' + (s.resumedAt ? 'running' : 'paused')}>
                       {s.resumedAt ? 'Running' : 'Paused'}

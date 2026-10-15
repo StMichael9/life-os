@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   pgTable,
+  bigint,
   pgEnum,
   uuid,
   text,
@@ -49,10 +50,18 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     displayName: text('display_name').notNull(),
     timeZone: text('time_zone').notNull().default('UTC'),
+    workTargetMinutes: integer('work_target_minutes').notNull().default(600),
+    workTargetVersion: integer('work_target_version').notNull().default(0),
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     ...timestamps(),
   },
-  (t) => [check('email_normalized', sql`${t.email} = lower(trim(${t.email}))`)],
+  (t) => [
+    check('email_normalized', sql`${t.email} = lower(trim(${t.email}))`),
+    check(
+      'work_target_range',
+      sql`${t.workTargetMinutes} between 1 and 1440 and ${t.workTargetVersion} >= 0`,
+    ),
+  ],
 );
 export const credentials = pgTable('auth_credential', {
   userId: uuid('user_id')
@@ -441,6 +450,11 @@ export const focusSessions = pgTable(
     endedAt: timestamp('ended_at', { withTimezone: true }),
     plannedMinutes: integer('planned_minutes').notNull(),
     activeSeconds: integer('active_seconds').notNull().default(0),
+    activeMilliseconds: bigint('active_milliseconds', { mode: 'number' }).notNull().default(0),
+    timerMode: text('timer_mode').notNull().default('countdown'),
+    discardedAt: timestamp('discarded_at', { withTimezone: true }),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    creditedMinutes: integer('credited_minutes').notNull().default(0),
     outcome: text('outcome'),
     notes: text('notes'),
   },
@@ -454,6 +468,10 @@ export const focusSessions = pgTable(
       columns: [t.projectId, t.userId],
       foreignColumns: [projects.id, projects.userId],
     }),
+    check(
+      'focus_work_fields',
+      sql`${t.activeMilliseconds} >= 0 and ${t.activeMilliseconds} <= 2000000000000 and ${t.creditedMinutes} >= 0 and ${t.timerMode} in ('countdown','stopwatch') and (${t.discardedAt} is null or (${t.endedAt} is not null and ${t.resumedAt} is null))`,
+    ),
     check('focus_single_parent', sql`not (${t.projectId} is not null and ${t.taskId} is not null)`),
     check(
       'focus_duration',
@@ -577,6 +595,7 @@ export const focusIntervals = pgTable(
   {
     ...owned(),
     sessionId: uuid('session_id').notNull(),
+    excluded: boolean('excluded').notNull().default(false),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }),
   },
@@ -593,5 +612,25 @@ export const focusIntervals = pgTable(
       .on(t.userId)
       .where(sql`${t.endsAt} is null`),
     index('focus_interval_owner_start').on(t.userId, t.startsAt),
+  ],
+);
+
+export const workTimeChanges = pgTable(
+  'work_time_change',
+  {
+    ...owned(),
+    sessionId: uuid('session_id').notNull(),
+    kind: text('kind').notNull(),
+    reason: text('reason').notNull(),
+    before: text('before').notNull(),
+    after: text('after').notNull(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.sessionId, t.userId],
+      foreignColumns: [focusSessions.id, focusSessions.userId],
+    }),
+    check('work_change_kind', sql`${t.kind} in ('correct','reset','discard','confirm')`),
+    index('work_change_session').on(t.userId, t.sessionId, t.createdAt),
   ],
 );

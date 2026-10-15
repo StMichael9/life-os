@@ -4,7 +4,7 @@
 
 The current user priority is personal offline-first desktop use. PGlite persists the
 same PostgreSQL model on the filesystem inside a private local backend; no SQLite
-conversion, new application table or migration was introduced. Committed migration
+conversion was introduced. Subsequent Phase 1 extensions add migrations as listed below. Committed migration
 hashes/timestamps are checked on every open; a lease prevents duplicate writers and
 valid dead-process leases recover under an exclusive guard, while live/ambiguous
 leases fail closed. Existing files are retained and ledger validation is mandatory.
@@ -68,6 +68,24 @@ Paused sessions have no count cap. Existing rows, duration, notes, links, interv
 versions and history are untouched. Migration failure leaves data intact; never reset
 a profile to resolve a conflicting legacy interval. The chain is now 0000–0008 (nine
 migrations, still 23 tables). Isolated upgrade/restart and PostgreSQL tests verify it.
+
+`0009_actual_work.sql`: adds work_time_change (24 tables) with composite session/owner
+FK, kind/reason and before/after audit payloads. Focus gains countdown/stopwatch mode,
+active_milliseconds, confirmed/discarded instants and known Task-credit minutes;
+intervals gain an excluded flag. App users gain default 600 work-target minutes and a
+version. Backfill preserves active_seconds and recovers closed-interval fractions;
+no interval is invented for legacy history. Existing runner uniqueness remains shared
+across modes. The chain is 0000–0009 (ten migrations).
+
+Actual work uses half-open interval intersections with account-local day boundaries,
+not calendar estimates, Task durations or session completion dates. Closed/open interval
+durations are summed before rounding, with server-now clipping. Owner-locked mutations
+serialize switching and trimming; corrections can only shrink a recorded interval.
+Reset/discard retain excluded intervals, notes, parents and audited reasons. Runtime
+may SELECT/INSERT audit entries but cannot UPDATE/DELETE them. Confirmation records
+review without stopping work. Known post-0009 Task credits are delta-adjusted once;
+legacy manual/unknown credits are not reconstructed. Target comparisons use the current
+setting, while category reporting resolves current owned relationships.
 
 | Table             | Purpose and relationships                                                                               |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |

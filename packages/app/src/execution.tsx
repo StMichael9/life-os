@@ -1,6 +1,8 @@
 'use client';
 import { PageHeading, ActionMenu, MenuItem, EmptyState, LoadingState } from '@life-os/ui';
 import { WorkspaceShell } from './workspace-shell';
+import { WorkTracker } from './work-tracker';
+import { WorkTimeEditor } from './work-time-editor';
 import { WorkCalendar } from './calendar';
 import { WorkBlockWorkspace } from './work-block-workspace';
 import { FocusWorkspace } from './focus-workspace';
@@ -8,7 +10,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { executionQuerySchema } from '@life-os/validation';
 import type { ExecutionCommand } from '@life-os/validation';
 import { emptyReflection } from '@life-os/shared';
-import type { ExecutionSnapshot, VaultItem, ScheduleBlock, FocusSession } from '@life-os/shared';
+import type {
+  ExecutionSnapshot,
+  VaultItem,
+  ScheduleBlock,
+  FocusSession,
+  WorkSessionDetail,
+} from '@life-os/shared';
 import { requestJson, postJson, RequestFailed } from './auth-client';
 import type { Profile, InboxItem } from './auth-client';
 import { ExecutionForm } from './execution-editor';
@@ -20,6 +28,11 @@ export function Execution({
 }: {
   section?: 'today' | 'schedule' | 'focus' | 'routines' | 'vault';
 }) {
+  const [workReview, setWorkReview] = useState<{ id: string | null } | null>(null);
+  const [reviewRunning, setReviewRunning] = useState<string | null>(null);
+  const restored = useRef(false);
+  const hiddenAt = useRef<number | null>(null);
+  const clockAnchor = useRef({ server: 0, monotonic: 0 });
   const [data, setData] = useState<ExecutionSnapshot | null>(null),
     [profile, setProfile] = useState<Profile | null>(null),
     [error, setError] = useState(''),
@@ -70,6 +83,9 @@ export function Execution({
     generation.current++;
     account.current = null;
     setData(null);
+    setWorkReview(null);
+    setReviewRunning(null);
+    restored.current = false;
     setLoadedDate(null);
     pendingFocus.current = null;
     setFocusSettling(false);
@@ -123,6 +139,15 @@ export function Execution({
         pendingFocus.current = null;
         setFocusSettling(false);
       }
+      if (!restored.current) {
+        restored.current = true;
+        setReviewRunning(snapshot.focusSessions.find((s) => s.resumedAt)?.id ?? null);
+      }
+      clockAnchor.current = {
+        server: Date.parse(snapshot.serverNow),
+        monotonic: performance.now(),
+      };
+      setClock(Date.parse(snapshot.serverNow));
       setData(snapshot);
       setSessions(snapshot.focusSessions);
       setFocusNext(snapshot.focusNext);
@@ -133,7 +158,7 @@ export function Execution({
       setBlock((current) =>
         current ? (snapshot.schedule.find((b) => b.id === current.id) ?? null) : null,
       );
-      setClockOffset(Date.parse(snapshot.serverNow) - Date.now());
+      setClockOffset(0);
       if (section === 'vault') {
         const q = new URLSearchParams({ archived: String(archived), ...(kind ? { kind } : {}) });
         const result = await requestJson<{
@@ -189,21 +214,34 @@ export function Execution({
     return () => clearTimeout(timer);
   }, [data, section]);
   useEffect(() => {
-    editing.current = !!editor;
-  }, [editor]);
+    editing.current = !!editor || !!workReview;
+  }, [editor, workReview]);
   useEffect(() => {
-    const tick = setInterval(() => setClock(Date.now()), 1000);
+    const tick = setInterval(
+      () =>
+        setClock(clockAnchor.current.server + performance.now() - clockAnchor.current.monotonic),
+      1000,
+    );
     const refresh = () => {
       if (document.visibilityState === 'visible') void currentRefresh.current();
     };
     const timer = setInterval(refresh, 60000);
     window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', refresh);
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') hiddenAt.current = performance.now();
+      else {
+        if (hiddenAt.current !== null && performance.now() - hiddenAt.current > 300000)
+          restored.current = false;
+        hiddenAt.current = null;
+        refresh();
+      }
+    };
+    document.addEventListener('visibilitychange', visibility);
     return () => {
       clearInterval(tick);
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', refresh);
+      document.removeEventListener('visibilitychange', visibility);
     };
   }, []);
   useEffect(() => {
@@ -243,7 +281,7 @@ export function Execution({
       throw new Error('Wait for the selected day to load before saving.');
     if (mutating.current) throw new Error('Wait for the previous save to finish.');
     if (
-      ['focus-control', 'focus-start', 'focus-notes'].includes(command.action) &&
+      ['focus-control', 'focus-start', 'focus-notes', 'work-adjust'].includes(command.action) &&
       pendingFocus.current
     )
       throw new Error('Wait for the saved Focus state to load before changing it again.');
@@ -252,12 +290,16 @@ export function Execution({
     if (
       command.action === 'focus-control' ||
       command.action === 'focus-start' ||
-      command.action === 'focus-notes'
+      command.action === 'focus-notes' ||
+      command.action === 'work-adjust'
     ) {
       pendingFocus.current = {
         id: command.id,
         version: command.action === 'focus-start' ? 0 : command.version,
-        finish: command.action === 'focus-control' && command.operation === 'finish',
+        finish:
+          (command.action === 'focus-control' && command.operation === 'finish') ||
+          (command.action === 'work-adjust' &&
+            (command.operation === 'discard' || !sessions.some((s) => s.id === command.id))),
       };
       setFocusSettling(true);
     }
@@ -282,7 +324,8 @@ export function Execution({
       if (
         command.action === 'focus-control' ||
         command.action === 'focus-start' ||
-        command.action === 'focus-notes'
+        command.action === 'focus-notes' ||
+        command.action === 'work-adjust'
       ) {
         pendingFocus.current = null;
         setFocusSettling(false);
@@ -302,10 +345,14 @@ export function Execution({
       setError(e instanceof Error ? e.message : 'Action failed.');
     }
   }
-  async function startBlockFocus(b: ScheduleBlock) {
+  async function startBlockFocus(
+    b: ScheduleBlock,
+    timerMode: 'countdown' | 'stopwatch' = 'countdown',
+  ) {
     if (!dayReady || busy || focusSettling) return;
     const fields = {
       objective: b.objective || b.title,
+      timerMode,
       notes: '',
       taskId: b.taskId,
       projectId: b.projectId,
@@ -340,6 +387,41 @@ export function Execution({
       outcome: '',
       notes: '',
     });
+  }
+  async function prepareFinish(record: FocusSession) {
+    if (mutating.current || pendingFocus.current) return;
+    if (record.timerMode !== 'stopwatch' || !record.resumedAt) {
+      setEditor({ kind: 'focus-finish', record });
+      return;
+    }
+    try {
+      // Stop actual-work recording at the click, before the accomplishment form.
+      await mutate({
+        action: 'focus-control',
+        requestId: uuid(),
+        id: record.id,
+        version: record.version,
+        operation: 'pause',
+        completeTask: false,
+        outcome: '',
+        notes: '',
+      });
+      const d = await requestJson<WorkSessionDetail>('/api/execution/work-session/' + record.id);
+      if (d.ownerId !== account.current) {
+        forget();
+        return;
+      }
+      if (d.session.resumedAt || d.session.endedAt)
+        throw new Error('This session changed. Reload before finishing.');
+      pendingFocus.current = null;
+      setFocusSettling(false);
+      setEditor({ kind: 'focus-finish', record: d.session });
+    } catch (e) {
+      pendingFocus.current = null;
+      setFocusSettling(false);
+      setError(e instanceof Error ? e.message : 'Could not pause before finishing.');
+      void reload();
+    }
   }
   function selectFocus(session: FocusSession) {
     if (busy || focusSettling) return;
@@ -711,6 +793,21 @@ export function Execution({
         )}
         {section === 'today' && (
           <>
+            {reviewRunning && sessions.some((s) => s.id === reviewRunning && s.resumedAt) && (
+              <aside className="work-reconciliation" role="status">
+                <p>
+                  A timer was already running when you returned. It keeps counting outside Life OS;
+                  review any break before relying on these totals.
+                </p>
+                <button
+                  className="button"
+                  disabled={busy || focusSettling}
+                  onClick={() => setWorkReview({ id: reviewRunning })}
+                >
+                  Review running time
+                </button>
+              </aside>
+            )}
             <section className="season-banner" aria-labelledby="season-heading">
               <p className="eyebrow">Active Season</p>
               {data.activeSeason ? (
@@ -744,6 +841,24 @@ export function Execution({
                 {data.activeSeason ? 'View your Season' : 'Choose a Season'} →
               </a>
             </section>
+            <WorkTracker
+              data={data}
+              sessions={sessions}
+              now={clock + clockOffset}
+              disabled={busy || focusSettling || !dayReady}
+              onNew={() => setEditor({ kind: 'focus', timerMode: 'stopwatch' })}
+              onControl={controlFocus}
+              onSelect={selectFocus}
+              onOpen={() => {
+                const d = document.querySelector<HTMLDetailsElement>('#focus > details');
+                if (d) {
+                  d.open = true;
+                  d.scrollIntoView({ behavior: 'instant', block: 'start' });
+                }
+              }}
+              onReview={(id) => setWorkReview({ id })}
+              onTarget={() => setWorkReview({ id: null })}
+            />
             <div className="execution-grid">
               <section className="execution-card priority-card">
                 <p className="eyebrow">If only one thing happens</p>
@@ -895,8 +1010,9 @@ export function Execution({
                 onNew={() => setEditor({ kind: 'focus' })}
                 onSelect={selectFocus}
                 onControl={controlFocus}
-                onFinish={(record) => setEditor({ kind: 'focus-finish', record })}
+                onFinish={(record) => void prepareFinish(record)}
                 onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
+                onReview={(record) => setWorkReview({ id: record.id })}
               />
               {section === 'focus' && data.focusHistory.length > 0 && (
                 <details>
@@ -1360,7 +1476,26 @@ export function Execution({
         </details>
         <footer className="muted">Your drafts stay in memory. Save before leaving.</footer>
       </main>
-      {block && !editor && (
+      {workReview && profile && (
+        <WorkTimeEditor
+          key={workReview.id ?? 'target'}
+          id={workReview.id}
+          ownerId={profile.id}
+          zone={data.timeZone}
+          target={{ minutes: data.workTime.targetMinutes, version: data.workTime.targetVersion }}
+          onClose={() => {
+            editing.current = false;
+            setWorkReview(null);
+            void reload();
+          }}
+          onSave={async (c) => {
+            await mutate(c);
+            if (c.action === 'work-adjust' && c.id === reviewRunning) setReviewRunning(null);
+          }}
+        />
+      )}
+
+      {block && !editor && !workReview && (
         <WorkBlockWorkspace
           block={block}
           data={data}
@@ -1368,15 +1503,16 @@ export function Execution({
           now={clock + clockOffset}
           busy={busy || focusSettling || !dayReady}
           onClose={() => setBlock(null)}
-          onStart={() => void startBlockFocus(block)}
+          onStart={(mode) => void startBlockFocus(block, mode)}
           sessions={sessions}
           selected={session}
           next={focusNext}
           onMore={() => void moreFocus()}
           onSelect={selectFocus}
           onControl={controlFocus}
-          onFinish={(record) => setEditor({ kind: 'focus-finish', record })}
+          onFinish={(record) => void prepareFinish(record)}
           onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
+          onReview={(record) => setWorkReview({ id: record.id })}
           onNew={() => setEditor({ kind: 'focus' })}
           onEdit={() => setEditor({ kind: 'schedule', record: block })}
           onSeries={() => {

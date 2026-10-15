@@ -39,6 +39,8 @@ test('calendar block opens an inline countdown, persists pause/reload and recurr
   await form.getByRole('button', { name: 'Start Focus', exact: true }).click();
   await expect(form.getByRole('timer')).toBeVisible();
   await expect(form).toContainText('90-minute intention');
+  const running = await (await page.request.get('/api/execution/today?date=' + date)).json();
+  const sessionId = running.focus.id as string;
   await form.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect(form.getByRole('button', { name: 'Resume', exact: true })).toBeEnabled();
   await form.getByRole('button', { name: 'Close work block', exact: true }).click();
@@ -52,7 +54,8 @@ test('calendar block opens an inline countdown, persists pause/reload and recurr
   await form.getByRole('button', { name: 'Finish Focus', exact: true }).click();
   await expect(form.getByRole('button', { name: 'Start Focus', exact: true })).toBeVisible();
   const snapshot = await (await page.request.get('/api/execution/today?date=' + date)).json();
-  expect(snapshot.focus).toBeNull();
+  expect(snapshot.focusSessions.some((s: { id: string }) => s.id === sessionId)).toBe(false);
+  expect(snapshot.focus?.id).not.toBe(sessionId);
   await form.getByRole('button', { name: 'Close work block', exact: true }).click();
   await page.getByRole('button', { name: 'Add block', exact: true }).click();
   await form.getByLabel('Block title').fill('Repeat practice ' + test.info().project.name);

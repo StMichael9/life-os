@@ -1,19 +1,22 @@
 'use client';
-import { focusCountdown } from '@life-os/shared';
+import { focusCountdown, stopwatchTime } from '@life-os/shared';
 export function FocusTimer({
   elapsed,
   plannedMinutes,
   running,
+  mode = 'countdown',
 }: {
   elapsed: number;
   plannedMinutes: number;
   running: boolean;
+  mode?: 'countdown' | 'stopwatch' | undefined;
 }) {
+  const stopwatch = mode === 'stopwatch';
   const { remaining, progress, overtime } = focusCountdown(elapsed, plannedMinutes);
   const label = (seconds: number) =>
     `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   return (
-    <div className={'radial-focus' + (!remaining ? ' intention-reached' : '')}>
+    <div className={'radial-focus' + (!stopwatch && !remaining ? ' intention-reached' : '')}>
       <svg viewBox="0 0 240 240" aria-hidden="true">
         <circle className="timer-track" cx="120" cy="120" r="108" />
         <circle
@@ -23,19 +26,32 @@ export function FocusTimer({
           r="108"
           pathLength="100"
           strokeDasharray="100"
-          strokeDashoffset={100 * (1 - progress)}
+          strokeDashoffset={stopwatch ? 0 : 100 * (1 - progress)}
         />
       </svg>
       <div className="timer-center">
         <span className="eyebrow">
-          {remaining ? (running ? 'Focus' : 'Paused') : 'Intention reached'}
+          {stopwatch
+            ? running
+              ? 'Working'
+              : 'Paused'
+            : remaining
+              ? running
+                ? 'Focus'
+                : 'Paused'
+              : 'Intention reached'}
         </span>
-        <strong role="timer" aria-label="Focus time remaining">
-          {label(remaining)}
+        <strong
+          role="timer"
+          aria-label={stopwatch ? 'Actual work elapsed' : 'Focus time remaining'}
+        >
+          {stopwatch ? stopwatchTime(elapsed) : label(remaining)}
         </strong>
-        <span className="muted">{plannedMinutes}-minute intention</span>
+        <span className="muted">
+          {stopwatch ? 'Actual time · paused time excluded' : `${plannedMinutes}-minute intention`}
+        </span>
       </div>
-      {!remaining && (
+      {!stopwatch && !remaining && (
         <p className="timer-overtime">
           +{label(overtime)} additional time · Finish when ready. All active time is recorded.
         </p>

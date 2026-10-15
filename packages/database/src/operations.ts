@@ -34,6 +34,7 @@ export const operationsTables = [
   'routine_completion',
   'vault_item',
   'execution_receipt',
+  'work_time_change',
 ] as const;
 export const migrationFolder = fileURLToPath(new URL('../migrations', import.meta.url));
 export async function withOperationsClient<T>(
@@ -52,7 +53,7 @@ export async function withOperationsClient<T>(
 }
 export async function verifyMigrationCheckpoint(client: Client) {
   const expected = readMigrationFiles({ migrationsFolder: migrationFolder });
-  if (expected.length !== 9)
+  if (expected.length !== 10)
     throw new OperationsError('Review operations tooling for the new migration checkpoint.');
   const rows = (
     await client.query<{ hash: string; created_at: string }>(
@@ -65,7 +66,7 @@ export async function verifyMigrationCheckpoint(client: Client) {
       (r, i) => r.hash !== expected[i]!.hash || Number(r.created_at) !== expected[i]!.folderMillis,
     )
   )
-    throw new OperationsError('Migration ledger differs from committed migrations 0000–0008.');
+    throw new OperationsError('Migration ledger differs from committed migrations 0000–0009.');
   const tables = (
     await client.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname='public' order by tablename",
@@ -120,6 +121,7 @@ const insertOnly = new Set([
   'inbox_item',
   'season_allocation',
   'execution_receipt',
+  'work_time_change',
 ]);
 const deleteAllowed = new Set([
   'auth_rate_limit',
@@ -163,7 +165,8 @@ export async function verifyRuntimePermissions(client: Client) {
     for (const r of rows)
       if (
         r.allowed !==
-        ((table === 'app_user' && r.column_name === 'id') ||
+        ((table === 'app_user' &&
+          ['id', 'work_target_minutes', 'work_target_version'].includes(r.column_name)) ||
           (table === 'inbox_item' && r.column_name === 'processed_at'))
       )
         throw new OperationsError('Runtime column grant mismatch.');

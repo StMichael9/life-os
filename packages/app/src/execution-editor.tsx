@@ -17,7 +17,13 @@ export type ExecutionEditor =
   | { kind: 'plan'; workflow: 'save' | 'start' | 'close' }
   | { kind: 'schedule'; record?: ScheduleBlock; date?: string; startsAt?: string }
   | { kind: 'schedule-series'; record: ScheduleSeries }
-  | { kind: 'focus'; taskId?: string; objective?: string; minutes?: number }
+  | {
+      kind: 'focus';
+      taskId?: string;
+      objective?: string;
+      minutes?: number;
+      timerMode?: 'countdown' | 'stopwatch';
+    }
   | { kind: 'routine'; record?: Routine }
   | { kind: 'vault'; record?: VaultItem; source?: { id: string; body: string } }
   | { kind: 'focus-finish'; record: FocusSession }
@@ -41,6 +47,9 @@ export function ExecutionForm({
   const [error, setError] = useState(''),
     [saving, setSaving] = useState(false);
   const [repeat, setRepeat] = useState(editor.kind === 'schedule-series' ? 'weekdays' : 'once');
+  const [timerMode, setTimerMode] = useState(
+    editor.kind === 'focus' ? (editor.timerMode ?? 'countdown') : 'countdown',
+  );
   const [id] = useState(() => crypto.randomUUID());
   const title =
     editor.kind === 'plan'
@@ -155,6 +164,7 @@ export function ExecutionForm({
           projectId: parent.startsWith('project:') ? parent.slice(8) : null,
           categoryId: text(form, 'category') || null,
           plannedMinutes: Number(text(form, 'minutes')),
+          timerMode,
         };
       } else if (editor.kind === 'focus-notes')
         input = {
@@ -477,6 +487,16 @@ export function ExecutionForm({
   } else if (editor.kind === 'focus')
     fields = (
       <>
+        <label className="direction-field">
+          Timer mode
+          <select
+            value={timerMode}
+            onChange={(e) => setTimerMode(e.target.value as 'stopwatch' | 'countdown')}
+          >
+            <option value="stopwatch">Actual work · count up</option>
+            <option value="countdown">Focus intention · count down</option>
+          </select>
+        </label>
         {field('Focus objective', 'objective', editor.objective ?? '', {
           required: true,
           maxLength: 500,
@@ -512,29 +532,34 @@ export function ExecutionForm({
             ))}
           </select>
         </label>
-        <label className="direction-field">
-          Duration preset
-          <select
-            onChange={(e) => {
-              const input = dialog.current?.querySelector<HTMLInputElement>('[name=minutes]');
-              if (input && e.target.value !== 'custom') input.value = e.target.value;
-            }}
-            defaultValue={
-              [25, 50, 90].includes(editor.minutes ?? 50) ? String(editor.minutes ?? 50) : 'custom'
-            }
-          >
-            {[25, 50, 90].map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-            <option value="custom">Custom</option>
-          </select>
-        </label>
-        {field('Planned minutes', 'minutes', String(editor.minutes ?? 50), {
-          type: 'number',
-          min: 1,
-          max: 720,
-          required: true,
-        })}
+        <div hidden={timerMode === 'stopwatch'}>
+          {' '}
+          <label className="direction-field">
+            Duration preset
+            <select
+              onChange={(e) => {
+                const input = dialog.current?.querySelector<HTMLInputElement>('[name=minutes]');
+                if (input && e.target.value !== 'custom') input.value = e.target.value;
+              }}
+              defaultValue={
+                [25, 50, 90].includes(editor.minutes ?? 50)
+                  ? String(editor.minutes ?? 50)
+                  : 'custom'
+              }
+            >
+              {[25, 50, 90].map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          {field('Planned minutes', 'minutes', String(editor.minutes ?? 50), {
+            type: 'number',
+            min: 1,
+            max: 720,
+            required: true,
+          })}
+        </div>
         <details>
           <summary>Session notes (optional)</summary>
           {note('Focus notes', 'notes')}

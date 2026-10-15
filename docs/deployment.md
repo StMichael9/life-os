@@ -1,5 +1,23 @@
 # Deployment and operations
 
+## Actual-work update checkpoint
+
+The new source requires migrations 0000–0009 (ten entries, 24 tables), including the
+additive work-time audit and target/precision fields. Apply to an isolated branch first;
+Cloud verified embedded upgrade/reopen and isolated PostgreSQL, not a personal/hosted
+upgrade. Current installed Local-reported baseline is 0.1.3 at 76304ff; retain its native
+fixes and protect a stopped-profile copy plus that compatible installer before upgrade.
+See actual-work-handoff.md. Historical acceptance sections below describe older builds.
+
+Hosted runtime grants now additionally allow SELECT/INSERT on work_time_change and
+UPDATE(work_target_minutes,work_target_version) on app_user alongside existing UPDATE(id)
+for row locks. Never grant general profile/credential writes or audit UPDATE/DELETE.
+Reapply ops/postgres/grants.sql and run release:runtime/release:verify when hosting is
+resumed. Backup manifests include the new audit table. No hosted change was executed.
+Embedded encrypted snapshots keep exact migration identity: restore an older snapshot
+using its matching compatible application before upgrading; do not blindly downgrade
+a migrated personal profile. Native install/suspend/crash acceptance remains Local QA.
+
 ## Superseding offline-first desktop target
 
 Hosted production deployment is postponed at the user's instruction. Vercel/Neon are

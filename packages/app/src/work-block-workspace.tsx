@@ -16,6 +16,7 @@ export function WorkBlockWorkspace({
   onMore,
   onSelect,
   onNotes,
+  onReview,
   onNew,
   onControl,
   onFinish,
@@ -29,13 +30,14 @@ export function WorkBlockWorkspace({
   now: number;
   busy: boolean;
   onClose: () => void;
-  onStart: () => void;
+  onStart: (mode?: 'countdown' | 'stopwatch') => void;
   sessions: FocusSession[];
   selected: FocusSession | null;
   next: string | null;
   onMore: () => void;
   onSelect: (session: FocusSession) => void;
   onNotes: (session: FocusSession) => void;
+  onReview?: ((session: FocusSession) => void) | undefined;
   onNew: () => void;
   onControl: (session: FocusSession) => void;
   onFinish: (session: FocusSession) => void;
@@ -94,9 +96,9 @@ export function WorkBlockWorkspace({
             <button
               className="button button-primary block-start-another"
               disabled={busy}
-              onClick={onStart}
+              onClick={() => onStart()}
             >
-              Start {block.title}
+              Start Focus
             </button>
           )}
           <FocusWorkspace
@@ -113,6 +115,7 @@ export function WorkBlockWorkspace({
             onControl={onControl}
             onFinish={onFinish}
             onNotes={onNotes}
+            onReview={onReview}
           />
         </>
       ) : (
@@ -121,10 +124,23 @@ export function WorkBlockWorkspace({
           <p className="muted">
             {duration}-minute Focus intention{duration === 720 ? ' · capped at 12 hours' : ''}
           </p>
-          <button className="button button-primary" disabled={busy} onClick={onStart}>
+          <button className="button button-primary" disabled={busy} onClick={() => onStart()}>
             Start Focus
           </button>
         </div>
+      )}
+      {(!selected ||
+        selected.timerMode !== 'stopwatch' ||
+        selected.objective !== (block.objective || block.title) ||
+        selected.taskId !== block.taskId ||
+        selected.projectId !== block.projectId) && (
+        <button
+          className="button block-start-another"
+          disabled={busy}
+          onClick={() => onStart('stopwatch')}
+        >
+          Start work stopwatch
+        </button>
       )}
       {data.plan?.oneThing && (
         <p className="block-objective">

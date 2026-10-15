@@ -7,6 +7,7 @@ import {
   dailyContent,
   emptyReflection,
   elapsedFocus,
+  elapsedFocusMilliseconds,
   recurringInstants,
   shiftDate,
 } from '@life-os/shared';
@@ -19,6 +20,7 @@ import type {
 } from '@life-os/shared';
 import { DirectionConflict, DirectionNotFound, DirectionInvalid } from './direction';
 import * as s from './schema';
+import { readWorkTime, readWorkSession, adjustWorkTime } from './work-time';
 function clean<T>(value: unknown): T {
   // JSON is the API boundary. Never include stored owner IDs or conversion fingerprints.
   return JSON.parse(
@@ -136,6 +138,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
       .set({
         resumedAt: null,
         activeSeconds: elapsedFocus(focus(running), now),
+        activeMilliseconds: elapsedFocusMilliseconds(focus(running), now),
+        confirmedAt: now,
         version: running.version + 1,
       })
       .where(and(eq(s.focusSessions.userId, userId), eq(s.focusSessions.id, running.id)));
@@ -161,7 +165,16 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
         }
         const now = new Date();
         let resultId = '';
-        if (c.action === 'plan') {
+        if (c.action === 'work-target') {
+          if (user.workTargetVersion !== c.version) throw new DirectionConflict();
+          await tx
+            .update(s.users)
+            .set({ workTargetMinutes: c.minutes, workTargetVersion: c.version + 1 })
+            .where(eq(s.users.id, userId));
+          resultId = userId;
+        } else if (c.action === 'work-adjust') {
+          resultId = await adjustWorkTime(tx, userId, c, now);
+        } else if (c.action === 'plan') {
           const [prior] = await tx
             .select()
             .from(s.dailyPlans)
@@ -415,6 +428,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             projectId: c.projectId,
             categoryId: c.categoryId,
             plannedMinutes: c.plannedMinutes,
+            timerMode: c.timerMode,
+            confirmedAt: now,
             notes: c.notes,
             startedAt: now,
             resumedAt: now,
@@ -445,7 +460,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             (c.operation === 'resume' && row.resumedAt)
           )
             throw new DirectionConflict();
-          const seconds = elapsedFocus(focus(row), now);
+          const milliseconds = elapsedFocusMilliseconds(focus(row), now);
+          const seconds = Math.floor(milliseconds / 1000);
           if (c.operation === 'resume') {
             await pauseRunning(tx, userId, now);
             await tx.insert(s.focusIntervals).values({ userId, sessionId: c.id, startsAt: now });
@@ -465,6 +481,12 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             .set({
               version: c.version + 1,
               activeSeconds: seconds,
+              activeMilliseconds: milliseconds,
+              confirmedAt: now,
+              creditedMinutes:
+                c.operation === 'finish' && row.taskId
+                  ? Math.round(milliseconds / 60000)
+                  : row.creditedMinutes,
               resumedAt: c.operation === 'resume' ? now : null,
               endedAt: c.operation === 'finish' ? now : null,
               outcome: c.operation === 'finish' ? c.outcome : row.outcome,
@@ -475,7 +497,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             await tx
               .update(s.tasks)
               .set({
-                actualMinutes: sql`coalesce(${s.tasks.actualMinutes},0) + ${Math.round(seconds / 60)}`,
+                actualMinutes: sql`coalesce(${s.tasks.actualMinutes},0) + ${Math.round(milliseconds / 60000)}`,
                 version: sql`${s.tasks.version}+1`,
                 ...(c.completeTask
                   ? {
@@ -679,6 +701,11 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
         return result;
       });
     },
+    async workSession(userId: string, id: string, before?: string) {
+      return db.transaction((tx) => readWorkSession(tx, userId, id, before), {
+        isolationLevel: 'repeatable read',
+      });
+    },
     async unfinished(userId: string, before?: string) {
       return db.transaction((tx) => unfinished(tx, userId, before));
     },
@@ -850,6 +877,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
                 eq(s.focusSessions.userId, userId),
                 sql`${s.focusSessions.endedAt} is not null`,
                 inDay(s.focusSessions.endedAt),
+                isNull(s.focusSessions.discardedAt),
               ),
             )
             .orderBy(desc(s.focusSessions.endedAt), desc(s.focusSessions.id))
@@ -867,18 +895,6 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
                 eq(s.scheduleBlocks.skipped, false),
                 sql`${s.scheduleBlocks.startsAt} < ${dayEnd}`,
                 sql`${s.scheduleBlocks.endsAt} > ${dayStart}`,
-              ),
-            );
-          const [seconds] = await tx
-            .select({
-              n: sql<number>`coalesce(sum(floor(extract(epoch from (least(coalesce(${s.focusIntervals.endsAt},${now}),${dayEnd}) - greatest(${s.focusIntervals.startsAt},${dayStart}))))),0)::int`,
-            })
-            .from(s.focusIntervals)
-            .where(
-              and(
-                eq(s.focusIntervals.userId, userId),
-                sql`${s.focusIntervals.startsAt} < ${dayEnd}`,
-                sql`coalesce(${s.focusIntervals.endsAt},${now}) > ${dayStart}`,
               ),
             );
           const routines = await tx
@@ -916,12 +932,22 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             )
             .orderBy(asc(s.projects.title))
             .limit(100);
+          const workTime = await readWorkTime(
+            tx,
+            userId,
+            day,
+            user.timeZone,
+            now,
+            user.workTargetMinutes,
+            user.workTargetVersion,
+          );
           const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
           return {
             ownerId: userId,
             date: day,
             timeZone: user.timeZone,
             serverNow: now.toISOString(),
+            workTime,
             content: dailyContent(new Date(`${day}T12:00:00Z`), 'UTC'),
             plan,
             activeSeason: season,
@@ -951,7 +977,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             projects,
             snapshot: {
               completedTasks: completed!.n,
-              focusSeconds: seconds!.n,
+              focusSeconds: workTime.seconds,
               scheduledMinutes: scheduled!.n,
               inboxCount: inbox!.n,
             },
