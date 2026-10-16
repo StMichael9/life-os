@@ -44,6 +44,7 @@ jobs:
       - name: Focused homepage gate
         env:
           LIFE_OS_HOMEPAGE_BROWSER_TEST: 'true'
+          LIFE_OS_HOMEPAGE_PACKAGED: 'true'
         run: pnpm exec vitest run packages/api/src/homepage-browser.test.ts --maxWorkers=1
       - name: Packaged startup and clean-close smoke
         run: node apps/desktop/scripts/release-smoke.mjs

@@ -18,6 +18,10 @@ it.skipIf(process.env.LIFE_OS_HOMEPAGE_BROWSER_TEST !== 'true')(
   'Bento homepage connects capture, habits, both timer modes and responsive navigation to persisted records',
   async () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const runtime =
+      process.env.LIFE_OS_HOMEPAGE_PACKAGED === 'true'
+        ? join(root, 'apps/desktop/release/win-unpacked/resources/backend')
+        : join(root, 'apps/web/.next/standalone');
     const fixture = await mkdtemp(join(tmpdir(), 'life-os-homepage-'));
     if (
       dirname(resolve(fixture)) !== resolve(tmpdir()) ||
@@ -121,7 +125,7 @@ it.skipIf(process.env.LIFE_OS_HOMEPAGE_BROWSER_TEST !== 'true')(
       opened = undefined;
       const certificate = await readFile(join(fixture, 'cert.pem'), 'utf8');
       const privateKey = await readFile(join(fixture, 'key.pem'), 'utf8');
-      child = fork(join(root, 'apps/web/.next/standalone/apps/web/desktop-server.mjs'), [], {
+      child = fork(join(runtime, 'apps/web/desktop-server.mjs'), [], {
         stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
         serialization: 'advanced',
         env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined },
@@ -139,16 +143,34 @@ it.skipIf(process.env.LIFE_OS_HOMEPAGE_BROWSER_TEST !== 'true')(
             ),
           60000,
         );
-        runningChild.on('message', (message: { type?: string; origin?: string }) => {
-          if (message.type === 'ready' && message.origin) {
-            clearTimeout(timeout);
-            accept(message.origin);
-          }
-          if (message.type === 'error') {
-            clearTimeout(timeout);
-            reject(new Error('Private test backend failed: ' + diagnostics.slice(-2000)));
-          }
-        });
+        runningChild.on(
+          'message',
+          (message: {
+            type?: string;
+            origin?: string;
+            phase?: string;
+            code?: string;
+            httpStatus?: number;
+          }) => {
+            if (message.type === 'ready' && message.origin) {
+              clearTimeout(timeout);
+              accept(message.origin);
+            }
+            if (message.type === 'error') {
+              clearTimeout(timeout);
+              reject(
+                new Error(
+                  'Private test backend failed: ' +
+                    JSON.stringify({
+                      phase: message.phase,
+                      code: message.code,
+                      httpStatus: message.httpStatus,
+                    }),
+                ),
+              );
+            }
+          },
+        );
         runningChild.once('exit', (code) => {
           clearTimeout(timeout);
           reject(
@@ -159,7 +181,7 @@ it.skipIf(process.env.LIFE_OS_HOMEPAGE_BROWSER_TEST !== 'true')(
       child.send({
         type: 'configure',
         version: 1,
-        webRoot: join(root, 'apps/web/.next/standalone/apps/web'),
+        webRoot: join(runtime, 'apps/web'),
         dataDirectory,
         migrationsDirectory,
         authSecret,
