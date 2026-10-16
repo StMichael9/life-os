@@ -574,7 +574,9 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
           `GRANT SELECT ON app_user,category,season,season_allocation,goal,milestone,project,vision,inbox_item TO ${role}`,
         ),
       );
-      await db.execute(sql.raw(`GRANT UPDATE(id) ON app_user TO ${role}`));
+      await db.execute(
+        sql.raw(`GRANT UPDATE(id,work_target_minutes,work_target_version) ON app_user TO ${role}`),
+      );
       await db.execute(sql.raw(`GRANT UPDATE(processed_at) ON inbox_item TO ${role}`));
       await db.execute(sql.raw(`GRANT SELECT,UPDATE ON auth_session,task TO ${role}`));
       await db.execute(sql.raw(`GRANT INSERT ON task,goal,project TO ${role}`));
@@ -586,13 +588,34 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
       await db.execute(
         sql.raw(`GRANT DELETE ON daily_big_three,schedule_block,routine_completion TO ${role}`),
       );
-      await db.execute(sql.raw(`GRANT SELECT,INSERT ON execution_receipt TO ${role}`));
+      await db.execute(
+        sql.raw(`GRANT SELECT,INSERT ON execution_receipt,work_time_change TO ${role}`),
+      );
       await db.transaction(async (tx) => {
         await tx.execute(sql.raw(`SET LOCAL ROLE ${role}`));
         const repo = createExecutionRepository(tx);
         await repo.mutate(aid, plan() as Parameters<typeof repo.mutate>[1]);
         const focusInput = { ...start(), notes: '' };
         await repo.mutate(aid, focusInput as Parameters<typeof repo.mutate>[1]);
+        await repo.mutate(aid, {
+          action: 'work-target',
+          requestId: id(),
+          version: 0,
+          minutes: 480,
+        });
+        await repo.mutate(aid, {
+          action: 'work-adjust',
+          requestId: id(),
+          id: focusInput.id,
+          version: 1,
+          operation: 'confirm',
+          intervalId: null,
+          startsAt: null,
+          endsAt: null,
+          reason: 'Verified runtime confirmation',
+        });
+        expect((await repo.workSession(aid, focusInput.id)).changes[0]!.kind).toBe('confirm');
+        expect((await repo.today(aid, '2026-10-08')).workTime.targetMinutes).toBe(480);
         expect((await repo.today(aid, '2026-10-08')).plan?.oneThing).toBe('Deliver useful work');
         await expect(
           repo.mutate(bid, {
@@ -607,6 +630,12 @@ it.skipIf(!process.env.LIFE_OS_EXECUTION_TEST_DATABASE_URL)(
           }),
         ).rejects.toBeInstanceOf(DirectionNotFound);
       });
+      await expect(
+        db.transaction(async (tx) => {
+          await tx.execute(sql.raw(`SET LOCAL ROLE ${role}`));
+          await tx.execute(sql`update work_time_change set reason='Tamper'`);
+        }),
+      ).rejects.toMatchObject({ cause: { code: '42501' } });
       await expect(
         db.transaction(async (tx) => {
           await tx.execute(sql.raw(`SET LOCAL ROLE ${role}`));
@@ -1127,5 +1156,346 @@ describe('independent unfinished Focus sessions', () => {
     });
     expect((await service.today(a, {})).focus?.id).toBe(c.id);
     expect((await service.today(a, {})).focusSessions).toHaveLength(2);
+  });
+});
+
+describe('actual work time', () => {
+  const clock = (instant: string) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(instant));
+  };
+  const start = (patch: Record<string, unknown> = {}) => ({
+    action: 'focus-start',
+    requestId: id(),
+    id: id(),
+    objective: 'Algorithms',
+    taskId: null,
+    projectId: null,
+    categoryId: null,
+    plannedMinutes: 90,
+    timerMode: 'stopwatch',
+    ...patch,
+  });
+  const adjust = (sid: string, version: number, patch: Record<string, unknown> = {}) => ({
+    action: 'work-adjust',
+    requestId: id(),
+    id: sid,
+    version,
+    operation: 'confirm',
+    intervalId: null,
+    startsAt: null,
+    endsAt: null,
+    reason: 'Reviewed my tracked time',
+    ...patch,
+  });
+  const control = async (sid: string, operation: 'pause' | 'resume' | 'finish') => {
+    const row = (await service.workSession(a, sid, {})).session;
+    return service.mutate(a, {
+      action: 'focus-control',
+      requestId: id(),
+      id: sid,
+      version: row.version,
+      operation,
+      outcome: '',
+      notes: '',
+    });
+  };
+  it('counts 60 + 30 minutes, excludes the break, switches and groups actual activities', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const first = start();
+    await service.mutate(a, first);
+    clock('2026-10-15T09:00:00Z');
+    await control(first.id, 'pause');
+    clock('2026-10-15T09:15:00Z');
+    await control(first.id, 'resume');
+    clock('2026-10-15T09:45:00Z');
+    const second = start({ objective: 'Road to Mastery' });
+    await service.mutate(a, second);
+    const snapshot = await service.today(a, { date: '2026-10-15' });
+    expect(snapshot.workTime.seconds).toBe(5400);
+    expect(snapshot.workTime.activities.find((x) => x.objective === 'Algorithms')).toMatchObject({
+      seconds: 5400,
+      paused: true,
+      running: false,
+    });
+    expect(snapshot.focusSessions.find((x) => x.id === first.id)).toMatchObject({
+      activeSeconds: 5400,
+      resumedAt: null,
+      timerMode: 'stopwatch',
+    });
+    clock('2026-10-15T10:30:00Z');
+    expect((await service.today(a, { date: '2026-10-15' })).workTime.seconds).toBe(8100);
+    await control(first.id, 'resume');
+    expect((await service.workSession(a, second.id, {})).session.resumedAt).toBeNull();
+  });
+  it('preserves subsecond time across repeated pauses without adding paused time', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T08:00:00.600Z');
+    await control(c.id, 'pause');
+    clock('2026-10-15T08:15:00Z');
+    await control(c.id, 'resume');
+    clock('2026-10-15T08:15:00.600Z');
+    await control(c.id, 'pause');
+    const d = await service.workSession(a, c.id, {});
+    expect(d.session).toMatchObject({ activeMilliseconds: 1200, activeSeconds: 1 });
+    expect((await service.today(a, { date: '2026-10-15' })).workTime.seconds).toBe(1);
+  });
+  it('clips cross-midnight intervals by account timezone and keeps zero-work days in history', async () => {
+    clock('2026-10-15T06:30:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T07:30:00Z');
+    await control(c.id, 'pause');
+    expect((await service.today(a, { date: '2026-10-14' })).workTime.seconds).toBe(1800);
+    const s = await service.today(a, { date: '2026-10-15' });
+    expect(s.workTime.seconds).toBe(1800);
+    expect(s.workTime.days).toHaveLength(30);
+    expect(s.workTime.days.slice(-2).map((x) => x.seconds)).toEqual([1800, 1800]);
+    expect(s.workTime.days[0]!.seconds).toBe(0);
+  });
+  it('accounts for a 25-hour DST day and category distribution without calendar estimates', async () => {
+    clock('2026-11-02T08:00:00Z');
+    a = (
+      await auth.login({ email: 'a@execution.test', password: 'Execution fixture password 123!' })
+    ).token;
+    const cat = id();
+    await db.insert(s.categories).values({ id: cat, userId: aid, name: 'Study', slug: 'study' });
+    const sid = id();
+    await db.insert(s.focusSessions).values({
+      id: sid,
+      userId: aid,
+      objective: 'DST work',
+      startedAt: new Date('2026-11-01T07:00Z'),
+      endedAt: new Date('2026-11-02T08:00Z'),
+      activeSeconds: 90000,
+      activeMilliseconds: 90000000,
+      plannedMinutes: 90,
+      categoryId: cat,
+    });
+    await db.insert(s.focusIntervals).values({
+      userId: aid,
+      sessionId: sid,
+      startsAt: new Date('2026-11-01T07:00Z'),
+      endsAt: new Date('2026-11-02T08:00Z'),
+    });
+    const w = (await service.today(a, { date: '2026-11-01' })).workTime;
+    expect(w.seconds).toBe(90000);
+    expect(Date.parse(w.dayEnd) - Date.parse(w.dayStart)).toBe(25 * 3600000);
+    expect(w.categories).toContainEqual({ name: 'Study', seconds: 90000 });
+    await service.mutate(
+      a,
+      block({ startsAt: '2026-11-01T10:00:00Z', endsAt: '2026-11-01T11:00:00Z' }),
+    );
+    expect((await service.today(a, { date: '2026-11-01' })).workTime.seconds).toBe(90000);
+  });
+  it('persists target preference with version protection, retry safety and owner isolation', async () => {
+    const c = { action: 'work-target', requestId: id(), version: 0, minutes: 480 };
+    await service.mutate(a, c);
+    await service.mutate(a, c);
+    const w = (await service.today(a, {})).workTime;
+    expect(w).toMatchObject({ targetMinutes: 480, targetVersion: 1 });
+    expect((await service.today(b, {})).workTime.targetMinutes).toBe(600);
+    await expect(service.mutate(a, { ...c, requestId: id(), minutes: 300 })).rejects.toBeInstanceOf(
+      DirectionConflict,
+    );
+  });
+  it('trims a forgotten running tail, pauses only its session and records exact before/after once', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T10:00:00Z');
+    const d = await service.workSession(a, c.id, {});
+    const correction = adjust(c.id, d.session.version, {
+      operation: 'correct',
+      intervalId: d.intervals[0]!.id,
+      startsAt: '2026-10-15T08:00:00Z',
+      endsAt: '2026-10-15T09:00:00Z',
+      reason: 'Forgot to pause for a break',
+    });
+    await service.mutate(a, correction);
+    await service.mutate(a, correction);
+    const after = await service.workSession(a, c.id, {});
+    expect(after.session).toMatchObject({ activeSeconds: 3600, resumedAt: null });
+    expect(after.changes).toHaveLength(1);
+    expect(JSON.parse(after.changes[0]!.before).interval.endsAt).toBeNull();
+    expect((await service.today(a, { date: '2026-10-15' })).workTime.seconds).toBe(3600);
+    await expect(service.mutate(a, { ...correction, requestId: id() })).rejects.toBeInstanceOf(
+      DirectionConflict,
+    );
+  });
+  it('rejects invented time, future end times and cross-user detail, cursor and correction access', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T09:00:00Z');
+    await control(c.id, 'pause');
+    const d = await service.workSession(a, c.id, {});
+    const correction = adjust(c.id, d.session.version, {
+      operation: 'correct',
+      intervalId: d.intervals[0]!.id,
+      startsAt: '2026-10-15T07:59:00Z',
+      endsAt: '2026-10-15T09:00:00Z',
+    });
+    await expect(service.mutate(a, correction)).rejects.toThrow('inside the recorded interval');
+    await expect(
+      service.mutate(a, {
+        ...correction,
+        startsAt: '2026-10-15T08:00:00Z',
+        endsAt: '2026-10-15T09:00:01Z',
+      }),
+    ).rejects.toThrow();
+    await expect(service.workSession(b, c.id, {})).rejects.toBeInstanceOf(DirectionNotFound);
+    await expect(
+      service.mutate(b, adjust(c.id, 1, { operation: 'discard' })),
+    ).rejects.toBeInstanceOf(DirectionNotFound);
+    const foreignSession = start({ objective: 'B private activity' });
+    await service.mutate(b, foreignSession);
+    const foreignInterval = (await service.workSession(b, foreignSession.id, {})).intervals[0]!.id;
+    await expect(service.workSession(a, c.id, { before: foreignInterval })).rejects.toBeInstanceOf(
+      DirectionNotFound,
+    );
+    await expect(
+      service.mutate(a, {
+        ...correction,
+        requestId: id(),
+        intervalId: foreignInterval,
+        startsAt: '2026-10-15T08:00:00Z',
+      }),
+    ).rejects.toBeInstanceOf(DirectionNotFound);
+    expect((await service.today(b, { date: '2026-10-15' })).workTime.seconds).toBe(0);
+  });
+  it('resets and discards with audit without erasing records or changing another runner', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T09:00:00Z');
+    const other = start({ objective: 'Bookvane' });
+    await service.mutate(a, other);
+    const d = await service.workSession(a, c.id, {});
+    await service.mutate(a, adjust(c.id, d.session.version, { operation: 'reset' }));
+    expect((await service.workSession(a, c.id, {})).session.activeSeconds).toBe(0);
+    expect((await service.workSession(a, other.id, {})).session.resumedAt).not.toBeNull();
+    clock('2026-10-15T09:30:00Z');
+    const o = await service.workSession(a, other.id, {});
+    await service.mutate(a, adjust(other.id, o.session.version, { operation: 'discard' }));
+    const after = await service.workSession(a, other.id, {});
+    expect(after.session.discardedAt).not.toBeNull();
+    expect(after.intervals[0]!.excluded).toBe(true);
+    const w = await service.today(a, { date: '2026-10-15' });
+    expect(w.workTime.seconds).toBe(0);
+    expect(w.focusSessions.map((x) => x.id)).toEqual([c.id]);
+    expect(after.changes[0]!.kind).toBe('discard');
+  });
+  it('corrects finished-session Task credit once and never changes another active session', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start({ taskId: task });
+    await service.mutate(a, c);
+    clock('2026-10-15T09:00:00Z');
+    await control(c.id, 'finish');
+    const other = start({ objective: 'Other' });
+    await service.mutate(a, other);
+    const d = await service.workSession(a, c.id, {});
+    await service.mutate(
+      a,
+      adjust(c.id, d.session.version, {
+        operation: 'correct',
+        intervalId: d.intervals[0]!.id,
+        startsAt: '2026-10-15T08:00:00Z',
+        endsAt: '2026-10-15T08:30:00Z',
+      }),
+    );
+    expect((await db.select().from(s.tasks).where(eq(s.tasks.id, task)))[0]!.actualMinutes).toBe(
+      30,
+    );
+    expect((await service.workSession(a, other.id, {})).session.resumedAt).not.toBeNull();
+  });
+  it('serializes concurrent starts/finishes and never counts overlapping intervals or duplicate receipts', async () => {
+    const one = start(),
+      two = start({ objective: 'Two' });
+    await Promise.all([service.mutate(a, one), service.mutate(a, two)]);
+    const open = await service.unfinished(a, {});
+    expect(open.items.filter((x) => x.resumedAt)).toHaveLength(1);
+    const intervals = await db
+      .select()
+      .from(s.focusIntervals)
+      .where(eq(s.focusIntervals.userId, aid));
+    expect(intervals.filter((x) => x.endsAt === null)).toHaveLength(1);
+    const closed = intervals.find((x) => x.endsAt);
+    const running = intervals.find((x) => !x.endsAt)!;
+    expect(closed!.endsAt!.getTime()).toBeLessThanOrEqual(running.startsAt.getTime());
+    const runner = open.items.find((x) => x.resumedAt)!;
+    const finish = {
+      action: 'focus-control',
+      requestId: id(),
+      id: runner.id,
+      version: runner.version,
+      operation: 'finish',
+      outcome: '',
+      notes: '',
+    };
+    await Promise.all([service.mutate(a, finish), service.mutate(a, finish)]);
+    expect((await service.workSession(a, runner.id, {})).session.endedAt).not.toBeNull();
+  });
+  it('corrects an earlier closed interval while retaining the running tail exactly once', async () => {
+    clock('2026-10-15T08:00:00Z');
+    const c = start();
+    await service.mutate(a, c);
+    clock('2026-10-15T08:10:00Z');
+    await control(c.id, 'pause');
+    clock('2026-10-15T08:15:00Z');
+    await control(c.id, 'resume');
+    clock('2026-10-15T08:20:00Z');
+    const d = await service.workSession(a, c.id, {}),
+      closed = d.intervals.find((i) => i.endsAt)!;
+    await service.mutate(
+      a,
+      adjust(c.id, d.session.version, {
+        operation: 'correct',
+        intervalId: closed.id,
+        startsAt: '2026-10-15T08:00:00Z',
+        endsAt: '2026-10-15T08:05:00Z',
+      }),
+    );
+    expect((await service.workSession(a, c.id, {})).session.resumedAt).not.toBeNull();
+    expect((await service.today(a, { date: '2026-10-15' })).workTime.seconds).toBe(600);
+    await control(c.id, 'pause');
+    expect((await service.workSession(a, c.id, {})).session.activeSeconds).toBe(600);
+  });
+  it('clips the spring DST day to 23 actual hours', async () => {
+    clock('2027-03-15T08:00:00Z');
+    a = (
+      await auth.login({ email: 'a@execution.test', password: 'Execution fixture password 123!' })
+    ).token;
+    const sid = id();
+    await db.insert(s.focusSessions).values({
+      id: sid,
+      userId: aid,
+      objective: 'Spring work',
+      plannedMinutes: 90,
+      startedAt: new Date('2027-03-14T08:00Z'),
+      endedAt: new Date('2027-03-15T07:00Z'),
+      activeSeconds: 82800,
+      activeMilliseconds: 82800000,
+    });
+    await db.insert(s.focusIntervals).values({
+      userId: aid,
+      sessionId: sid,
+      startsAt: new Date('2027-03-14T08:00Z'),
+      endsAt: new Date('2027-03-15T07:00Z'),
+    });
+    const w = (await service.today(a, { date: '2027-03-14' })).workTime;
+    expect(w.seconds).toBe(82800);
+    expect(Date.parse(w.dayEnd) - Date.parse(w.dayStart)).toBe(82800000);
+  });
+  it('records confirmation without stopping or adding another interval', async () => {
+    const c = start();
+    await service.mutate(a, c);
+    await service.mutate(a, adjust(c.id, 1));
+    const d = await service.workSession(a, c.id, {});
+    expect(d.session.resumedAt).not.toBeNull();
+    expect(d.intervals).toHaveLength(1);
+    expect(d.changes[0]!.kind).toBe('confirm');
   });
 });

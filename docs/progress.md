@@ -62,6 +62,64 @@ the normal Life OS Start-menu shortcut targets the installed executable. A prote
 copy and compatible previous installer are retained; see deployment.md for location
 and recovery limits. This is a bounded installation record, not comprehensive
 Phase 1 acceptance or work on Phases 2–6. No hosted resources were changed.
+## Actual work tracking — implementation checkpoint
+
+Implemented an upward stopwatch mode within existing Focus sessions/intervals, keeping
+countdown intentions and shared work links. Today has actual-day totals, configurable
+600-minute default target, running activity, pause/resume/switch actions, activity
+breakdown, saved intentions, and 7/30-day totals/averages/target days/category history.
+The full circular timer remains in the existing Focus/block workspace, not a new
+navigation section. A work block can start either timer mode; a plan never creates
+actual time. Stopwatch Finish pauses recording before the outcome form.
+
+All starts/resumes use the existing owner row lock, one-runner/open-interval indexes,
+version checks and exact request receipts. Millisecond accumulation prevents repeated
+short pauses from losing time; daily totals sum actual intervals before rounding and
+clip to real local midnights (including 23/25-hour DST days). Display ticks derive from
+a server timestamp plus a monotonic clock rather than incrementing a counter.
+
+Owner-scoped review supports confirmation, interval trimming, reset and discard with
+reasons and retained before/after records. Trimming an open interval pauses that session;
+reset/discard keep originals but exclude them from totals. A restored runner, or return
+after a long hidden period, offers review rather than auto-pausing or silently clearing
+it. Focus loss alone never stops a timer. Known linked-Task credits are adjusted once
+when their finished session is corrected; other sessions and Task completion states
+remain intact.
+
+Migration 0009_actual_work is additive: one work_time_change table, interval exclusion,
+mode/precision/review/discard/credit fields, and versioned user target preferences.
+There are ten migrations and 24 tables. Runtime/backup manifests, minimal column grants
+and migration verification are updated. No personal or hosted database was changed.
+
+Verification: full default Vitest passed 139 tests (eight guarded environment skips);
+45 execution tests passed on isolated PostgreSQL 17, including restricted runtime
+permissions/append-only audit, concurrency, ownership, exact retries, corrections and
+DST. Embedded upgrade/physical-reopen plus existing execution-migration tests passed.
+Six production browser journeys passed desktop/mobile for calendar/countdown, switching,
+and actual-work creation/pause/reload/reconciliation/finish/correction/target/history/
+block integration, with axe/overflow checks. Source format/lint/typecheck, production
+web/standalone/Electron builds and generated-schema no-drift checks passed. The final
+stopwatch browser rerun passed both device profiles after audit presentation cleanup.
+Production dependency audit reported zero known vulnerabilities; no dependencies were
+added. Windows-specific verification and a laptop installation remain unperformed.
+
+Limits: history compares the current target; categories use current owned links.
+Corrections only trim recorded intervals. Legacy interval-free durations remain in
+session history without invented daily allocation; legacy Task credits are not guessed.
+Views reconcile other clients on foreground and at most once a minute. Electron/web
+share records when using the same backend; independent offline/cloud databases have
+no sync. Installed Windows/crash/suspend behavior is not verified by Cloud.
+
+Latest Local-reported installed baseline: 0.1.3, Windows commit 76304ff based on Cloud
+150e464, with preserved-profile native startup/reopen acceptance. It does not contain
+this work-time revision. Local owns all native integration files and installation.
+
+Exact next task: **Local/Lead QA merge this work-time checkpoint into the existing
+Windows branch, preserve a stopped-profile backup and compatible installer, build and
+install the normal offline update with migration 0009, and verify real pause/switch/
+reopen/reconciliation and preserved data.** See
+[actual-work-handoff.md](actual-work-handoff.md). Do not begin Phase 2 or resume hosting.
+
 ## Complete frontend refresh — 2026-10-13
 
 Implemented a shared dark olive/teal interface across Today, Calendar, Goals/Projects,
@@ -193,11 +251,11 @@ counts below refer to earlier checkpoints, not this new UI.
 **Latest user direction — offline desktop first (2026-10-12):** postpone Vercel and
 hosted production. The immediate product must be an installed laptop Electron app
 that launches its own local backend/database automatically and works without internet.
-Local reports the normal unsigned offline 0.1.2 app installed at checkpoint a17ce81
-(base Cloud103fa94 merged at7c0018e), with isolated native session switching and two
-clean preserved-profile startup/reopen cycles. Native changes remain isolated on
-windows/desktop-first-qa; comprehensive acceptance, backup readiness and installation
-of the new frontend refresh remain pending.
+Local reports the normal unsigned offline 0.1.3 app installed at checkpoint 76304ff
+(base Cloud 150e464 merged at 711bfc2), with two clean preserved-profile startup/reopen
+cycles and the refreshed UI. Native changes remain isolated on windows/desktop-first-qa;
+comprehensive acceptance, backup readiness and installation/native acceptance of the
+new actual-work revision remain pending.
 Preserve the implemented Phase 1 domains/security while adding local persistence and
 packaging. This explicit user direction supersedes earlier online-first assumptions and
 the hosted acceptance assignment below. Offline daily-use acceptance is now the Phase 1
@@ -668,4 +726,5 @@ installed offline readiness remains partial. Do not equate Node-fork component t
 with Electron utilityProcess, DPAPI, Windows ACL or NSIS verification. Hosted resources
 are postponed and are not offline dependencies. Keep the final done/remaining report
 current and distinguish verified, partial and unverified work.
+
 

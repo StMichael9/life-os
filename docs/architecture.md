@@ -86,6 +86,24 @@ repositories and authentication service in `apps/web/lib/services.ts` (server-on
 Missing `DATABASE_URL`, `AUTH_SECRET` or a trusted `APP_ORIGIN` fails closed with 503.
 There is no production fake verifier or client-supplied owner authority.
 
+## Actual work tracking
+
+Stopwatch and countdown are modes of the same Focus session. Existing owner locks,
+intervals, receipts, shared schemas and HTTP security govern every mutation. The trusted
+work-time repository computes clipped 30-day/activity/category aggregates within the
+same repeatable-read Today snapshot. There is no second timer service or renderer
+storage authority. GET /api/execution/work-session/:id returns owned paged intervals
+and recent audit; work-target/work-adjust commands use the existing CSRF-protected
+POST /api/execution endpoint. Runtime grants remain narrow and audit inserts append-only.
+
+The shared renderer derives elapsed ticks from server time plus performance.now(),
+refreshing on foreground and once per minute; background throttling does not lose
+recorded intervals. A restored runner offers confirmation/correction and never pauses
+simply on blur. Work review retains failed drafts and dirty/busy/account guards.
+Stopwatch finish explicitly pauses before asking for the outcome. Installed offline
+and hosted clients reuse these same contracts; independent databases still do not sync.
+See actual-work-handoff.md for migration/Windows acceptance and reporting limits.
+
 ## Desktop decision
 
 The following describes the retained hosted shell. The superseding offline target

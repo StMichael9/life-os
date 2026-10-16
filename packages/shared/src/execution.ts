@@ -64,6 +64,10 @@ export interface ScheduleSeries {
   timeZone: string;
 }
 export interface FocusSession {
+  timerMode?: 'countdown' | 'stopwatch';
+  activeMilliseconds?: number;
+  discardedAt?: string | null;
+  confirmedAt?: string | null;
   id: string;
   version: number;
   objective: string;
@@ -124,6 +128,7 @@ export interface ExecutionSnapshot {
   focusSessions: FocusSession[];
   focusNext: string | null;
   focusHistory: FocusSession[];
+  workTime: WorkTimeSnapshot;
   routines: Routine[];
   tasks: Task[];
   rankingCategories: Record<string, string | null>;
@@ -139,11 +144,63 @@ export interface ExecutionSnapshot {
   insights: { title: string; explanation: string; action: string; severity: string }[];
   limits: { tasks: boolean; schedule: boolean; routines: boolean };
 }
-export function elapsedFocus(session: FocusSession, now: Date) {
+export function elapsedFocusMilliseconds(session: FocusSession, now: Date) {
   return (
-    session.activeSeconds +
+    Math.max(session.activeMilliseconds ?? 0, session.activeSeconds * 1000) +
     (session.resumedAt && !session.endedAt
-      ? Math.max(0, Math.floor((now.getTime() - Date.parse(session.resumedAt)) / 1000))
+      ? Math.max(0, now.getTime() - Date.parse(session.resumedAt))
       : 0)
   );
+}
+export function elapsedFocus(session: FocusSession, now: Date) {
+  return Math.floor(elapsedFocusMilliseconds(session, now) / 1000);
+}
+export function workDuration(seconds: number) {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+export function stopwatchTime(seconds: number) {
+  const s = Math.max(0, Math.floor(seconds));
+  return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60]
+    .map((n) => String(n).padStart(2, '0'))
+    .join(':');
+}
+export interface WorkDay {
+  date: string;
+  seconds: number;
+}
+export interface WorkTimeSnapshot {
+  targetMinutes: number;
+  targetVersion: number;
+  date: string;
+  dayStart: string;
+  dayEnd: string;
+  seconds: number;
+  days: WorkDay[];
+  activities: {
+    key: string;
+    objective: string;
+    category: string;
+    seconds: number;
+    running: boolean;
+    paused: boolean;
+  }[];
+  categories: { name: string; seconds: number }[];
+  history: FocusSession[];
+  historyLimited: boolean;
+}
+export interface WorkSessionDetail {
+  session: FocusSession;
+  intervals: { id: string; startsAt: string; endsAt: string | null; excluded: boolean }[];
+  next: string | null;
+  changes: {
+    id: string;
+    kind: string;
+    reason: string;
+    before: string;
+    after: string;
+    createdAt: string;
+  }[];
+  changesLimited: boolean;
+  ownerId: string;
 }

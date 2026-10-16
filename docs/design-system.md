@@ -122,3 +122,15 @@ need review before UK distribution. Thoughts are original Life OS copy with no
 invented historical attribution. The immutable seven-day corpus still repeats weekly;
 favorites persist privately in Vault. Faith reflection beyond this remains later-phase
 work and is never scored.
+
+## Actual work extension
+
+Today adds one compact actual-work tracker using the existing surfaces and olive/teal
+controls. The circular timer switches to HH:MM:SS count-up for stopwatch sessions;
+countdown mode remains available. Activities, saved sessions and 7/30-day trends
+expand on demand. Zero-work days have no positive bar. Duration/targets are self-reported
+time, not achievement or quality scores. Target editing and time review use guarded
+native dialogs; destructive resets/discards require confirmation and reasons. Corrections
+show readable before/after time, endpoints and audit reasons, not internal database JSON.
+A restored runner is reviewed explicitly without focus-loss auto-pause. No navigation
+section, paid dependency, native privilege or broad UI redesign was introduced.

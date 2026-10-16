@@ -4,6 +4,7 @@ import {
   executionCommandSchema,
   executionQuerySchema,
   focusQuerySchema,
+  workSessionQuerySchema,
   searchQuerySchema,
   vaultQuerySchema,
 } from '@life-os/validation';
@@ -64,6 +65,11 @@ export function createExecutionService(sessions: SessionVerifier, repo: Executio
     async mutate(token: string | undefined, input: unknown, expected?: string) {
       return repo.mutate(await owner(token, expected), executionCommandSchema.parse(input));
     },
+    async workSession(token: string | undefined, id: unknown, input: unknown) {
+      const userId = await owner(token),
+        q = workSessionQuerySchema.parse(input);
+      return repo.workSession(userId, z.uuid().parse(id), q.before);
+    },
     async unfinished(token: string | undefined, input: unknown) {
       const userId = await owner(token),
         q = focusQuerySchema.parse(input);
@@ -99,6 +105,8 @@ export function createExecutionHttp(
       for (const key of url.searchParams.keys())
         if (url.searchParams.getAll(key).length !== 1) throw new InvalidRequest();
       const query = Object.fromEntries(url.searchParams);
+      if (request.method === 'GET' && parts.length === 2 && parts[0] === 'work-session')
+        return json(await service.workSession(token, parts[1], query));
       if (request.method === 'GET' && parts.length === 2 && parts[0] === 'vault' && !url.search)
         return json(await service.vaultDetail(token, parts[1]));
       if (request.method === 'GET' && parts.length === 1) {

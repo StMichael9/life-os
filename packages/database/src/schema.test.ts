@@ -134,11 +134,15 @@ describe('real SQL migration constraints', () => {
   it('enforces one running focus session for each user', async () => {
     const start = (owner: string) =>
       pg.query(
-        "INSERT INTO focus_session(user_id,objective,started_at,planned_minutes) VALUES($1,'Work',now(),50)",
+        "INSERT INTO focus_session(user_id,objective,started_at,resumed_at,planned_minutes) VALUES($1,'Work',now(),now(),50)",
         [owner],
       );
     await start(alice);
     await start(bob);
     await expect(start(alice)).rejects.toThrow(/unique/);
+    await pg.query(
+      "INSERT INTO focus_session(user_id,objective,started_at,planned_minutes) VALUES($1,'Paused work',now(),50),($1,'Another paused session',now(),50)",
+      [alice],
+    );
   });
 });

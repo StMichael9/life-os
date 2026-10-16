@@ -920,6 +920,170 @@
   .direction-dialog > .editor-heading {
     padding: 26px 26px 0;
   }
+  /* Actual work shares Focus intervals; these are recorded durations, never plans. */
+  .work-tracker h2 {
+    margin-bottom: 0;
+  }
+  .work-total {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0 10px;
+  }
+  .work-total strong {
+    font-size: 28px;
+    font-weight: 450;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .work-total > span {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .work-total .button {
+    margin-left: auto;
+  }
+  .work-tracker progress {
+    display: block;
+    width: 100%;
+    height: 5px;
+    accent-color: var(--color-teal);
+    border: 0;
+    border-radius: 4px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .work-tracker progress::-webkit-progress-bar {
+    background: var(--border);
+  }
+  .work-tracker progress::-webkit-progress-value {
+    background: var(--color-teal);
+  }
+  .work-tracker progress::-moz-progress-bar {
+    background: var(--color-teal);
+  }
+  .work-current,
+  .work-current > div:first-child {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .work-current {
+    justify-content: space-between;
+    margin: 16px 0;
+  }
+  .work-current > div:first-child {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+  }
+  .work-current strong {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--color-teal);
+  }
+  .work-breakdown {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .work-breakdown > summary {
+    color: var(--muted);
+  }
+  .work-breakdown[open] > summary {
+    margin-bottom: 16px;
+  }
+  .work-activity-list {
+    list-style: none;
+    margin: 12px 0;
+    padding: 0;
+  }
+  .work-activity-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .work-activity-list li > span:first-child {
+    flex: 1;
+    min-width: 120px;
+    overflow-wrap: anywhere;
+  }
+  .work-activity-list strong {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .work-activity-list small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .work-history-summary {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 14px 0;
+  }
+  .work-day-bars {
+    display: flex;
+    align-items: end;
+    gap: 4px;
+    margin: 20px 0;
+    height: 104px;
+  }
+  .work-day-bars > div {
+    display: grid;
+    align-items: end;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .work-day-bars i {
+    display: block;
+    background: #91b6a4;
+    border-radius: 3px 3px 0 0;
+  }
+  .work-day-bars small {
+    font-size: 8px;
+    color: var(--muted);
+  }
+  .work-reconciliation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    margin: 0 0 20px;
+    border: 1px solid #716343;
+    background: #302c20;
+    border-radius: 10px;
+  }
+  .work-reconciliation p {
+    flex: 1;
+    min-width: 180px;
+    color: #ddd1af;
+    font-size: 12px;
+  }
+  .work-audit {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .work-audit time {
+    color: var(--muted);
+    font-size: 10px;
+  }
+
   /* Calendar: time is the layout, never decoration. */
   .work-calendar {
     border: 1px solid var(--border);

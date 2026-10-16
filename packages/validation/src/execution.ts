@@ -51,6 +51,31 @@ const weekdays = z
 export const executionCommandSchema = z.discriminatedUnion('action', [
   z
     .object({
+      action: z.literal('work-target'),
+      requestId: id,
+      version,
+      minutes: z.number().int().min(1).max(1440),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal('work-adjust'),
+      requestId: id,
+      id,
+      version,
+      operation: z.enum(['correct', 'reset', 'discard', 'confirm']),
+      intervalId: id.nullable(),
+      startsAt: instant.nullable(),
+      endsAt: instant.nullable(),
+      reason: z.string().trim().min(1).max(500),
+    })
+    .strict()
+    .refine(
+      (c) => c.operation !== 'correct' || !!(c.intervalId && c.startsAt && c.endsAt),
+      'Choose an interval and explicit start/end instants.',
+    ),
+  z
+    .object({
       action: z.literal('vault-promote'),
       requestId: id,
       id,
@@ -129,6 +154,7 @@ export const executionCommandSchema = z.discriminatedUnion('action', [
       projectId: link,
       categoryId: link,
       plannedMinutes: z.number().int().min(1).max(720),
+      timerMode: z.enum(['countdown', 'stopwatch']).default('countdown'),
       notes: note.default(''),
     })
     .strict()
@@ -216,3 +242,5 @@ export const vaultQuerySchema = z
   .strict();
 
 export const focusQuerySchema = z.object({ before: id.optional() }).strict();
+
+export const workSessionQuerySchema = z.object({ before: id.optional() }).strict();
