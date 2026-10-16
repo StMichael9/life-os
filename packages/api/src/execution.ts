@@ -73,7 +73,7 @@ export function createExecutionService(sessions: SessionVerifier, repo: Executio
     async unfinished(token: string | undefined, input: unknown) {
       const userId = await owner(token),
         q = focusQuerySchema.parse(input);
-      return { ...(await repo.unfinished(userId, q.before)), ownerId: userId };
+      return { ...(await repo.unfinished(userId, q.before, q.scheduleBlockId)), ownerId: userId };
     },
     async vaultDetail(token: string | undefined, id: unknown) {
       const userId = await owner(token);

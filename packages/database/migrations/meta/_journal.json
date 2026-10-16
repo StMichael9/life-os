@@ -71,6 +71,13 @@
       "when": 1792048709808,
       "tag": "0009_actual_work",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792159563294,
+      "tag": "0010_focus_block_occurrence",
+      "breakpoints": true
     }
   ]
 }

@@ -332,7 +332,7 @@ export function WorkTimeEditor({
                     disabled={busy}
                     onClick={() => adjust('reset')}
                   >
-                    Reset session
+                    Reset to Zero
                   </button>
                   {detail.session.resumedAt && (
                     <button

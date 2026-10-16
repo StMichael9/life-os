@@ -154,6 +154,7 @@ export const executionCommandSchema = z.discriminatedUnion('action', [
       projectId: link,
       categoryId: link,
       plannedMinutes: z.number().int().min(1).max(720),
+      scheduleBlockId: link.default(null),
       timerMode: z.enum(['countdown', 'stopwatch']).default('countdown'),
       notes: note.default(''),
     })
@@ -241,6 +242,8 @@ export const vaultQuerySchema = z
   })
   .strict();
 
-export const focusQuerySchema = z.object({ before: id.optional() }).strict();
+export const focusQuerySchema = z
+  .object({ before: id.optional(), scheduleBlockId: id.optional() })
+  .strict();
 
 export const workSessionQuerySchema = z.object({ before: id.optional() }).strict();

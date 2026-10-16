@@ -19,6 +19,13 @@ recovery/cutover and future sync remain unverified. See offline-desktop.md and c
 
 ## Implemented migrations
 
+Current chain: 0000–0010, eleven entries and 24 tables. `0010_focus_block_occurrence.sql`
+adds nullable Focus schedule_block_id, an index and composite owner FK, preceded by
+schedule_block owner uniqueness. No historical association is inferred. Calendar
+removal/series regeneration retain referenced occurrence rows and stable UUIDs with
+skip flags; retained rows stay out of calendar/planned totals. Focus links and actual
+interval day allocation remain independent of later block date/title/parent edits.
+
 `0000_foundation.sql`: 16 normalized tables, enums, ownership constraints,
 checks, uniqueness and query indexes, generated from `src/schema.ts`.
 `0001_updated_at.sql`: PostgreSQL trigger maintains `updated_at` on all 16 tables.

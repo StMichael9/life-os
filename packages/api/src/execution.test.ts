@@ -1499,3 +1499,154 @@ describe('actual work time', () => {
     expect(d.changes[0]!.kind).toBe('confirm');
   });
 });
+
+describe('explicit work-block occurrence Focus association', () => {
+  const clock = (at: string) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(at));
+  };
+  const control = async (sid: string, operation: 'pause' | 'resume' | 'finish') => {
+    const { session } = await service.workSession(a, sid, {});
+    await service.mutate(a, {
+      action: 'focus-control',
+      requestId: id(),
+      id: sid,
+      version: session.version,
+      operation,
+      outcome: '',
+      notes: session.notes ?? '',
+    });
+  };
+  it('isolates identical cross-day/recurring blocks, switches, restarts, resets and clips midnight correctly', async () => {
+    const repeat = series({ days: [1, 2] });
+    await service.mutate(a, repeat);
+    const days = (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).schedule;
+    const monday = days[0]!,
+      tuesday = days[1]!;
+    const legacy = start();
+    clock('2026-10-06T06:00:00Z');
+    await service.mutate(a, legacy);
+    await control(legacy.id, 'pause');
+    const first = start({
+      scheduleBlockId: monday.id,
+      objective: 'Algorithms',
+      notes: 'Monday notes',
+    });
+    clock('2026-10-06T06:50:00Z'); // LA Monday 23:50
+    await service.mutate(a, first);
+    clock('2026-10-06T07:10:00Z'); // LA Tuesday 00:10
+    const second = start({ scheduleBlockId: tuesday.id, objective: 'Algorithms' });
+    await service.mutate(a, second);
+    const mon = await service.unfinished(a, { scheduleBlockId: monday.id });
+    const tue = await service.unfinished(a, { scheduleBlockId: tuesday.id });
+    expect(mon.items.map((s) => s.id)).toEqual([first.id]);
+    expect(tue.items.map((s) => s.id)).toEqual([second.id]);
+    expect(mon.items[0]).toMatchObject({
+      resumedAt: null,
+      activeSeconds: 1200,
+      notes: 'Monday notes',
+    });
+    expect((await service.today(a, { date: '2026-10-05' })).workTime.seconds).toBe(600);
+    expect((await service.today(a, { date: '2026-10-06' })).workTime.seconds).toBe(600);
+    clock('2026-10-06T07:15:00Z');
+    await control(first.id, 'resume');
+    expect((await service.workSession(a, second.id, {})).session).toMatchObject({
+      resumedAt: null,
+      activeSeconds: 300,
+    });
+    clock('2026-10-06T07:20:00Z');
+    const fresh = start({ scheduleBlockId: monday.id, objective: 'Algorithms' });
+    await service.mutate(a, fresh);
+    expect((await service.workSession(a, first.id, {})).session.activeSeconds).toBe(1500);
+    expect((await service.unfinished(a, { scheduleBlockId: monday.id })).items).toHaveLength(2);
+    clock('2026-10-06T07:25:00Z');
+    await control(first.id, 'finish'); // finishing saved first doesn't stop fresh
+    const current = await service.workSession(a, fresh.id, {});
+    const reset = {
+      action: 'work-adjust',
+      requestId: id(),
+      id: fresh.id,
+      version: current.session.version,
+      operation: 'reset',
+      intervalId: null,
+      startsAt: null,
+      endsAt: null,
+      reason: 'Restarted wrong attempt',
+    };
+    await service.mutate(a, reset);
+    await service.mutate(a, reset);
+    const resetDetail = await service.workSession(a, fresh.id, {});
+    expect(resetDetail.session).toMatchObject({
+      activeSeconds: 0,
+      resumedAt: null,
+      scheduleBlockId: monday.id,
+    });
+    expect(resetDetail.changes.filter((c) => c.kind === 'reset')).toHaveLength(1);
+    expect(resetDetail.intervals.every((i) => i.excluded)).toBe(true);
+    expect((await service.today(a, { date: '2026-10-06' })).workTime.seconds).toBe(1200);
+    expect((await service.workSession(a, first.id, {})).session.endedAt).not.toBeNull();
+    expect((await service.workSession(a, legacy.id, {})).session.scheduleBlockId).toBeNull();
+  });
+  it('retains association IDs across repeat edits, removal and regeneration without inventing history', async () => {
+    const repeat = series();
+    await service.mutate(a, repeat);
+    const week = await service.today(a, { date: '2026-10-05', calendarDays: 7 });
+    const occurrence = week.schedule[1]!;
+    const session = start({ scheduleBlockId: occurrence.id });
+    await service.mutate(a, session);
+    await service.mutate(a, { ...repeat, requestId: id(), version: 1, endTime: '10:30' });
+    expect(
+      (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).schedule.find(
+        (s) => s.id === occurrence.id,
+      ),
+    ).toBeDefined();
+    await service.mutate(a, { ...repeat, requestId: id(), version: 2, days: [1, 5] });
+    expect(
+      (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).schedule.some(
+        (s) => s.id === occurrence.id,
+      ),
+    ).toBe(false);
+    expect((await service.workSession(a, session.id, {})).session.scheduleBlockId).toBe(
+      occurrence.id,
+    );
+    await service.mutate(a, { ...repeat, requestId: id(), version: 3 });
+    expect(
+      (await service.today(a, { date: '2026-10-05', calendarDays: 7 })).schedule.some(
+        (s) => s.id === occurrence.id,
+      ),
+    ).toBe(true);
+    const single = block({
+      startsAt: '2026-10-12T09:00:00-07:00',
+      endsAt: '2026-10-12T10:00:00-07:00',
+    });
+    await service.mutate(a, single);
+    const linked = start({ scheduleBlockId: single.id });
+    await service.mutate(a, linked);
+    await service.mutate(a, { ...single, requestId: id(), version: 1, remove: true });
+    expect((await service.workSession(a, linked.id, {})).session.scheduleBlockId).toBe(single.id);
+    expect((await service.today(a, { date: '2026-10-12' })).schedule).toHaveLength(0);
+    await expect(service.mutate(a, start({ scheduleBlockId: single.id }))).rejects.toThrow();
+  });
+  it('rejects foreign/missing occurrence associations and owned-filter reads, including the database FK', async () => {
+    const own = block();
+    await service.mutate(a, own);
+    await expect(
+      service.mutate(b, start({ taskId: null, scheduleBlockId: own.id })),
+    ).rejects.toThrow(DirectionNotFound);
+    await expect(service.unfinished(b, { scheduleBlockId: own.id })).rejects.toThrow(
+      DirectionNotFound,
+    );
+    await expect(service.mutate(a, start({ scheduleBlockId: id() }))).rejects.toThrow(
+      DirectionNotFound,
+    );
+    await expect(
+      db.insert(s.focusSessions).values({
+        userId: bid,
+        objective: 'Bad foreign association',
+        scheduleBlockId: own.id,
+        startedAt: new Date(),
+        plannedMinutes: 25,
+      }),
+    ).rejects.toThrow();
+  });
+});

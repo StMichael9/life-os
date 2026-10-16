@@ -1,5 +1,17 @@
 # Deployment and operations
 
+## Focus occurrence update — current source checkpoint
+
+Current source requires migrations 0000–0010 (eleven entries, 24 tables). The additive
+0010 migration retains legacy NULL associations and enforces new composite block-owner
+links. Existing runtime/backup table grants already cover these columns and tables;
+no broader permissions are required. Isolated embedded and PostgreSQL checks passed.
+Local must protect its stopped profile/compatible installer, include all eleven exact
+SQL files, and verify the packaged upgrade before installation. Cloud production build
+and browser acceptance are blocked as detailed in focus-occurrence-handoff.md; no
+Windows installation or native verification of this revision is claimed. Historical
+sections below refer to earlier checkpoints.
+
 ## Actual-work update checkpoint
 
 The new source requires migrations 0000–0009 (ten entries, 24 tables), including the

@@ -15,7 +15,8 @@ it('upgrades the installed pre-stopwatch database and persists work, target and 
   let opened: Awaited<ReturnType<typeof createEmbeddedDatabase>> | undefined;
   const user = randomUUID(),
     legacy = randomUUID(),
-    sid = randomUUID();
+    sid = randomUUID(),
+    blockId = randomUUID();
   try {
     await mkdir(join(old, 'meta'), { recursive: true });
     const journal = JSON.parse(await readFile(join(source, 'meta/_journal.json'), 'utf8')) as {
@@ -37,11 +38,15 @@ it('upgrades the installed pre-stopwatch database and persists work, target and 
     opened = await createEmbeddedDatabase(join(root, 'data'), { migrationsFolder: source });
     let repo = createExecutionRepository(opened.db);
     expect((await repo.workSession(user, legacy)).session).toMatchObject({
+      scheduleBlockId: null,
       activeMilliseconds: 3600000,
       activeSeconds: 3600,
       timerMode: 'countdown',
       notes: 'Original notes',
     });
+    await opened.db.execute(
+      sql`insert into schedule_block(id,user_id,title,kind,starts_at,ends_at) values(${blockId},${user},'Explicit occurrence','focus',now(),now()+interval '1 hour')`,
+    );
     await repo.mutate(user, {
       action: 'focus-start',
       requestId: randomUUID(),
@@ -52,6 +57,7 @@ it('upgrades the installed pre-stopwatch database and persists work, target and 
       categoryId: null,
       plannedMinutes: 90,
       timerMode: 'stopwatch',
+      scheduleBlockId: blockId,
       notes: 'Independent context',
     });
     await repo.mutate(user, {
@@ -66,6 +72,7 @@ it('upgrades the installed pre-stopwatch database and persists work, target and 
     repo = createExecutionRepository(opened.db);
     expect((await repo.workSession(user, sid)).session).toMatchObject({
       timerMode: 'stopwatch',
+      scheduleBlockId: blockId,
       notes: 'Independent context',
       endedAt: null,
       version: 1,
@@ -88,6 +95,7 @@ it('upgrades the installed pre-stopwatch database and persists work, target and 
     const d = await repo.workSession(user, sid);
     expect(d.session).toMatchObject({
       resumedAt: null,
+      scheduleBlockId: blockId,
       activeMilliseconds: 0,
       activeSeconds: 0,
       notes: 'Independent context',

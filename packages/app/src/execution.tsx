@@ -351,6 +351,7 @@ export function Execution({
   ) {
     if (!dayReady || busy || focusSettling) return;
     const fields = {
+      scheduleBlockId: b.id,
       objective: b.objective || b.title,
       timerMode,
       notes: '',
@@ -1497,6 +1498,7 @@ export function Execution({
 
       {block && !editor && !workReview && (
         <WorkBlockWorkspace
+          key={block.id}
           block={block}
           data={data}
           error={error}
@@ -1504,16 +1506,12 @@ export function Execution({
           busy={busy || focusSettling || !dayReady}
           onClose={() => setBlock(null)}
           onStart={(mode) => void startBlockFocus(block, mode)}
-          sessions={sessions}
           selected={session}
-          next={focusNext}
-          onMore={() => void moreFocus()}
           onSelect={selectFocus}
           onControl={controlFocus}
           onFinish={(record) => void prepareFinish(record)}
           onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
           onReview={(record) => setWorkReview({ id: record.id })}
-          onNew={() => setEditor({ kind: 'focus' })}
           onEdit={() => setEditor({ kind: 'schedule', record: block })}
           onSeries={() => {
             const record = data.scheduleSeries.find((s) => s.id === block.seriesId);
