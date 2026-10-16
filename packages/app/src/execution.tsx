@@ -2,6 +2,7 @@
 import { PageHeading, ActionMenu, MenuItem, EmptyState, LoadingState } from '@life-os/ui';
 import { WorkspaceShell } from './workspace-shell';
 import { WorkTracker } from './work-tracker';
+import { TodayDashboard } from './today-dashboard';
 import { WorkTimeEditor } from './work-time-editor';
 import { WorkCalendar } from './calendar';
 import { WorkBlockWorkspace } from './work-block-workspace';
@@ -708,7 +709,6 @@ export function Execution({
     workflow,
     reflection: emptyReflection,
   });
-  const scheduledMinutes = data.snapshot.scheduledMinutes;
   return (
     <WorkspaceShell
       className={'execution-shell' + (section === 'focus' ? ' focused-workspace' : '')}
@@ -725,7 +725,8 @@ export function Execution({
     >
       <main id="main" className="execution-main">
         <PageHeading
-          title={
+          title={section === 'today' ? 'A little less noise. A clear next step.' : selectedTitle}
+          eyebrow={
             section === 'today'
               ? new Intl.DateTimeFormat('en-US', {
                   timeZone: 'UTC',
@@ -733,9 +734,8 @@ export function Execution({
                   month: 'long',
                   day: 'numeric',
                 }).format(new Date((date || data.date) + 'T12:00Z'))
-              : selectedTitle
+              : 'Your workspace'
           }
-          eyebrow={section === 'today' ? 'Today / A deliberate day' : 'Your workspace'}
           description={
             section === 'schedule'
               ? 'Protect time for what matters.'
@@ -796,8 +796,8 @@ export function Execution({
             {reviewRunning && sessions.some((s) => s.id === reviewRunning && s.resumedAt) && (
               <aside className="work-reconciliation" role="status">
                 <p>
-                  A timer was already running when you returned. It keeps counting outside Life OS;
-                  review any break before relying on these totals.
+                  A timer was already running when you returned. Review any break before relying on
+                  these totals.
                 </p>
                 <button
                   className="button"
@@ -808,141 +808,70 @@ export function Execution({
                 </button>
               </aside>
             )}
-            <section className="season-banner" aria-labelledby="season-heading">
-              <p className="eyebrow">Active Season</p>
-              {data.activeSeason ? (
-                <>
-                  <h2 id="season-heading">{data.activeSeason.name}</h2>
-                  <p>{data.activeSeason.objective}</p>
-                  <p className="muted">
-                    {data.activeSeason.startsOn} — {data.activeSeason.endsOn}
-                  </p>
-                  <div className="allocation-pills">
-                    {data.activeSeason.allocations.map((a) => (
-                      <span key={a.categoryId}>
-                        {a.name} {a.percent}%
-                      </span>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 id="season-heading">Choose what deserves your focus.</h2>
-                  <p>No active Season yet. Give your daily work a direction.</p>
-                </>
-              )}
-              <a
-                href={
-                  data.activeSeason
-                    ? '/direction?view=seasons&id=' + data.activeSeason.id
-                    : '/direction'
-                }
-              >
-                {data.activeSeason ? 'View your Season' : 'Choose a Season'} →
-              </a>
-            </section>
-            <WorkTracker
+            <TodayDashboard
               data={data}
-              sessions={sessions}
               now={clock + clockOffset}
-              disabled={busy || focusSettling || !dayReady}
-              onNew={() => setEditor({ kind: 'focus', timerMode: 'stopwatch' })}
-              onControl={controlFocus}
-              onSelect={selectFocus}
-              onOpen={() => {
-                const d = document.querySelector<HTMLDetailsElement>('#focus > details');
-                if (d) {
-                  d.open = true;
-                  d.scrollIntoView({ behavior: 'instant', block: 'start' });
-                }
+              disabled={busy || !dayReady}
+              onPlan={(workflow) => setEditor({ kind: 'plan', workflow })}
+              onReopen={() => {
+                if (confirm('Reopen this day for changes?')) void action(planCommand('reopen'));
               }}
-              onReview={(id) => setWorkReview({ id })}
-              onTarget={() => setWorkReview({ id: null })}
-            />
-            <div className="execution-grid">
-              <section className="execution-card priority-card">
-                <p className="eyebrow">If only one thing happens</p>
-                <h2>The One Thing</h2>
-                <p className="one-thing">
-                  {data.plan?.oneThing ?? 'Choose one meaningful outcome.'}
-                </p>
-                <div className="execution-actions">
-                  <button
-                    className="button"
-                    disabled={busy || !dayReady || !!data.plan?.closedAt}
-                    onClick={() => setEditor({ kind: 'plan', workflow: 'save' })}
-                  >
-                    Edit priorities
-                  </button>
-                  {!data.plan?.startedAt && (
-                    <button
-                      className="button button-primary"
-                      disabled={busy || !dayReady}
-                      onClick={() => setEditor({ kind: 'plan', workflow: 'start' })}
-                    >
-                      Start Day
-                    </button>
-                  )}
-                  {data.plan?.startedAt && !data.plan.closedAt && (
-                    <button
-                      className="button button-primary"
-                      disabled={busy || !dayReady}
-                      onClick={() => setEditor({ kind: 'plan', workflow: 'close' })}
-                    >
-                      Close Day
-                    </button>
-                  )}
-                  {data.plan?.closedAt && (
-                    <button
-                      className="button"
-                      disabled={busy || !dayReady}
-                      onClick={() => {
-                        if (confirm('Reopen this day for changes?'))
-                          void action(planCommand('reopen'));
-                      }}
-                    >
-                      Reopen Day
-                    </button>
-                  )}
+              onOutcome={outcomeCheck}
+              onRoutine={routineCheck}
+              onNewRoutine={() => setEditor({ kind: 'routine' })}
+              onBlock={setBlock}
+              onNewBlock={() => setEditor({ kind: 'schedule', date: data.date })}
+              onStartTask={(taskId, objective, duration) =>
+                setEditor({
+                  kind: 'focus',
+                  timerMode: 'stopwatch',
+                  taskId,
+                  objective,
+                  minutes: Math.min(720, duration),
+                })
+              }
+              focus={
+                <div id="focus" hidden={!!block}>
+                  <FocusWorkspace
+                    compact
+                    sessions={sessions}
+                    selected={session}
+                    now={clock + clockOffset}
+                    busy={busy}
+                    settling={focusSettling}
+                    objective={null}
+                    next={focusNext}
+                    onMore={() => void moreFocus()}
+                    onNew={() => setEditor({ kind: 'focus', timerMode: 'stopwatch' })}
+                    onSelect={selectFocus}
+                    onControl={controlFocus}
+                    onFinish={(record) => void prepareFinish(record)}
+                    onNotes={(record) => setEditor({ kind: 'focus-notes', record })}
+                    onReview={(record) => setWorkReview({ id: record.id })}
+                  />
                 </div>
-                {data.recommendations[0] && (
-                  <a className="next-action" href={'/tasks?id=' + data.recommendations[0].id}>
-                    <span>Recommended next</span>
-                    {data.tasks.find((t) => t.id === data.recommendations[0]!.id)?.title}{' '}
-                    <span aria-hidden="true">↗</span>
-                  </a>
-                )}
-              </section>
-              <section className="execution-card">
-                <p className="eyebrow">Three meaningful outcomes</p>
-                <h2>Today’s Big 3</h2>
-                {data.plan?.outcomes.length ? (
-                  <ol className="big-three-list">
-                    {data.plan.outcomes.map((o, i) => (
-                      <li key={i}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            disabled={busy || !dayReady || !!data.plan?.closedAt}
-                            checked={!!o.completedAt}
-                            onChange={(e) => outcomeCheck(i, e.target.checked)}
-                          />
-                          <span>{o.outcome}</span>
-                        </label>
-                        {o.taskId && <a href={'/tasks?id=' + o.taskId}>Linked Task →</a>}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="muted">
-                    Choose up to three outcomes that would make today successful.
-                  </p>
-                )}
-              </section>
-            </div>
+              }
+              work={
+                <WorkTracker
+                  compact
+                  data={data}
+                  sessions={sessions}
+                  now={clock + clockOffset}
+                  disabled={busy || focusSettling || !dayReady}
+                  onNew={() => setEditor({ kind: 'focus', timerMode: 'stopwatch' })}
+                  onControl={controlFocus}
+                  onSelect={selectFocus}
+                  onOpen={() =>
+                    document.getElementById('core-focus')?.scrollIntoView({ block: 'start' })
+                  }
+                  onReview={(id) => setWorkReview({ id })}
+                  onTarget={() => setWorkReview({ id: null })}
+                />
+              }
+            />
           </>
         )}
-        {(section === 'today' || section === 'schedule') && (
+        {section === 'schedule' && (
           <WorkCalendar
             data={data}
             selectedDate={date || data.date}
@@ -961,35 +890,12 @@ export function Execution({
               );
               if (matching) setSelectedFocusId(matching.id);
             }}
-            onCreate={(day, instant) => {
-              setEditor({ kind: 'schedule', date: day, ...(instant ? { startsAt: instant } : {}) });
-            }}
+            onCreate={(day, instant) =>
+              setEditor({ kind: 'schedule', date: day, ...(instant ? { startsAt: instant } : {}) })
+            }
           />
         )}
-        {section === 'today' && (
-          <section className="daily-snapshot" aria-label="Recorded daily snapshot">
-            <div>
-              <strong>{data.snapshot.completedTasks}</strong>
-              <span>Tasks completed</span>
-            </div>
-            <div>
-              <strong>{Math.round(data.snapshot.focusSeconds / 60)}</strong>
-              <span>Recorded Focus minutes</span>
-            </div>
-            <div>
-              <strong>
-                {data.plan?.outcomes.filter((o) => o.completedAt).length ?? 0}/
-                {data.plan?.outcomes.length ?? 0}
-              </strong>
-              <span>Chosen outcomes complete</span>
-            </div>
-            <div>
-              <strong>{Math.round(scheduledMinutes)}</strong>
-              <span>Scheduled minutes</span>
-            </div>
-          </section>
-        )}
-        {((section === 'today' && sessions.length > 0) || section === 'focus') && (
+        {section === 'focus' && (
           <section className="execution-card focus-card" id="focus">
             <details className="focus-disclosure" open={section === 'focus'}>
               <summary>
@@ -1030,7 +936,7 @@ export function Execution({
             </details>
           </section>
         )}
-        {(section === 'today' || section === 'routines') && (
+        {section === 'routines' && (
           <details
             className="execution-card compact-details"
             id="routines"
@@ -1137,7 +1043,8 @@ export function Execution({
           </details>
         )}
         {section === 'today' && (
-          <>
+          <details className="today-daily-context">
+            <summary>Daily context · Scripture, thought &amp; insights</summary>
             <details className="execution-card compact-details">
               <summary>Recommendations</summary>
               <section>
@@ -1284,7 +1191,7 @@ export function Execution({
                   ))}
               </section>
             )}
-          </>
+          </details>
         )}
         {section === 'vault' && (
           <section className="execution-card">

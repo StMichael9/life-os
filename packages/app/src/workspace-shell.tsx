@@ -6,7 +6,6 @@ import {
   Sun,
   Search,
   Plus,
-  MoreHorizontal,
   Inbox,
   CheckSquare,
   Timer,
@@ -30,58 +29,48 @@ export function WorkspaceShell({
 }) {
   const open = (capture = false) =>
     window.dispatchEvent(new CustomEvent('life-os:command', { detail: { capture } }));
+  const planning = active === 'calendar' || active === 'goals';
+  const destinations = [
+    ['Today', '/', Sun],
+    ['Calendar', '/schedule', CalendarDays],
+    ['Tasks', '/tasks', CheckSquare],
+    ['Goals & Projects', '/direction', Compass],
+    ['Inbox', '/inbox', Inbox],
+    ['Vault & Not Now', '/vault', Archive],
+    ['Routines', '/routines', Repeat2],
+    ['Focus workspace', '/focus', Timer],
+  ] as const;
   return (
-    <div className={'app-shell unified-shell ' + className}>
+    <div className={'app-shell canvas-shell ' + className}>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Life OS">
-        <a className="brand" href="/">
+      <header className="canvas-header">
+        <a className="brand" href="/" aria-label="Life OS home">
           <span className="brand-symbol">
-            <Leaf size={18} />
+            <Leaf size={18} aria-hidden="true" />
           </span>
           Life <strong>OS</strong>
         </a>
-        <p className="workspace-label">Your personal workspace</p>
-        <nav aria-label="Main navigation">
-          {(
-            [
-              { key: 'today', title: 'Today', href: '/', Icon: Sun },
-              { key: 'calendar', title: 'Calendar', href: '/schedule', Icon: CalendarDays },
-              { key: 'goals', title: 'Goals', href: '/direction', Icon: Compass },
-            ] as const
-          ).map(({ key, title: label, href, Icon }) => (
-            <a
-              key={key}
-              className={'nav-link' + (active === key ? ' active' : '')}
-              aria-current={active === key ? 'page' : undefined}
-              href={href}
-            >
-              <Icon size={18} aria-hidden="true" />
-              {label}
-            </a>
-          ))}
+        <nav className="canvas-nav" aria-label="Main navigation">
+          <a href="/" aria-current={active === 'today' ? 'page' : undefined}>
+            Today
+          </a>
+          <a href="/schedule" aria-current={planning ? 'page' : undefined}>
+            Plan
+          </a>
           <ActionMenu
-            label="More"
-            className={'nav-link nav-more' + (active === 'more' ? ' active' : '')}
+            label="Library"
+            className={active === 'more' ? 'canvas-library active' : 'canvas-library'}
             trigger={
               <>
-                <MoreHorizontal size={18} aria-hidden="true" />
-                More
+                Library <span aria-hidden="true">⌄</span>
               </>
             }
           >
-            {(
-              [
-                ['Inbox', '/inbox', Inbox],
-                ['Tasks', '/tasks', CheckSquare],
-                ['Focus', '/focus', Timer],
-                ['Routines', '/routines', Repeat2],
-                ['Vault & Not Now', '/vault', Archive],
-              ] as const
-            ).map(([label, href, Icon]) => (
+            {destinations.slice(2).map(([label, href, Icon]) => (
               <MenuItem key={href}>
-                <a href={href} aria-current={label === title ? 'page' : undefined}>
+                <a href={href}>
                   <Icon size={16} aria-hidden="true" />
                   {label}
                 </a>
@@ -89,30 +78,48 @@ export function WorkspaceShell({
             ))}
           </ActionMenu>
         </nav>
-        <div className="shell-tools">
-          <button className="button button-quiet" onClick={() => open()}>
+        <div className="canvas-tools">
+          <button
+            className="button button-quiet canvas-search"
+            onClick={() => open()}
+            aria-label="Search and commands"
+          >
             <Search size={16} aria-hidden="true" />
-            Search <kbd>Ctrl K</kbd>
+            <span>Search</span>
+            <kbd>Ctrl K</kbd>
           </button>
           <button className="button button-primary" onClick={() => open(true)}>
             <Plus size={16} aria-hidden="true" />
-            Quick capture
+            Capture
           </button>
+          {actions && (
+            <details className="canvas-account">
+              <summary>Account</summary>
+              <div className="canvas-account-actions">{actions}</div>
+            </details>
+          )}
         </div>
-        <div className="sidebar-footer">
-          <span className="status-dot" />
-          Make space for what matters.
-        </div>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
-          <span className="breadcrumb">
-            Workspace <span>/</span> <strong>{title}</strong>
-          </span>
-          <div className="execution-actions">{actions}</div>
-        </header>
-        {children}
-      </div>
+      </header>
+      {active !== 'today' && (
+        <nav className="canvas-local-nav" aria-label="Workspace navigation">
+          {destinations.slice(1).map(([label, href]) => (
+            <a
+              key={href}
+              href={href}
+              aria-current={
+                label === title ||
+                (title === 'Goals' && href === '/direction') ||
+                (title === 'Focus' && href === '/focus')
+                  ? 'page'
+                  : undefined
+              }
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      )}
+      <div className="canvas-workspace">{children}</div>
     </div>
   );
 }

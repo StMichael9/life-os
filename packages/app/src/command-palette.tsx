@@ -8,6 +8,9 @@ export function CommandPalette() {
     account = useRef<string | null>(null),
     generation = useRef(0),
     retry = useRef<{ body: string; id: string } | null>(null);
+  const captureValue = useRef('');
+  const [captureOnly, setCaptureOnly] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState(''),
     [items, setItems] = useState<SearchHit[]>([]),
@@ -23,18 +26,23 @@ export function CommandPalette() {
       }
       try {
         const { profile } = await requestJson<{ profile: Profile }>('/api/auth/session');
+        if (account.current && account.current !== profile.id) {
+          captureValue.current = '';
+          setCapture('');
+          retry.current = null;
+          setUncertain(false);
+        }
         account.current = profile.id;
+        setCaptureOnly(captureFirst);
         setOpen(true);
         setQuery('');
         setItems([]);
-        setCapture('');
         setError('');
         dialog.current?.showModal();
-        if (captureFirst)
-          setTimeout(
-            () => dialog.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus(),
-            0,
-          );
+        setTimeout(() => {
+          if (captureFirst) dialog.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+          else dialog.current?.querySelector<HTMLInputElement>('input')?.focus();
+        }, 0);
       } catch {
         location.assign('/login');
       }
@@ -46,7 +54,7 @@ export function CommandPalette() {
           // Follow the same busy/discard guard as native Escape.
           if (dialog.current.dispatchEvent(new Event('cancel', { cancelable: true })))
             dialog.current.close();
-        } else void show();
+        } else void show(e.shiftKey);
       }
     }
     const requested = (event: Event) =>
@@ -57,6 +65,13 @@ export function CommandPalette() {
       window.removeEventListener('keydown', shortcut);
       window.removeEventListener('life-os:command', requested);
     };
+  }, []);
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (captureValue.current) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
   }, []);
   useEffect(() => {
     const epoch = ++generation.current;
@@ -71,6 +86,9 @@ export function CommandPalette() {
         if (data.ownerId !== account.current) {
           setItems([]);
           setCapture('');
+          captureValue.current = '';
+          retry.current = null;
+          setUncertain(false);
           setError('Account changed. Close and reopen search.');
           return;
         }
@@ -92,7 +110,13 @@ export function CommandPalette() {
     const verify = async () => {
       try {
         const { profile } = await requestJson<{ profile: Profile }>('/api/auth/session');
-        if (profile.id !== account.current) dialog.current?.close();
+        if (profile.id !== account.current) {
+          setCapture('');
+          captureValue.current = '';
+          retry.current = null;
+          setUncertain(false);
+          dialog.current?.close();
+        }
       } catch {
         dialog.current?.close();
       }
@@ -108,16 +132,27 @@ export function CommandPalette() {
     };
   }, [open]);
   async function captureThought() {
-    if (!capture.trim()) return;
+    if (!capture.trim() || busy) return;
     setBusy(true);
     try {
       const { profile } = await requestJson<{ profile: Profile }>('/api/auth/session');
       if (profile.id !== account.current) {
         setCapture('');
+        captureValue.current = '';
+        retry.current = null;
+        setUncertain(false);
         throw new Error('Account changed. Reopen the palette.');
       }
       if (retry.current?.body !== capture.trim())
         retry.current = { body: capture.trim(), id: crypto.randomUUID() };
+      if (
+        new TextEncoder().encode(
+          JSON.stringify({ body: retry.current.body, requestId: retry.current.id }),
+        ).byteLength > 16384
+      ) {
+        retry.current = null;
+        throw new Error('This capture exceeds the delivery size limit. Shorten it before saving.');
+      }
       await postJson(
         '/api/inbox',
         { body: retry.current.body, requestId: retry.current.id },
@@ -125,11 +160,21 @@ export function CommandPalette() {
         profile.id,
       );
       setCapture('');
+      captureValue.current = '';
       retry.current = null;
+      setUncertain(false);
       setError('Captured in Inbox.');
     } catch (e) {
-      if (e instanceof RequestFailed && e.status === 401) dialog.current?.close();
-      else setError(e instanceof Error ? e.message : 'Could not capture. Try again.');
+      if (e instanceof RequestFailed && e.status === 401) {
+        setCapture('');
+        captureValue.current = '';
+        retry.current = null;
+        setUncertain(false);
+        dialog.current?.close();
+      } else {
+        setUncertain(!!retry.current);
+        setError(e instanceof Error ? e.message : 'Could not capture. Retry the same capture.');
+      }
     } finally {
       setBusy(false);
     }
@@ -150,26 +195,25 @@ export function CommandPalette() {
         className="direction-dialog command-dialog"
         aria-labelledby="command-title"
         onCancel={(e) => {
-          if (busy || (capture && !confirm('Discard this unsent capture?'))) e.preventDefault();
+          if (busy) e.preventDefault();
         }}
         onClose={() => {
           generation.current++;
           setOpen(false);
           setItems([]);
           setQuery('');
-          setCapture('');
-          retry.current = null;
-          account.current = null;
         }}
       >
         <div className="editor-heading">
           <div>
-            <p className="eyebrow">Search & commands</p>
-            <h2 id="command-title">Find your next step</h2>
+            <p className="eyebrow">
+              {captureOnly ? 'Capture first. Organize later.' : 'Search & commands'}
+            </p>
+            <h2 id="command-title">{captureOnly ? 'Capture a thought' : 'Find your next step'}</h2>
           </div>
           <kbd>Esc</kbd>
         </div>
-        <label className="direction-field">
+        <label className="direction-field" hidden={captureOnly}>
           Search your workspace
           <input
             autoFocus
@@ -194,11 +238,12 @@ export function CommandPalette() {
         </label>
         {error && <p role="status">{error}</p>}
         {loading && <p role="status">Searching…</p>}
-        {query.trim() && !loading && items.length === 0 && (
+        {!captureOnly && query.trim() && !loading && items.length === 0 && (
           <p className="muted">No matching items yet.</p>
         )}
         <ul
           className="command-results"
+          hidden={captureOnly}
           onKeyDown={(e) => {
             if (['ArrowDown', 'ArrowUp'].includes(e.key)) {
               const links = Array.from(e.currentTarget.querySelectorAll<HTMLAnchorElement>('a')),
@@ -221,7 +266,7 @@ export function CommandPalette() {
             </li>
           ))}
         </ul>
-        <nav aria-label="Quick commands" className="command-links">
+        <nav aria-label="Quick commands" className="command-links" hidden={captureOnly}>
           {[
             ['Today', '/'],
             ['Create Task', '/tasks?new=1'],
@@ -244,26 +289,56 @@ export function CommandPalette() {
             rows={2}
             maxLength={10000}
             value={capture}
-            onChange={(e) => setCapture(e.target.value)}
+            readOnly={busy || uncertain}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                void captureThought();
+              }
+            }}
+            onChange={(e) => {
+              captureValue.current = e.target.value;
+              setCapture(e.target.value);
+            }}
           />
         </label>
+        <p className="quiet-note">
+          {uncertain
+            ? 'Delivery is uncertain. Retry this exact capture before changing its text.'
+            : 'Unsent text stays in memory when you close this panel. Save before reloading or quitting.'}
+        </p>
         <div className="dialog-actions">
           <button
             className="button"
             disabled={busy}
             onClick={() => {
-              if (!capture || confirm('Discard this unsent capture?')) dialog.current?.close();
+              dialog.current?.close();
             }}
           >
-            Close
+            Keep & close
           </button>
           <button
             className="button button-primary"
             disabled={busy || !capture.trim()}
             onClick={() => void captureThought()}
           >
-            Capture to Inbox
+            {uncertain ? 'Retry same capture' : 'Capture to Inbox'}
           </button>
+          {capture && !uncertain && (
+            <button
+              className="button button-quiet"
+              disabled={busy}
+              onClick={() => {
+                if (confirm('Discard this unsent capture?')) {
+                  setCapture('');
+                  captureValue.current = '';
+                  retry.current = null;
+                }
+              }}
+            >
+              Discard draft
+            </button>
+          )}
         </div>
       </dialog>
     </>

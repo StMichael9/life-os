@@ -18,6 +18,7 @@ export function FocusWorkspace({
   onFinish,
   onNotes,
   onReview,
+  compact = false,
 }: {
   sessions: FocusSession[];
   selected: FocusSession | null;
@@ -33,24 +34,31 @@ export function FocusWorkspace({
   onFinish: (session: FocusSession) => void;
   onNotes: (session: FocusSession) => void;
   onReview?: ((session: FocusSession) => void) | undefined;
+  compact?: boolean;
 }) {
   const others = sessions.filter((s) => s.id !== selected?.id);
   const format = (seconds: number) =>
     `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   return (
-    <div className="focus-workspace">
+    <div className={'focus-workspace' + (compact ? ' focus-workspace-compact' : '')}>
       <div className="focus-workspace-heading">
         <div>
-          <p className="eyebrow">Protected time</p>
-          <h2>{selected ? 'Current session' : 'Your intentions'}</h2>
+          {!compact && <p className="eyebrow">Protected time</p>}
+          <h2>{compact ? 'Core Focus' : selected ? 'Current session' : 'Your intentions'}</h2>
         </div>
         <button className="button" disabled={busy || settling} onClick={onNew}>
-          <Plus size={14} aria-hidden="true" /> New Session
+          <Plus size={14} aria-hidden="true" /> {compact ? 'New session' : 'New Session'}
         </button>
       </div>
       {selected ? (
         <>
           <h3 className="selected-focus-title">{selected.objective}</h3>
+          {compact && (
+            <p className="focus-mode-label">
+              {selected.timerMode === 'stopwatch' ? 'Track work' : 'Countdown Focus'} ·{' '}
+              {selected.resumedAt ? 'Running' : 'Paused'}
+            </p>
+          )}
           <FocusTimer
             mode={selected.timerMode}
             elapsed={elapsedFocus(selected, new Date(now))}
@@ -130,7 +138,7 @@ export function FocusWorkspace({
       )}
       {others.length > 0 && (
         <section className="unfinished-focus" aria-label="Other unfinished sessions">
-          <p className="eyebrow">Return to an intention</p>
+          <p className="eyebrow">{compact ? 'Resume another session' : 'Return to an intention'}</p>
           <ul>
             {others.map((s) => {
               const remaining = focusCountdown(

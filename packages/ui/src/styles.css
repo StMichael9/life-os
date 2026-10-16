@@ -5,14 +5,14 @@
 
 /* One shared theme. No remote fonts, assets or runtime styling service. */
 @theme {
-  --color-canvas: #111413;
-  --color-surface: #181d1b;
-  --color-elevated: #212824;
-  --color-ink: #ecede7;
-  --color-secondary: #a9b4ac;
-  --color-line: #303a34;
-  --color-olive: #ced8ad;
-  --color-teal: #9cc9bc;
+  --color-canvas: #111416;
+  --color-surface: #191d20;
+  --color-elevated: #22282c;
+  --color-ink: #f1f0e9;
+  --color-secondary: #aeb8bd;
+  --color-line: #343d42;
+  --color-olive: #add9ca;
+  --color-teal: #add9ca;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 @layer base {
@@ -593,6 +593,537 @@
     max-width: 1000px;
   }
 
+  /* Canvas shell and actionable Today: shared web/offline desktop composition. */
+  .canvas-header {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .canvas-header .brand {
+    padding: 0;
+    font-size: 19px;
+  }
+  .canvas-header .brand-symbol {
+    background: transparent;
+    border-color: var(--border);
+  }
+  .canvas-nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .canvas-nav > a {
+    color: var(--muted);
+    padding: 8px 0;
+    font-size: 14px;
+  }
+  .canvas-nav > a[aria-current],
+  .canvas-nav .active {
+    color: var(--accent);
+  }
+  .canvas-nav > a[aria-current] {
+    text-decoration: underline;
+    text-underline-offset: 12px;
+    text-decoration-thickness: 2px;
+  }
+  .canvas-nav .canvas-library {
+    font-size: 14px;
+    padding-inline: 0;
+  }
+  .canvas-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .canvas-search kbd {
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .canvas-account {
+    position: relative;
+    font-size: 12px;
+  }
+  .canvas-account > summary {
+    padding: 8px;
+  }
+  .canvas-account-actions {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: grid;
+    gap: 10px;
+    z-index: 25;
+    min-width: 180px;
+  }
+  .canvas-local-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .canvas-local-nav a[aria-current] {
+    color: var(--accent);
+  }
+  .canvas-workspace {
+    min-width: 0;
+  }
+  .canvas-shell .execution-main {
+    max-width: 1440px;
+  }
+  .today-season-line {
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 24px;
+  }
+  .today-season-line a {
+    color: var(--color-teal);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .today-bento {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .today-bento > .execution-card {
+    margin: 0;
+    padding: 24px;
+    border-radius: 14px;
+    min-width: 0;
+  }
+  .today-agenda {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .today-core-focus {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .today-micro-habits {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .today-bento h2 {
+    font-size: 15px;
+  }
+  .today-bento .card-heading {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .today-bento .card-heading > .button,
+  .today-bento .card-heading > a {
+    font-size: 12px;
+  }
+  .today-one-thing {
+    font-size: clamp(22px, 2.2vw, 29px);
+    line-height: 1.3;
+    font-weight: 400;
+    letter-spacing: -0.6px;
+    margin: 8px 0 24px;
+    max-width: 550px;
+    overflow-wrap: anywhere;
+  }
+  .today-outcomes,
+  .today-agenda-list,
+  .today-habit-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+  }
+  .today-outcomes li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .today-outcomes label,
+  .today-habit-list label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    width: 100%;
+    padding: 8px 0;
+  }
+  .today-outcomes label span,
+  .today-habit-list label span {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .today-outcomes input:checked + span,
+  .today-habit-list input:checked + span {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .today-habit-list small {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .today-day-actions {
+    margin: 14px 0 22px;
+  }
+  .today-day-actions .button {
+    font-size: 12px;
+  }
+  .today-next-action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid #415b51;
+    background: #22312e;
+    border-radius: 9px;
+    padding: 16px;
+    margin: 18px 0 24px;
+  }
+  .today-next-action > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .today-next-action h3 {
+    font-size: 15px;
+    margin: 4px 0;
+  }
+  .today-next-action .eyebrow {
+    color: var(--color-teal);
+    font-size: 10px;
+  }
+  .today-next-action .muted {
+    font-size: 12px;
+  }
+  .today-agenda-heading {
+    margin-top: 24px;
+  }
+  .today-agenda-heading h3 {
+    font-size: 14px;
+  }
+  .today-agenda-heading a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+  }
+  .today-agenda-list li {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .today-agenda-list h3 {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .today-agenda-list p,
+  .today-agenda-list time {
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .today-agenda-list .button {
+    padding: 8px;
+    min-width: 36px;
+  }
+  .today-agenda-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  .today-agenda-tools .button {
+    font-size: 12px;
+    padding: 6px 0;
+  }
+  .today-attention {
+    margin-block: 14px;
+    font-size: 12px;
+  }
+  .today-attention ul {
+    list-style: none;
+    padding: 0;
+  }
+  .today-attention li {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  .today-empty-note {
+    font-size: 13px;
+    margin-block: 12px;
+  }
+  .today-work-evidence {
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+    padding-top: 18px;
+  }
+  .work-tracker-compact > h3 {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .work-tracker-compact .work-total {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  .work-tracker-compact .work-total strong {
+    font-size: 25px;
+    font-weight: 400;
+    letter-spacing: -0.7px;
+  }
+  .work-tracker-compact .work-total > span {
+    font-size: 12px;
+  }
+  .work-tracker-compact .work-total .button {
+    margin-left: auto;
+    padding: 4px 0;
+    min-height: 30px;
+    font-size: 11px;
+  }
+  .work-tracker-compact progress {
+    height: 4px;
+  }
+  .work-tracker-compact .work-breakdown {
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  .work-tracker-compact .work-breakdown[open] {
+    padding-top: 8px;
+  }
+  .work-tracker-compact .work-activity-list li {
+    flex-wrap: wrap;
+  }
+  .focus-workspace-compact .focus-workspace-heading h2 {
+    margin: 0;
+    font-size: 15px;
+  }
+  .focus-workspace-compact .focus-workspace-heading .button {
+    font-size: 12px;
+    border: 0;
+    background: transparent;
+    padding: 6px 0;
+  }
+  .focus-workspace-compact .selected-focus-title {
+    margin: 18px 0 4px;
+    font-size: 20px;
+    text-align: left;
+  }
+  .focus-mode-label {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .focus-workspace-compact .radial-focus {
+    width: min(220px, 100%);
+    margin: 20px auto;
+  }
+  .focus-workspace-compact .timer-center strong {
+    font-size: 37px;
+    letter-spacing: -1px;
+  }
+  .focus-workspace-compact .timer-center > .muted {
+    max-width: 145px;
+    text-align: center;
+  }
+  .focus-workspace-compact .timer-center .eyebrow {
+    font-size: 10px;
+  }
+  .focus-workspace-compact .focus-controls {
+    margin-bottom: 12px;
+  }
+  .focus-workspace-compact .focus-linked-work {
+    font-size: 12px;
+  }
+  .focus-workspace-compact .focus-linked-work .button {
+    font-size: 11px;
+    padding: 4px;
+    min-height: 30px;
+  }
+  .focus-workspace-compact .focus-session-notes {
+    padding: 10px 0;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .focus-workspace-compact .unfinished-focus {
+    margin-top: 14px;
+  }
+  .focus-workspace-compact .focus-session-switch {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 11px 0;
+  }
+  .focus-workspace-compact .session-status {
+    grid-column: 2;
+    background: transparent;
+    padding: 0;
+    text-align: right;
+  }
+  .focus-workspace-compact .session-name {
+    grid-row: span 2;
+  }
+  .focus-workspace-compact .session-remaining small {
+    display: inline;
+    font-size: 11px;
+  }
+  .today-micro-habits .card-heading {
+    margin-bottom: 6px;
+  }
+  .today-micro-habits .card-heading > span {
+    font-size: 12px;
+  }
+  .today-daily-context {
+    margin-top: 24px;
+  }
+  .today-daily-context > summary {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 12px 0;
+  }
+  .today-daily-context[open] > summary {
+    margin-bottom: 12px;
+  }
+  .canvas-shell .capture-section {
+    margin-top: 24px;
+  }
+  body:has(.canvas-shell) .palette-launch {
+    display: none;
+  }
+  @media (max-width: 1000px) {
+    .canvas-header {
+      gap: 22px;
+      padding: 18px 24px;
+    }
+    .canvas-nav {
+      gap: 18px;
+    }
+    .canvas-search kbd {
+      display: none;
+    }
+    .today-bento {
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    }
+    .today-bento > .execution-card {
+      padding: 20px;
+    }
+  }
+  @media (max-width: 760px) {
+    .canvas-header {
+      gap: 16px;
+    }
+    .canvas-search span {
+      display: none;
+    }
+    .canvas-tools {
+      gap: 4px;
+    }
+    .today-bento {
+      display: flex;
+      flex-direction: column;
+    }
+    .today-bento > .execution-card {
+      width: 100%;
+    }
+    .today-core-focus .focus-workspace {
+      max-width: 460px;
+    }
+    .canvas-local-nav {
+      padding: 12px 20px;
+      gap: 10px 18px;
+    }
+  }
+  @media (max-width: 580px) {
+    .canvas-header {
+      padding: 16px;
+      gap: 12px;
+    }
+    .canvas-header .brand {
+      font-size: 17px;
+    }
+    .canvas-header .brand-symbol {
+      width: 26px;
+      height: 26px;
+      margin: 0;
+    }
+    .canvas-tools .button {
+      font-size: 12px;
+      padding: 8px 10px;
+    }
+    .canvas-nav {
+      order: 3;
+      width: 100%;
+      justify-content: center;
+      gap: 36px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    .canvas-nav > a[aria-current] {
+      text-underline-offset: 8px;
+    }
+    .canvas-nav .canvas-library {
+      padding-block: 8px;
+    }
+    .canvas-shell .execution-main {
+      padding: 24px 16px 40px;
+    }
+    .today-bento > .execution-card {
+      padding: 20px;
+    }
+    .today-outcomes label,
+    .today-habit-list label {
+      min-height: 44px;
+    }
+    .today-next-action {
+      padding: 14px;
+      gap: 10px;
+    }
+    .today-next-action .muted {
+      font-size: 11px;
+    }
+    .today-agenda-list li {
+      grid-template-columns: 65px minmax(0, 1fr) 36px;
+      gap: 8px;
+    }
+    .today-one-thing {
+      font-size: 24px;
+    }
+    .work-tracker-compact .work-total .button {
+      margin-left: 0;
+    }
+    .canvas-account-actions {
+      position: static;
+    }
+  }
+  @media (forced-colors: active) {
+    .today-next-action,
+    .canvas-account-actions {
+      border: 1px solid CanvasText;
+    }
+    .timer-progress,
+    .timer-track {
+      stroke: CanvasText;
+    }
+  }
   /* Today: intentions, time, then context. */
   .execution-top {
     margin-bottom: 20px;

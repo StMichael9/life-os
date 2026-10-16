@@ -13,6 +13,7 @@ export function WorkTracker({
   onSelect,
   onReview,
   onTarget,
+  compact = false,
 }: {
   data: ExecutionSnapshot;
   sessions: FocusSession[];
@@ -24,6 +25,7 @@ export function WorkTracker({
   onSelect: (session: FocusSession) => void;
   onReview: (id: string) => void;
   onTarget: () => void;
+  compact?: boolean;
 }) {
   const [range, setRange] = useState<7 | 30>(7);
   const w = data.workTime,
@@ -50,16 +52,23 @@ export function WorkTracker({
   const total = days.reduce((n, d) => n + d.seconds, 0),
     maximum = Math.max(target, ...days.map((d) => d.seconds));
   return (
-    <section className="execution-card work-tracker" aria-labelledby="actual-work-title">
-      <div className="card-heading">
-        <div>
-          <p className="eyebrow">Only the time you track</p>
-          <h2 id="actual-work-title">Actual work</h2>
+    <section
+      className={'work-tracker' + (compact ? ' work-tracker-compact' : ' execution-card')}
+      aria-labelledby="actual-work-title"
+    >
+      {compact ? (
+        <h3 id="actual-work-title">Actual work today</h3>
+      ) : (
+        <div className="card-heading">
+          <div>
+            <p className="eyebrow">Only the time you track</p>
+            <h2 id="actual-work-title">Actual work</h2>
+          </div>
+          <button className="button button-primary" disabled={disabled} onClick={onNew}>
+            New work session
+          </button>
         </div>
-        <button className="button button-primary" disabled={disabled} onClick={onNew}>
-          New work session
-        </button>
-      </div>
+      )}
       <div className="work-total">
         <strong data-testid="actual-work-total">{workDuration(seconds)}</strong>
         <span>/ {workDuration(target)}</span>
@@ -72,29 +81,33 @@ export function WorkTracker({
         max={target}
         value={Math.min(target, seconds)}
       />
-      <div className="work-current">
-        <div>
-          <span className={'session-status ' + (runner ? 'running' : 'paused')}>
-            {runner ? 'Running' : sessions.length ? 'Paused' : 'Idle'}
-          </span>
-          <span>{runner?.objective ?? 'No activity is counting time.'}</span>
-          {runner && <strong>{stopwatchTime(elapsedFocus(runner, new Date(now)))}</strong>}
+      {!compact && (
+        <div className="work-current">
+          <div>
+            <span className={'session-status ' + (runner ? 'running' : 'paused')}>
+              {runner ? 'Running' : sessions.length ? 'Paused' : 'Idle'}
+            </span>
+            <span>{runner?.objective ?? 'No activity is counting time.'}</span>
+            {runner && <strong>{stopwatchTime(elapsedFocus(runner, new Date(now)))}</strong>}
+          </div>
+          <div className="execution-actions">
+            {runner && (
+              <button className="button" disabled={disabled} onClick={() => onControl(runner)}>
+                Pause work
+              </button>
+            )}
+            {sessions.length > 0 && (
+              <button className="button" disabled={disabled} onClick={onOpen}>
+                Open timer
+              </button>
+            )}
+          </div>
         </div>
-        <div className="execution-actions">
-          {runner && (
-            <button className="button" disabled={disabled} onClick={() => onControl(runner)}>
-              Pause work
-            </button>
-          )}
-          {sessions.length > 0 && (
-            <button className="button" disabled={disabled} onClick={onOpen}>
-              Open timer
-            </button>
-          )}
-        </div>
-      </div>
+      )}
       <details className="work-breakdown">
-        <summary>Activities & saved sessions</summary>
+        <summary>
+          {compact ? 'View activity breakdown & saved sessions' : 'Activities & saved sessions'}
+        </summary>
         {w.activities.length ? (
           <ul className="work-activity-list">
             {w.activities.map((a) => (
