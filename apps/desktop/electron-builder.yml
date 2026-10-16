@@ -1,5 +1,6 @@
 appId: com.lifeos.desktop
 productName: Life OS
+artifactName: Life-OS-Setup-${version}.${ext}
 extraMetadata:
   name: life-os
   productName: Life OS
@@ -27,4 +28,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-publish: null
+publish:
+  provider: github
+  owner: StMichael9
+  repo: life-os
+  releaseType: release

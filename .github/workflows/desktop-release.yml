@@ -1,0 +1,69 @@
+name: Windows release
+on:
+  push:
+    branches: [release/windows]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/release/windows'
+    runs-on: windows-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Release gate
+        run: |
+          pnpm typecheck
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm lint
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm exec vitest run apps/desktop/src --maxWorkers=1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Assign immutable release version
+        run: |
+          node -e "const fs=require('fs');const p='apps/desktop/package.json';const d=JSON.parse(fs.readFileSync(p));d.version='0.2.'+process.env.GITHUB_RUN_NUMBER;fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n')"
+      - name: Build normal Windows application
+        run: pnpm --filter @life-os/desktop package:win
+      - name: Inspect portable payload
+        run: node apps/desktop/scripts/check-payload.mjs
+      - name: Focused homepage gate
+        env:
+          LIFE_OS_HOMEPAGE_BROWSER_TEST: 'true'
+        run: pnpm exec vitest run packages/api/src/homepage-browser.test.ts --maxWorkers=1
+      - name: Packaged startup and clean-close smoke
+        run: node apps/desktop/scripts/release-smoke.mjs
+      - name: Sign verified installer
+        env:
+          LIFE_OS_UPDATE_PRIVATE_KEY: ${{ secrets.LIFE_OS_UPDATE_PRIVATE_KEY }}
+        run: node apps/desktop/scripts/sign-update.mjs
+      - name: Publish atomically after all checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = node -p "require('./apps/desktop/package.json').version"
+          $tag = "v$version"
+          $existing = gh release view $tag --json isDraft,targetCommitish 2>$null | ConvertFrom-Json
+          if ($LASTEXITCODE -eq 0) {
+            if (-not $existing.isDraft -or $existing.targetCommitish -ne $env:GITHUB_SHA) { throw 'Published releases are immutable' }
+          } else {
+            gh release create $tag --draft --target $env:GITHUB_SHA --title "Life OS $version" --notes "Verified Windows update from $env:GITHUB_SHA. Your existing local profile is retained."
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          gh release upload $tag "apps/desktop/release/Life-OS-Setup-$version.exe" "apps/desktop/release/Life-OS-Setup-$version.exe.blockmap" "apps/desktop/release/latest.yml" "apps/desktop/release/life-os-update.json" --clobber
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          gh release edit $tag --draft=false --latest

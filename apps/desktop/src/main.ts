@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { loadLocalIdentity } from './local-identity';
 import { pinnedLocalCertificate, allowedLocalRequest } from './local-trust';
 import { startLocalBackend, type LocalBackend } from './local-backend';
+import { desktopUpdates } from './desktop-updates';
 
 declare const __LIFE_OS_WEB_URL__: string;
 declare const __LIFE_OS_OFFLINE__: boolean;
@@ -16,6 +17,7 @@ let quitting = false;
 let backend: LocalBackend | undefined;
 let privateDirectory: string | undefined;
 let backendReady = false;
+let updates: ReturnType<typeof desktopUpdates> | undefined;
 
 async function initializeOffline() {
   const local = await loadLocalIdentity(app.getPath('userData'));
@@ -128,20 +130,25 @@ async function createWindow() {
   current.webContents.on('will-prevent-unload', () => {
     if (discardPrompt) return;
     discardPrompt = true;
-    void dialog.showMessageBox(current, {
-      type: 'question',
-      title: 'Life OS unsaved changes',
-      message: 'Discard unsaved changes and close Life OS?',
-      detail: 'Saved workspace data will be kept.',
-      buttons: ['Keep editing', 'Discard and close'],
-      defaultId: 0,
-      cancelId: 0,
-    }).then(choice => {
-      discardPrompt = false;
-      if (current.isDestroyed()) return;
-      if (choice.response === 1) current.destroy();
-      else current.focus();
-    });
+    void dialog
+      .showMessageBox(current, {
+        type: 'question',
+        title: 'Life OS unsaved changes',
+        message: 'Discard unsaved changes and close Life OS?',
+        detail: 'Saved workspace data will be kept.',
+        buttons: ['Keep editing', 'Discard and close'],
+        defaultId: 0,
+        cancelId: 0,
+      })
+      .then((choice) => {
+        discardPrompt = false;
+        if (current.isDestroyed()) return;
+        if (choice.response === 1) current.destroy();
+        else {
+          updates?.cancelRestart();
+          current.focus();
+        }
+      });
   });
   current.once('ready-to-show', () => current.show());
   current.on('closed', () => {
@@ -220,6 +227,12 @@ else {
       return;
     }
     await createWindow();
+    if (
+      app.isPackaged &&
+      process.platform === 'win32' &&
+      !process.argv.some((arg) => arg.startsWith('--user-data-dir'))
+    )
+      updates = desktopUpdates();
     app.on('activate', () => {
       if (!window) void createWindow();
     });
@@ -244,8 +257,10 @@ app.on('before-quit', (event) => {
     try {
       await backend?.stop();
       await persistence?.flush();
+      const install = await updates?.prepareInstall();
       canQuit = true;
-      app.quit();
+      if (install) install();
+      else app.quit();
     } catch {
       quitting = false;
       const choice = await dialog.showMessageBox({

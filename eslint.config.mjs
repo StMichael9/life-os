@@ -5,6 +5,7 @@ import hooks from 'eslint-plugin-react-hooks';
 export default tseslint.config(
   {
     ignores: [
+      '**/.operations/**',
       '**/node_modules/**',
       '**/.next/**',
       '**/dist/**',
