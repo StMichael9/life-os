@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { requestJson } from './auth-client';
 import type { ExecutionSnapshot, ScheduleBlock, FocusSession } from '@life-os/shared';
 import { FocusWorkspace } from './focus-workspace';
 export function WorkBlockWorkspace({
@@ -10,14 +11,10 @@ export function WorkBlockWorkspace({
   busy,
   onClose,
   onStart,
-  sessions,
-  selected,
-  next,
-  onMore,
+  selected: globalSelected,
   onSelect,
   onNotes,
   onReview,
-  onNew,
   onControl,
   onFinish,
   onEdit,
@@ -31,14 +28,10 @@ export function WorkBlockWorkspace({
   busy: boolean;
   onClose: () => void;
   onStart: (mode?: 'countdown' | 'stopwatch') => void;
-  sessions: FocusSession[];
   selected: FocusSession | null;
-  next: string | null;
-  onMore: () => void;
   onSelect: (session: FocusSession) => void;
   onNotes: (session: FocusSession) => void;
   onReview?: ((session: FocusSession) => void) | undefined;
-  onNew: () => void;
   onControl: (session: FocusSession) => void;
   onFinish: (session: FocusSession) => void;
   onEdit: () => void;
@@ -46,6 +39,87 @@ export function WorkBlockWorkspace({
   onRemove: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [page, setPage] = useState<{
+    items: FocusSession[];
+    next: string | null;
+    stamp: string;
+  } | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
+  const epoch = useRef(0);
+  useEffect(() => {
+    const generation = ++epoch.current;
+    let disposed = false;
+    void requestJson<{ items: FocusSession[]; next: string | null; ownerId: string }>(
+      '/api/execution/focus?scheduleBlockId=' + block.id,
+    )
+      .then((result) => {
+        if (disposed) return;
+        if (result.ownerId !== data.ownerId) throw new Error('Account changed. Reopen this block.');
+        setPage({ ...result, stamp: data.serverNow });
+        setLoadError('');
+      })
+      .catch((e) => {
+        if (!disposed) {
+          setPage(null);
+          setLoadError(e instanceof Error ? e.message : 'Unable to load block sessions.');
+        }
+      })
+      .finally(() => {
+        if (!disposed && generation === epoch.current) setLoading(false);
+      });
+    return () => {
+      disposed = true;
+      epoch.current = generation + 1;
+    };
+  }, [block.id, data.ownerId, data.serverNow, refresh]);
+  async function more() {
+    if (!page?.next || loading) return;
+    const generation = epoch.current;
+    setLoading(true);
+    try {
+      const result = await requestJson<{
+        items: FocusSession[];
+        next: string | null;
+        ownerId: string;
+      }>('/api/execution/focus?scheduleBlockId=' + block.id + '&before=' + page.next);
+      if (generation !== epoch.current) return;
+      if (result.ownerId !== data.ownerId) throw new Error('Account changed. Reopen this block.');
+      setPage((prior) => ({
+        items: [
+          ...(prior?.items ?? []),
+          ...result.items.filter((s) => !prior?.items.some((p) => p.id === s.id)),
+        ],
+        next: result.next,
+        stamp: data.serverNow,
+      }));
+    } catch (e) {
+      if (generation === epoch.current)
+        setLoadError(e instanceof Error ? e.message : 'Unable to load sessions.');
+    } finally {
+      if (generation === epoch.current) setLoading(false);
+    }
+  }
+  const sessions = (page?.items ?? []).filter((s) => s.scheduleBlockId === block.id);
+  // The selected/running session may lie beyond the first page. Only exact owned
+  // occurrence links qualify; global work is never inferred from a parent/title.
+  for (const extra of [data.focus, globalSelected]) {
+    if (
+      extra &&
+      !extra.endedAt &&
+      extra.scheduleBlockId === block.id &&
+      !sessions.some((s) => s.id === extra.id)
+    )
+      sessions.push(extra);
+  }
+  const selected =
+    sessions.find((s) => s.id === globalSelected?.id) ??
+    sessions.find((s) => s.resumedAt) ??
+    sessions[0] ??
+    null;
+  const unavailable = busy || loading || !page || page.stamp !== data.serverNow;
+
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -87,61 +161,72 @@ export function WorkBlockWorkspace({
           {error}
         </p>
       )}
-      {sessions.length > 0 ? (
-        <>
-          {(!selected ||
-            selected.objective !== (block.objective || block.title) ||
-            selected.taskId !== block.taskId ||
-            selected.projectId !== block.projectId) && (
-            <button
-              className="button button-primary block-start-another"
-              disabled={busy}
-              onClick={() => onStart()}
-            >
-              Start Focus
-            </button>
-          )}
-          <FocusWorkspace
-            sessions={sessions}
-            selected={selected}
-            now={now}
-            busy={busy}
-            settling={false}
-            objective={null}
-            next={next}
-            onMore={onMore}
-            onNew={onNew}
-            onSelect={onSelect}
-            onControl={onControl}
-            onFinish={onFinish}
-            onNotes={onNotes}
-            onReview={onReview}
-          />
-        </>
+      {data.focus?.resumedAt && data.focus.scheduleBlockId !== block.id && (
+        <p className="muted" role="status">
+          Running elsewhere: {data.focus.objective}. Starting or resuming here pauses it
+          automatically.
+        </p>
+      )}
+      {loadError && (
+        <p role="alert">
+          {loadError}{' '}
+          <button
+            className="button"
+            onClick={() => {
+              setLoading(true);
+              setRefresh((n) => n + 1);
+            }}
+          >
+            Retry sessions
+          </button>
+        </p>
+      )}
+      {loading && !page ? (
+        <p role="status">Loading this occurrence’s sessions…</p>
+      ) : sessions.length > 0 ? (
+        <FocusWorkspace
+          sessions={sessions}
+          selected={selected}
+          now={now}
+          busy={unavailable}
+          settling={loading || page?.stamp !== data.serverNow}
+          objective={null}
+          next={page?.next ?? null}
+          onMore={() => void more()}
+          onNew={() => onStart(selected?.timerMode ?? 'countdown')}
+          newLabel="New Session / Restart"
+          onSelect={onSelect}
+          onControl={onControl}
+          onFinish={onFinish}
+          onNotes={onNotes}
+          onReview={onReview}
+        />
       ) : (
         <div className="block-focus-intent">
+          <p>No saved session for this occurrence.</p>
           <p>{block.objective || block.title}</p>
           <p className="muted">
             {duration}-minute Focus intention{duration === 720 ? ' · capped at 12 hours' : ''}
           </p>
-          <button className="button button-primary" disabled={busy} onClick={() => onStart()}>
+          <button
+            className="button button-primary"
+            disabled={unavailable}
+            onClick={() => onStart()}
+          >
             Start Focus
           </button>
         </div>
       )}
-      {(!selected ||
-        selected.timerMode !== 'stopwatch' ||
-        selected.objective !== (block.objective || block.title) ||
-        selected.taskId !== block.taskId ||
-        selected.projectId !== block.projectId) && (
-        <button
-          className="button block-start-another"
-          disabled={busy}
-          onClick={() => onStart('stopwatch')}
-        >
-          Start work stopwatch
-        </button>
-      )}
+      <button
+        className="button block-start-another"
+        disabled={unavailable}
+        onClick={() => onStart('stopwatch')}
+      >
+        Start work stopwatch
+      </button>
+      <p className="muted">
+        New Session / Restart starts fresh and preserves earlier sessions and their recorded work.
+      </p>
       {data.plan?.oneThing && (
         <p className="block-objective">
           <span className="eyebrow">Today's objective</span>

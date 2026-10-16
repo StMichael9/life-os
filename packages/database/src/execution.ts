@@ -93,7 +93,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
     if (projectId) await owned(tx, s.projects, projectId, userId);
     if (categoryId) await owned(tx, s.categories, categoryId, userId);
   }
-  async function unfinished(tx: Tx, userId: string, before?: string) {
+  async function unfinished(tx: Tx, userId: string, before?: string, scheduleBlockId?: string) {
+    if (scheduleBlockId) await owned(tx, s.scheduleBlocks, scheduleBlockId, userId);
     let boundary;
     if (before) {
       const [anchor] = await tx
@@ -106,7 +107,14 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
     const rows = await tx
       .select()
       .from(s.focusSessions)
-      .where(and(eq(s.focusSessions.userId, userId), isNull(s.focusSessions.endedAt), boundary))
+      .where(
+        and(
+          eq(s.focusSessions.userId, userId),
+          isNull(s.focusSessions.endedAt),
+          boundary,
+          scheduleBlockId ? eq(s.focusSessions.scheduleBlockId, scheduleBlockId) : undefined,
+        ),
+      )
       .orderBy(desc(s.focusSessions.createdAt), desc(s.focusSessions.id))
       .limit(51);
     return { items: rows.slice(0, 50).map(focus), next: rows.length > 50 ? rows[49]!.id : null };
@@ -258,15 +266,11 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
               );
           if (c.remove) {
             if (!c.version) throw new DirectionNotFound();
-            if (priorBlock?.seriesId)
-              await tx
-                .update(s.scheduleBlocks)
-                .set({ skipped: true, overridden: true, version: c.version + 1 })
-                .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
-            else
-              await tx
-                .delete(s.scheduleBlocks)
-                .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
+            // Retain occurrence identity and explicit Focus links after calendar removal.
+            await tx
+              .update(s.scheduleBlocks)
+              .set({ skipped: true, overridden: true, version: c.version + 1 })
+              .where(and(eq(s.scheduleBlocks.id, c.id), eq(s.scheduleBlocks.userId, userId)));
           } else {
             const values = {
               title: c.title,
@@ -335,10 +339,11 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             existing.filter((b) => b.overridden).map((b) => b.occurrenceDate),
           );
           const generated = occurrences.filter((o) => !exceptions.has(o.date));
-          // Owner row lock serializes all schedule writes. Replace only normal occurrences;
+          // Keep occurrence rows/IDs stable for Focus history. Retire normal occurrences;
           // edited/skipped occurrences are kept, including ones outside a changed repeat range.
           await tx
-            .delete(s.scheduleBlocks)
+            .update(s.scheduleBlocks)
+            .set({ skipped: true, version: sql`${s.scheduleBlocks.version}+1` })
             .where(
               and(
                 eq(s.scheduleBlocks.userId, userId),
@@ -394,8 +399,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
               .where(and(eq(s.scheduleSeries.id, c.id), eq(s.scheduleSeries.userId, userId)));
           else await tx.insert(s.scheduleSeries).values({ ...values, id: c.id, userId });
           if (generated.length)
-            await tx.insert(s.scheduleBlocks).values(
-              generated.map((o) => {
+            for (const o of generated) {
+              const values = (() => {
                 const prior = existing.find((b) => b.occurrenceDate === o.date);
                 return {
                   id: prior?.id ?? randomUUID(),
@@ -411,11 +416,29 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
                   occurrenceDate: o.date,
                   startsAt: new Date(o.startsAt),
                   endsAt: new Date(o.endsAt),
+                  skipped: false,
                 };
-              }),
-            );
+              })();
+              await tx.insert(s.scheduleBlocks).values(values).onConflictDoUpdate({
+                target: s.scheduleBlocks.id,
+                set: values,
+              });
+            }
           resultId = c.id;
         } else if (c.action === 'focus-start') {
+          if (c.scheduleBlockId) {
+            const [block] = await tx
+              .select()
+              .from(s.scheduleBlocks)
+              .where(
+                and(
+                  eq(s.scheduleBlocks.id, c.scheduleBlockId),
+                  eq(s.scheduleBlocks.userId, userId),
+                  eq(s.scheduleBlocks.skipped, false),
+                ),
+              );
+            if (!block) throw new DirectionNotFound();
+          }
           await links(tx, userId, c.taskId, c.projectId, c.categoryId);
           // The owner lock acquired above serializes every start/switch/control.
           // Close the previous interval before opening the next, at the same instant.
@@ -424,6 +447,7 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
             id: c.id,
             userId,
             objective: c.objective,
+            scheduleBlockId: c.scheduleBlockId,
             taskId: c.taskId,
             projectId: c.projectId,
             categoryId: c.categoryId,
@@ -706,8 +730,8 @@ export function createExecutionRepository<T extends PgQueryResultHKT>(db: PgData
         isolationLevel: 'repeatable read',
       });
     },
-    async unfinished(userId: string, before?: string) {
-      return db.transaction((tx) => unfinished(tx, userId, before));
+    async unfinished(userId: string, before?: string, scheduleBlockId?: string) {
+      return db.transaction((tx) => unfinished(tx, userId, before, scheduleBlockId));
     },
     async today(
       userId: string,

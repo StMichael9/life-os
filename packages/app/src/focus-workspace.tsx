@@ -13,6 +13,7 @@ export function FocusWorkspace({
   next,
   onMore,
   onNew,
+  newLabel = 'New Session',
   onSelect,
   onControl,
   onFinish,
@@ -29,6 +30,7 @@ export function FocusWorkspace({
   next: string | null;
   onMore: () => void;
   onNew: () => void;
+  newLabel?: string;
   onSelect: (session: FocusSession) => void;
   onControl: (session: FocusSession) => void;
   onFinish: (session: FocusSession) => void;
@@ -47,7 +49,7 @@ export function FocusWorkspace({
           <h2>{compact ? 'Core Focus' : selected ? 'Current session' : 'Your intentions'}</h2>
         </div>
         <button className="button" disabled={busy || settling} onClick={onNew}>
-          <Plus size={14} aria-hidden="true" /> {compact ? 'New session' : 'New Session'}
+          <Plus size={14} aria-hidden="true" /> {newLabel}
         </button>
       </div>
       {selected ? (
@@ -106,6 +108,13 @@ export function FocusWorkspace({
                 onClick={() => onReview(selected)}
               >
                 Review / correct time
+              </button>
+              <button
+                className="button button-quiet"
+                disabled={busy || settling}
+                onClick={() => onReview(selected)}
+              >
+                Reset to Zero…
               </button>
             </div>
           )}

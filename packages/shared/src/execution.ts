@@ -64,6 +64,7 @@ export interface ScheduleSeries {
   timeZone: string;
 }
 export interface FocusSession {
+  scheduleBlockId?: string | null;
   timerMode?: 'countdown' | 'stopwatch';
   activeMilliseconds?: number;
   discardedAt?: string | null;

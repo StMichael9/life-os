@@ -14,11 +14,11 @@ async function walk(path) {
 await walk(root);
 const folder = join(root, 'backend/packages/database/migrations');
 const journal = JSON.parse(await readFile(join(folder, 'meta/_journal.json'), 'utf8'));
-assert(journal.entries.length === 10);
+assert(journal.entries.length === 11);
 for (const entry of journal.entries)
   assert(
     (await readFile(join(folder, entry.tag + '.sql'))).equals(
       await readFile('packages/database/migrations/' + entry.tag + '.sql'),
     ),
   );
-console.log('PASS portable resources: ten exact migrations, no junctions or environment files');
+console.log('PASS portable resources: eleven exact migrations, no junctions or environment files');

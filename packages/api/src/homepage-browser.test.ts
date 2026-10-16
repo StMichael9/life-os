@@ -110,6 +110,7 @@ it.skipIf(process.env.LIFE_OS_HOMEPAGE_BROWSER_TEST !== 'true')(
       ] as const) {
         await repo.mutate(user.id, {
           action: 'focus-start',
+          scheduleBlockId: null,
           requestId: randomUUID(),
           id,
           objective,

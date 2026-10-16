@@ -421,6 +421,7 @@ export const scheduleBlocks = pgTable(
       columns: [t.categoryId, t.userId],
       foreignColumns: [categories.id, categories.userId],
     }),
+    unique('schedule_block_owner_key').on(t.id, t.userId),
     unique('schedule_series_date_key').on(t.seriesId, t.occurrenceDate),
     check('schedule_single_parent', sql`${t.taskId} is null or ${t.projectId} is null`),
     check(
@@ -450,6 +451,7 @@ export const focusSessions = pgTable(
     endedAt: timestamp('ended_at', { withTimezone: true }),
     plannedMinutes: integer('planned_minutes').notNull(),
     activeSeconds: integer('active_seconds').notNull().default(0),
+    scheduleBlockId: uuid('schedule_block_id'),
     activeMilliseconds: bigint('active_milliseconds', { mode: 'number' }).notNull().default(0),
     timerMode: text('timer_mode').notNull().default('countdown'),
     discardedAt: timestamp('discarded_at', { withTimezone: true }),
@@ -468,6 +470,11 @@ export const focusSessions = pgTable(
       columns: [t.projectId, t.userId],
       foreignColumns: [projects.id, projects.userId],
     }),
+    foreignKey({
+      columns: [t.scheduleBlockId, t.userId],
+      foreignColumns: [scheduleBlocks.id, scheduleBlocks.userId],
+    }),
+    index('focus_owner_block_idx').on(t.userId, t.scheduleBlockId, t.createdAt),
     check(
       'focus_work_fields',
       sql`${t.activeMilliseconds} >= 0 and ${t.activeMilliseconds} <= 2000000000000 and ${t.creditedMinutes} >= 0 and ${t.timerMode} in ('countdown','stopwatch') and (${t.discardedAt} is null or (${t.endedAt} is not null and ${t.resumedAt} is null))`,

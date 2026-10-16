@@ -1,5 +1,28 @@
 # Progress and handoff
 
+## Focus/work-block occurrence isolation — correction checkpoint
+
+Implemented explicit nullable occurrence ownership on Focus sessions in additive
+migration 0010 (eleven migrations, 24 tables). Block workspaces now retrieve scoped
+unfinished sessions and never infer association from title/Task/Project or global
+selection. Unknown-origin legacy sessions remain global, with no guessed backfill.
+Calendar removals retain skipped rows; recurring edits preserve occurrence IDs and
+session FKs. New Session / Restart creates fresh linked work without deleting history;
+Reset to Zero uses the existing reason/confirmation, exclusion and audit transaction.
+Global automatic pause/switch, precise interval accounting and midnight/DST semantics
+are preserved. This is separate from the unfinished local UI redesign.
+
+Verification: 142 default tests passed (eight guarded skips); all 48 isolated PostgreSQL
+execution tests passed, including new association/recurrence/ownership/restart/reset/day
+boundaries. Embedded physical reopen preserves links; typecheck/lint passed. Cloud's
+worker-port restriction blocks normal production build/browser verification; webpack
+also encounters existing native-module bundling. No configuration workaround or native
+verification is claimed. See [focus-occurrence-handoff.md](focus-occurrence-handoff.md).
+
+Exact next task: **Local normally integrate this fix with its current Windows/UI work,
+build with migrations 0000–0010, run the focused occurrence browser/native acceptance,
+and install the verified normal update after protecting the existing profile.**
+
 ## Windows UI refresh installation — 2026-10-13
 
 Cloud `150e464` was merged normally into `windows/desktop-first-qa` at `711bfc2`,

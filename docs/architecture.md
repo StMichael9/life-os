@@ -7,7 +7,7 @@ Installed laptop use must work without internet or manual server startup. Hosted
 and synchronization remain optional future work. The secure local runtime contract is
 [offline-desktop.md](offline-desktop.md); component tests are not proof of a Windows release.
 
-The embedded adapter reuses Drizzle/PgDatabase, the committed migration chain (0000–0008), repositories,
+The embedded adapter reuses Drizzle/PgDatabase, the committed migration chain (0000–0010), repositories,
 Argon2id/opaque authentication and ownership predicates. Private filesystem PGlite runs
 in the privileged backend, with no PostgreSQL socket and no renderer database access.
 A private process-global service promise spans Next's separate SSR/API module graphs,
@@ -18,6 +18,16 @@ a main-only capability, CSRF and a transactional first-account guard; hosted sig
 remains closed. Guarded dead-process recovery and encrypted embedded candidate restore
 are component-tested; native certificate/key/safeStorage/ACL/menu/cutover integration
 and crash verification remain pending. Keep Windows work bounded and separate from shared code.
+
+## Explicit Focus occurrence identity
+
+Focus sessions may carry an owner-checked schedule_block UUID. Block workspaces query
+that exact materialized occurrence, not a recurring-series parent, title, Task/Project
+match or global selection. Legacy unknown-origin sessions remain unassociated.
+Removed blocks are retained as skipped rows; normal recurrence edits upsert stable
+IDs rather than deleting referenced occurrences. Audit/reset and global single-runner
+interval accounting remain the existing services, not a second block timer model.
+See focus-occurrence-handoff.md for contract and Local acceptance boundaries.
 
 ## Calendar-centered execution
 
