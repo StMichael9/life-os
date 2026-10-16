@@ -14,12 +14,12 @@ Desktop content max-width 1440px; outer gutters 32px at wide sizes, 24px on lapt
 
 DOM/reading order is header, Agenda, Core Focus, Micro-Habits, daily context. CSS placement creates the desktop supporting column without changing keyboard order. No masonry/dense packing or breakpoint-induced semantic reorder. Agenda contains a compact summary, not a full-day hourly grid; the complete time-block calendar remains in Plan.
 
-| Viewport, CSS px | Composition | Agenda exposure | Focus and habits |
-| --- | --- | --- | --- |
-| ≥1200 | 8/4 unequal grid; max 1440 | Priority headline, Big 3, next action, up to 5 blocks and 3 urgent rows | 240px timer; 3 session rows + Show sessions; up to 5 routine checks |
-| 900–1199 | 60/40 two-column; 24px margins, 16px gap | Same order, initially 3 blocks; long titles wrap | 208px timer; habits beneath Focus |
-| 600–899 | Single main column with 24px margins; tablet header if it fits | Compact priority/next-action lead, then agenda disclosure with first 3 blocks visible | 208px timer; habits follow; session list opens on demand |
-| 320–599 | One column, 16px margins; bottom navigation | Same compact lead; agenda initially 2 blocks with Show day; Big 3 rows wrap | 184px timer; compact controls; full-width habit rows, no horizontal scroller |
+| Viewport, CSS px | Composition                                                    | Agenda exposure                                                                       | Focus and habits                                                             |
+| ---------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ≥1200            | 8/4 unequal grid; max 1440                                     | Priority headline, Big 3, next action, up to 5 blocks and 3 urgent rows               | 240px timer; 3 session rows + Show sessions; up to 5 routine checks          |
+| 900–1199         | 60/40 two-column; 24px margins, 16px gap                       | Same order, initially 3 blocks; long titles wrap                                      | 208px timer; habits beneath Focus                                            |
+| 600–899          | Single main column with 24px margins; tablet header if it fits | Compact priority/next-action lead, then agenda disclosure with first 3 blocks visible | 208px timer; habits follow; session list opens on demand                     |
+| 320–599          | One column, 16px margins; bottom navigation                    | Same compact lead; agenda initially 2 blocks with Show day; Big 3 rows wrap           | 184px timer; compact controls; full-width habit rows, no horizontal scroller |
 
 Breakpoints follow content fit, not device detection. At high zoom the desktop shell becomes the compact shell. A short laptop viewport scrolls naturally; it does not shrink text or crop forms to fit a single screen. Agenda expansion is memory state for the current view; durable layout personalization is not assumed.
 
@@ -119,19 +119,19 @@ Routine title opens notes; Manage routines opens the existing definition workspa
 
 ### Homepage states
 
-| State | Agenda | Core Focus | Micro-Habits / shared behavior |
-| --- | --- | --- | --- |
-| First use | “Choose one outcome for today” → plan editor; no seeded work | “Start with an objective” → new session | “Add a routine when it helps” → routine form |
-| No active Season | Quiet Choose direction link; execution still works | No mandatory Season setup | No onboarding gate |
-| Empty calendar | “Your day has open space” → Add block; eligible real Task may still be next | Focus remains usable without scheduling | Real routines remain visible |
-| Nothing eligible | “Choose work or capture a thought”; explain time/energy filters if excluding candidates | Select saved or create new | Never invent a recommendation |
-| Initial load | Fixed shell and neutral text/row skeletons; no fake numbers | Ring outline with “Loading session”; controls disabled | Checklist skeleton; no false empty state |
-| Refresh in background | Keep last verified snapshot, label freshness if delayed | Continue provisional display from last server anchor | Do not overwrite open drafts |
-| Aggregation unavailable | Explain local service unavailable; Retry; do not treat internet loss as equivalent | “Timing unverified” with last confirmed state; no success claims | Whole snapshot failure affects all three; partial cards are not independently fetched |
-| Mutation failure | Inline at affected control; stable request identity; retry | Settling state until refetched authoritative runner | Keep unrelated controls usable where safe |
-| Version conflict | “This changed elsewhere”; retain edit, review current version | Reload state; no silent replay with a new version | Do not silently replace saved values |
-| Session expired/account changed | Clear private snapshots and prevent submission | Hide private timer/session titles | Quarantine or clear drafts according to capture policy; never submit to a new account |
-| Closed day | Show saved outcomes with explicit Reopen action | Current session can still exist; closing a day does not secretly finish it | Completion edit flow follows supported date rules |
+| State                           | Agenda                                                                                  | Core Focus                                                                 | Micro-Habits / shared behavior                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| First use                       | “Choose one outcome for today” → plan editor; no seeded work                            | “Start with an objective” → new session                                    | “Add a routine when it helps” → routine form                                          |
+| No active Season                | Quiet Choose direction link; execution still works                                      | No mandatory Season setup                                                  | No onboarding gate                                                                    |
+| Empty calendar                  | “Your day has open space” → Add block; eligible real Task may still be next             | Focus remains usable without scheduling                                    | Real routines remain visible                                                          |
+| Nothing eligible                | “Choose work or capture a thought”; explain time/energy filters if excluding candidates | Select saved or create new                                                 | Never invent a recommendation                                                         |
+| Initial load                    | Fixed shell and neutral text/row skeletons; no fake numbers                             | Ring outline with “Loading session”; controls disabled                     | Checklist skeleton; no false empty state                                              |
+| Refresh in background           | Keep last verified snapshot, label freshness if delayed                                 | Continue provisional display from last server anchor                       | Do not overwrite open drafts                                                          |
+| Aggregation unavailable         | Explain local service unavailable; Retry; do not treat internet loss as equivalent      | “Timing unverified” with last confirmed state; no success claims           | Whole snapshot failure affects all three; partial cards are not independently fetched |
+| Mutation failure                | Inline at affected control; stable request identity; retry                              | Settling state until refetched authoritative runner                        | Keep unrelated controls usable where safe                                             |
+| Version conflict                | “This changed elsewhere”; retain edit, review current version                           | Reload state; no silent replay with a new version                          | Do not silently replace saved values                                                  |
+| Session expired/account changed | Clear private snapshots and prevent submission                                          | Hide private timer/session titles                                          | Quarantine or clear drafts according to capture policy; never submit to a new account |
+| Closed day                      | Show saved outcomes with explicit Reopen action                                         | Current session can still exist; closing a day does not secretly finish it | Completion edit flow follows supported date rules                                     |
 
 For long local-backend startup, a neutral connection view may retry the existing service. It must not offer fabricated runtime controls or promise that the renderer can repair leases, restore backups or start privileged processes.
 
@@ -198,13 +198,13 @@ One logical session controller and one visible circular timer per screen context
 
 Countdown Focus and genuine count-up “Track work” are existing behavior in Cloud `fd14ccf`. Use `timerMode: countdown | stopwatch` and the shared active-time model. The strict start contract still requires valid `plannedMinutes` in either mode; preserve the current command builder's valid default for stopwatch starts while hiding countdown-intention controls for that mode. Do not infer mode from objective text or change the schema merely to match this presentation.
 
-| Property | Countdown Focus | Track work — existing in `fd14ccf` |
-| --- | --- | --- |
-| Start form | Objective; optional Task or Project/category; 25/50/90/custom minutes | Objective; optional same links; no mandatory planned duration |
-| Main number | Remaining active time; zero then additional active time | Elapsed active time, hours when needed |
-| Ring | Determinate progress toward intention; remains full in overtime | Static track with running-state accent, no invented percentage or endless spin |
-| Status | Running, Paused, Intention reached, Reconciling, Finished | Running, Paused, Reconciling, Finished |
-| At target | Continue tracking overtime; user finishes | No target or automatic finish |
+| Property    | Countdown Focus                                                       | Track work — existing in `fd14ccf`                                             |
+| ----------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Start form  | Objective; optional Task or Project/category; 25/50/90/custom minutes | Objective; optional same links; no mandatory planned duration                  |
+| Main number | Remaining active time; zero then additional active time               | Elapsed active time, hours when needed                                         |
+| Ring        | Determinate progress toward intention; remains full in overtime       | Static track with running-state accent, no invented percentage or endless spin |
+| Status      | Running, Paused, Intention reached, Reconciling, Finished             | Running, Paused, Reconciling, Finished                                         |
+| At target   | Continue tracking overtime; user finishes                             | No target or automatic finish                                                  |
 
 Both modes use the same interval authority, owner lock, one-runner invariant and notes/outcome model. Migration `0009_actual_work` adds the existing mode/audit/target fields and preserves old countdowns. Do not replace it with a new migration designed here. Mode is fixed after start in this proposal; restarting creates a new session.
 
@@ -252,16 +252,16 @@ Synthetic walkthrough: work A for 12 minutes, pause for 7, work B for 4, resume 
 
 ### Correction, reconciliation and restart
 
-| Situation | Experience using existing contracts | Extension required for ideal behavior |
-| --- | --- | --- |
-| Uncertain Pause/Finish delivery | Keep command identity; label Reconciling; reload server state; replay exact command if needed | Durable pending-command recovery across app crash |
-| Reload with running/paused sessions | Fetch authoritative records and selected URL; show loading before controls; no new session created | None for ordinary rehydration |
-| Return after sleep/clock change | Refresh server anchor; show timing as unverified until confirmed | Trusted sleep/shutdown boundaries and reviewed gap correction; server wall time alone cannot know whether work occurred |
-| Forgot to pause | Use existing work-session review and audited interval trimming with a reason | Adding missed work or moving time to another session is unsupported |
-| Wrong Task/objective after start | Existing work remains intact; notes may explain; start a new session with correct link | Editing/reassigning session links/objective needs a command and reconciliation policy |
-| Finished too early | “Start another session” creates a new ID with copied form defaults; preserve old history | No reopening/rewinding a finished session under current contracts |
-| Manual Task duration differs | Label as aggregate; existing correction logic adjusts credits created after `0009` | Legacy pre-0009 credit reconciliation needs a separately reviewed policy |
-| Local backend unavailable | Retain last confirmed state with “Timing unverified”; keep unsent notes in memory | No offline renderer timing queue or claim that Pause has persisted |
+| Situation                           | Experience using existing contracts                                                                | Extension required for ideal behavior                                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Uncertain Pause/Finish delivery     | Keep command identity; label Reconciling; reload server state; replay exact command if needed      | Durable pending-command recovery across app crash                                                                       |
+| Reload with running/paused sessions | Fetch authoritative records and selected URL; show loading before controls; no new session created | None for ordinary rehydration                                                                                           |
+| Return after sleep/clock change     | Refresh server anchor; show timing as unverified until confirmed                                   | Trusted sleep/shutdown boundaries and reviewed gap correction; server wall time alone cannot know whether work occurred |
+| Forgot to pause                     | Use existing work-session review and audited interval trimming with a reason                       | Adding missed work or moving time to another session is unsupported                                                     |
+| Wrong Task/objective after start    | Existing work remains intact; notes may explain; start a new session with correct link             | Editing/reassigning session links/objective needs a command and reconciliation policy                                   |
+| Finished too early                  | “Start another session” creates a new ID with copied form defaults; preserve old history           | No reopening/rewinding a finished session under current contracts                                                       |
+| Manual Task duration differs        | Label as aggregate; existing correction logic adjusts credits created after `0009`                 | Legacy pre-0009 credit reconciliation needs a separately reviewed policy                                                |
+| Local backend unavailable           | Retain last confirmed state with “Timing unverified”; keep unsent notes in memory                  | No offline renderer timing queue or claim that Pause has persisted                                                      |
 
 Existing-contract correction flow: History → Review recorded time → page intervals with local times/timezone → trim an existing interval, including to zero → show before/after totals and affected days/Task → reason → Save correction. Reset/discard exclude retained intervals and preserve the audit. Confirmation records reviewed continued work after interruption. The service supports correcting a closed interval even while its session runs; do not remove that capability. New missing-work entry or reassignment is an **extension**. Never edit planned calendar time to fix actual work.
 
@@ -271,16 +271,16 @@ Preferred future native policy: pause on confirmed clean quit and system suspend
 
 ## 4. Critical end-to-end journeys
 
-| Journey | Steps and handoff | Failure/recovery and successful endpoint |
-| --- | --- | --- |
-| Open and begin meaningful work | Verified local snapshot → priority lead → next work/block → objective and duration confirmation → Start | Failed start retains form/key; success shows one confirmed runner with direct source link |
-| Capture during Focus | Later → type → Save to Inbox → close → continue same session | Uncertain delivery retains frozen intent; capture neither pauses nor creates a Task automatically |
-| Process without duplicate entry | Library/Inbox → saved capture → Process as Task → confirm title/optional parent → atomic conversion | Retry returns same Task; original body remains available; no retyping full source |
-| Plan a block and execute | Plan/calendar → create block or recurrence → save → block details → Start Focus | Overlap/DST error retains inputs; countdown copies objective/link/duration, but no stored schedule-session relation is invented |
-| Switch between projects | A running → Resume B → atomic switch → edit B notes → Resume A | A/B clocks and notes independent; conflict reloads actual runner, no silent finish |
-| Complete a daily practice | Today routine checkbox → pending → confirmed | Failed check reverts with inline Retry; no score or timed minutes created |
-| Finish and close day | Finish → outcome/optional Task completion → confirmed history → Close Day → review objective data/reflection → save | Day closure does not finish an active timer implicitly; closed plan edits require Reopen |
-| Recover after interruption | Reopen → verify account → fetch selected/running sessions → inspect gap if future reconciliation supported | Current version labels uncertainty honestly; extension allows reviewed correction without touching planned blocks |
-| Find deferred thinking | Search or Library/Vault → retrieve full source → promote using existing command | Promotion preserves source; unsupported future entity types remain absent |
+| Journey                         | Steps and handoff                                                                                                   | Failure/recovery and successful endpoint                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Open and begin meaningful work  | Verified local snapshot → priority lead → next work/block → objective and duration confirmation → Start             | Failed start retains form/key; success shows one confirmed runner with direct source link                                       |
+| Capture during Focus            | Later → type → Save to Inbox → close → continue same session                                                        | Uncertain delivery retains frozen intent; capture neither pauses nor creates a Task automatically                               |
+| Process without duplicate entry | Library/Inbox → saved capture → Process as Task → confirm title/optional parent → atomic conversion                 | Retry returns same Task; original body remains available; no retyping full source                                               |
+| Plan a block and execute        | Plan/calendar → create block or recurrence → save → block details → Start Focus                                     | Overlap/DST error retains inputs; countdown copies objective/link/duration, but no stored schedule-session relation is invented |
+| Switch between projects         | A running → Resume B → atomic switch → edit B notes → Resume A                                                      | A/B clocks and notes independent; conflict reloads actual runner, no silent finish                                              |
+| Complete a daily practice       | Today routine checkbox → pending → confirmed                                                                        | Failed check reverts with inline Retry; no score or timed minutes created                                                       |
+| Finish and close day            | Finish → outcome/optional Task completion → confirmed history → Close Day → review objective data/reflection → save | Day closure does not finish an active timer implicitly; closed plan edits require Reopen                                        |
+| Recover after interruption      | Reopen → verify account → fetch selected/running sessions → inspect gap if future reconciliation supported          | Current version labels uncertainty honestly; extension allows reviewed correction without touching planned blocks               |
+| Find deferred thinking          | Search or Library/Vault → retrieve full source → promote using existing command                                     | Promotion preserves source; unsupported future entity types remain absent                                                       |
 
 Each journey must be possible through labeled controls without keyboard shortcuts, pointer hover, drag gestures or internet access in the packaged desktop app.
